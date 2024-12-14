@@ -7,10 +7,17 @@ class DecBlockData(BlockData):
         self._block_multiplier = 1.0
 
     def set_objective(self, expr):
+        #FIXME: warning - Reassigning the non-component attribute _block_objective
         self._block_objective = expr
+
+    def get_objective(self):
+        return self._block_objective
 
     def set_multiplier(self, multiplier):
         self._block_multiplier = multiplier
+
+    def get_multiplier(self):
+        return self._block_multiplier
 
 class DecBlock(CustomBlock):
     

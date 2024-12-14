@@ -1,5 +1,6 @@
 import pyomo.environ as pyo
 from pyodec.core.dec_block import DecBlock
+from pyodec.dec.ef.ef import ExtendedForm
 
 # Create a model
 model = pyo.ConcreteModel()
@@ -80,15 +81,11 @@ def second_stage_rule(block, scenario):
     def quota_rule(block, crop):
         return block.QuantitySubQuotaSold[crop] <= block.PriceQuota[crop]
     block.quota_constraint = pyo.Constraint(CROPS, rule=quota_rule)
-import pdb
-
-pdb.set_trace()
 
 model.second_stage = DecBlock(SCENARIOS, rule=second_stage_rule)
-# for s in SCENARIOS:
-#     model.objective += model.second_stage[s].profit / len(SCENARIOS)
 
 # Solve
+model = ExtendedForm(model).reconstruct()
 solver = pyo.SolverFactory('appsi_highs')
 solver.solve(model, tee=True)
 

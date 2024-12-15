@@ -27,19 +27,19 @@ class ExtendedForm:
         self.source.__dict__[self._objective_key].expr += expr
         return self.source
     
-    def _reconstruct_dec_block_data(self, dec_block_data):
+    def _reconstruct_dec_block_data(self, dec_block_data: DecBlockData):
         expr = 0.0
         expr += self._reconstruct_block(dec_block_data)
         expr += dec_block_data._block_objective
         return dec_block_data._block_multiplier * expr
 
-    def _reconstruct_indexed_dec_block(self, indexed_dec_block):
+    def _reconstruct_indexed_dec_block(self, indexed_dec_block: IndexedDecBlock):
         expr = 0.0
         for value in indexed_dec_block.values():
             expr += self._reconstruct_dec_block_data(value)
         return expr
 
-    def _reconstruct_block(self, block):
+    def _reconstruct_block(self, block: BlockData | DecBlockData):
         expr = 0.0
         for key, value in block.component_map().items():
             if isinstance(value, Objective):
@@ -54,7 +54,7 @@ class ExtendedForm:
                 expr += self._reconstruct_indexed_block(value)
         return expr
     
-    def _reconstruct_indexed_block(self, indexed_block):
+    def _reconstruct_indexed_block(self, indexed_block: IndexedBlock):
         expr = 0.0
         for value in indexed_block.values():
             expr += self._reconstruct_block(value)

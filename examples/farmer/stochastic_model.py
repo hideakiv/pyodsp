@@ -1,6 +1,6 @@
 import pyomo.environ as pyo
 from pyodec.core.dec_block import DecBlock
-from pyodec.dec.ef.ef import ExtendedForm
+from pyodec.dec.ef.construct import ExtendedForm
 
 # Create a model
 model = pyo.ConcreteModel()

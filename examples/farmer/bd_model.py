@@ -1,11 +1,16 @@
 import pyomo.environ as pyo
 
+from pyodec.core.subsolver.pyomo_subsolver import PyomoSubSolver
+from pyodec.dec.bd.node_root import BdRootNode
+from pyodec.dec.bd.node_leaf import BdLeafNode
+from pyodec.dec.bd.run import BdRun
+
 # Create a model
 model = pyo.ConcreteModel()
 
 # Sets
 CROPS = pyo.Set(initialize=['WHEAT', 'CORN', 'BEETS'])
-SCENARIOS = pyo.Set(initialize=['GOOD', 'AVERAGE', 'POOR'])
+SCENARIOS = ['GOOD', 'AVERAGE', 'POOR']
 
 # First stage parameters
 model.TOTAL_ACREAGE = pyo.Param(initialize=500)
@@ -20,7 +25,21 @@ def land_constraint_rule(model):
     return sum(model.DevotedAcreage[crop] for crop in CROPS) <= model.TOTAL_ACREAGE
 model.land_constraint = pyo.Constraint(rule=land_constraint_rule)
 
+# First stage objective
+def objective_rule(model):
+    return sum(model.PlantingCostPerAcre[crop] * model.DevotedAcreage[crop] for crop in CROPS)
+    
+model.objective = pyo.Objective(rule=objective_rule, sense=pyo.minimize)
+
+first_stage_solver = PyomoSubSolver(model, 'appsi_highs')
+coupling_dn = [model.DevotedAcreage[crop] for crop in CROPS]
+root_node = BdRootNode(0, first_stage_solver, coupling_dn)
+
+
+
 # Second stage
+
+second_stage = {scenario: pyo.ConcreteModel() for scenario in SCENARIOS}
 
 YIELD = {}
 YIELD['GOOD'] = pyo.Param(
@@ -30,7 +49,7 @@ YIELD['AVERAGE'] = pyo.Param(
 YIELD['POOR'] = pyo.Param(
     CROPS, initialize={'WHEAT': 2.0, 'CORN': 2.4, 'BEETS': 16.0})
 
-def second_stage_rule(block, scenario):
+for scenario, block in second_stage.items():
     # Parameters
     block.Yield = YIELD[scenario]
     block.PriceQuota = pyo.Param(
@@ -49,18 +68,13 @@ def second_stage_rule(block, scenario):
     block.QuantitySuperQuotaSold = pyo.Var(CROPS, domain=pyo.NonNegativeReals)
     block.QuantityRemainder = pyo.Var(CROPS, domain=pyo.NonNegativeReals)
     block.QuantityPurchased = pyo.Var(CROPS, domain=pyo.NonNegativeReals)
-
-    # Objective
-    def profit_rule(block):
-        return sum(block.SubQuotaSellingPrice[crop] * block.QuantitySubQuotaSold[crop] for crop in CROPS) + \
-            sum(block.SuperQuotaSellingPrice[crop] * block.QuantitySuperQuotaSold[crop] for crop in CROPS) - \
-            sum(block.PurchasePrice[crop] * block.QuantityPurchased[crop] for crop in CROPS)
+    block.DevotedAcreage = pyo.Var(CROPS, domain=pyo.Reals)
 
     # Constraints
 
     def crop_selling_rule(block, crop):
         return block.QuantitySubQuotaSold[crop] + block.QuantitySuperQuotaSold[crop] + \
-            block.QuantityRemainder[crop] == block.Yield[crop] * model.DevotedAcreage[crop]
+            block.QuantityRemainder[crop] == block.Yield[crop] * block.DevotedAcreage[crop]
     block.crop_selling_constraint = pyo.Constraint(CROPS, rule=crop_selling_rule)
 
     def cattle_feed_rule(block, crop):
@@ -71,24 +85,25 @@ def second_stage_rule(block, scenario):
         return block.QuantitySubQuotaSold[crop] <= block.PriceQuota[crop]
     block.quota_constraint = pyo.Constraint(CROPS, rule=quota_rule)
 
-model.second_stage = pyo.Block(SCENARIOS, rule=second_stage_rule)
+    # second stage objective
 
-# objective
-def objective_rule(model):
-    first_stage_cost = sum(model.PlantingCostPerAcre[crop] * model.DevotedAcreage[crop] for crop in CROPS)
-    second_stage_profit = 0
-    for scenario in SCENARIOS:
-        block = model.second_stage[scenario]
+    def profit_rule(block):
         profit = sum(block.SubQuotaSellingPrice[crop] * block.QuantitySubQuotaSold[crop] for crop in CROPS) + \
             sum(block.SuperQuotaSellingPrice[crop] * block.QuantitySuperQuotaSold[crop] for crop in CROPS) - \
             sum(block.PurchasePrice[crop] * block.QuantityPurchased[crop] for crop in CROPS)
-        second_stage_profit += profit / len(SCENARIOS)
-    return second_stage_profit - first_stage_cost
-model.objective = pyo.Objective(rule=objective_rule, sense=pyo.maximize)
+        return -profit
 
-# Solve
-solver = pyo.SolverFactory('appsi_highs')
-solver.solve(model, tee=True)
+    block.objective = pyo.Objective(rule=profit_rule, sense=pyo.minimize)
 
-# Display results
-model.display()
+second_stage_solver = {scenario: PyomoSubSolver(block, 'appsi_highs', use_dual=True) for scenario, block in second_stage.items()}
+
+leaf_nodes = {}
+idx = 1
+for scenario, block in second_stage.items():
+    coupling_vars_up = [block.DevotedAcreage[crop] for crop in CROPS]
+    leaf_nodes[scenario] = BdLeafNode(idx, second_stage_solver[scenario], 0, coupling_vars_up, multiplier=1/len(SCENARIOS))
+    root_node.add_child(idx)
+    idx += 1
+
+bd_run = BdRun([root_node, *leaf_nodes.values()])
+bd_run.run()

@@ -1,5 +1,15 @@
 from typing import List
-from pyomo.environ import ConcreteModel, SolverFactory, Suffix, Objective, value
+from pyomo.environ import (
+    ConcreteModel,
+    SolverFactory,
+    Suffix,
+    Objective,
+    value,
+    Var,
+    Constraint,
+    NonNegativeReals,
+    RangeSet,
+)
 from pyomo.core.base.var import VarData
 from pyomo.core.base.constraint import ConstraintData
 from pyomo.opt import TerminationCondition
@@ -36,10 +46,13 @@ class PyomoSubSolver(SubSolver):
         self.use_dual = kwargs.pop("use_dual", False)
         self.solver_kwargs = kwargs
 
+        self.original_objective = self.get_objective()
+
         if self.use_dual:
             if solver not in solver_dual_sign_convention:
                 raise ValueError("Solver not supported for dual")
             self.model.dual = Suffix(direction=Suffix.IMPORT)
+            self.enfeasibled_constraints = []
 
         self.sign_convention = solver_dual_sign_convention[solver]
         self.results = None
@@ -77,6 +90,36 @@ class PyomoSubSolver(SubSolver):
             raise ValueError("Cannot access to dual")
 
         return [self.sign_convention * self.model.dual[constr] for constr in constrs]
+
+    def get_dual_ray(self, constrs: List[ConstraintData]) -> List[float]:
+        """Get the dual ray of the model.
+
+        Args:
+            constrs: The constraints to get the dual ray of.
+        """
+        if not self.use_dual:
+            raise ValueError("Cannot access to dual")
+
+        if len(self.enfeasibled_constraints) == 0:
+            self._create_enfeasibled_constraints(constrs)
+
+        return [self.sign_convention * self.model.dual[constr] for constr in constrs]
+
+    def _create_enfeasibled_constraints(self, constrs: List[ConstraintData]) -> None:
+        self.model.add_component(
+            "_v_feas_plus",
+            Var(RangeSet(0, len(constrs) - 1), domain=NonNegativeReals),
+        )
+        self.model.add_component(
+            "_v_feas_minus",
+            Var(RangeSet(0, len(constrs) - 1), domain=NonNegativeReals),
+        )
+        for i, constr in enumerate(constrs):
+            new_constr = (
+                constr.expr + self.model._v_feas_plus[i] - self.model._v_feas_minus[i]
+            )
+            self.model.add_component(f"_c_feas_{i}", Constraint(expr=new_constr))
+            self.enfeasibled_constraints.append(self.model.component(f"_c_feas_{i}"))
 
     def fix_variables(self, vars: List[VarData], values: List[float]) -> None:
         """Fix the variables to a specified value

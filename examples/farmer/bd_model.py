@@ -1,8 +1,9 @@
 import pyomo.environ as pyo
 
-from pyodec.core.subsolver.pyomo_subsolver import PyomoSubSolver
 from pyodec.dec.bd.node_root import BdRootNode
+from pyodec.dec.bd.solver_root import BdSolverRoot
 from pyodec.dec.bd.node_leaf import BdLeafNode
+from pyodec.dec.bd.solver_leaf import BdSolverLeaf
 from pyodec.dec.bd.run import BdRun
 
 # Create a model
@@ -39,7 +40,7 @@ def objective_rule(model):
 
 model.objective = pyo.Objective(rule=objective_rule, sense=pyo.minimize)
 
-first_stage_solver = PyomoSubSolver(model, "appsi_highs")
+first_stage_solver = BdSolverRoot(model, "appsi_highs")
 coupling_dn = [model.DevotedAcreage[crop] for crop in CROPS]
 root_node = BdRootNode(0, first_stage_solver, coupling_dn)
 
@@ -128,7 +129,7 @@ for scenario, block in second_stage.items():
     block.objective = pyo.Objective(rule=profit_rule, sense=pyo.minimize)
 
 second_stage_solver = {
-    scenario: PyomoSubSolver(block, "appsi_highs", use_dual=True)
+    scenario: BdSolverLeaf(block, "appsi_highs")
     for scenario, block in second_stage.items()
 }
 
@@ -139,6 +140,7 @@ for scenario, block in second_stage.items():
     leaf_nodes[scenario] = BdLeafNode(
         idx,
         second_stage_solver[scenario],
+        0.0,
         0,
         coupling_vars_up,
         multiplier=1 / len(SCENARIOS),

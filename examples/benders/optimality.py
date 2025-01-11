@@ -1,8 +1,9 @@
 import pyomo.environ as pyo
 
-from pyodec.core.subsolver.pyomo_subsolver import PyomoSubSolver
 from pyodec.dec.bd.node_root import BdRootNode
+from pyodec.dec.bd.solver_root import BdSolverRoot
 from pyodec.dec.bd.node_leaf import BdLeafNode
+from pyodec.dec.bd.solver_leaf import BdSolverLeaf
 from pyodec.dec.bd.run import BdRun
 
 model1 = pyo.ConcreteModel()
@@ -16,7 +17,7 @@ model1.c3 = pyo.Constraint(expr=model1.x2 >= 20)
 
 model1.obj = pyo.Objective(expr=100 * model1.x1 + 150 * model1.x2, sense=pyo.minimize)
 
-first_stage_solver = PyomoSubSolver(model1, "appsi_highs")
+first_stage_solver = BdSolverRoot(model1, "appsi_highs")
 coupling_dn = [model1.x1, model1.x2]
 root_node = BdRootNode(0, first_stage_solver, coupling_dn)
 
@@ -44,13 +45,15 @@ for i, block in model2.items():
         expr=q1[i] * block.y1 + q2[i] * block.y2, sense=pyo.minimize
     )
 
-    second_stage_solver = PyomoSubSolver(block, "appsi_highs", use_dual=True)
+    second_stage_solver = BdSolverLeaf(block, "appsi_highs")
     coupling_up = [block.x1, block.x2]
-    leaf_node = BdLeafNode(i, second_stage_solver, 0, coupling_up, multiplier=p[i])
+    leaf_node = BdLeafNode(
+        i, second_stage_solver, -30000, 0, coupling_up, multiplier=p[i]
+    )
     leaf_nodes[i] = leaf_node
     root_node.add_child(i)
 
-root_node.build(num_cuts=1)
+root_node.build([-30000])
 
 bd_run = BdRun([root_node, *leaf_nodes.values()])
 bd_run.run()

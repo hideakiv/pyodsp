@@ -42,6 +42,15 @@ class SubSolver(ABC):
         pass
 
     @abstractmethod
+    def get_dual_ray(self, constrs: List[ConstraintData]) -> List[float]:
+        """Get the dual ray of the model.
+
+        Args:
+            constrs: The constraints to get the dual ray of.
+        """
+        pass
+
+    @abstractmethod
     def fix_variables(self, vars: List[VarData], values: List[float]) -> None:
         """Fix the variables to a specified value
 

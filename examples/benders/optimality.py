@@ -47,13 +47,11 @@ for i, block in model2.items():
 
     second_stage_solver = BdSolverLeaf(block, "appsi_highs")
     coupling_up = [block.x1, block.x2]
-    leaf_node = BdLeafNode(
-        i, second_stage_solver, -30000, 0, coupling_up, multiplier=p[i]
-    )
+    leaf_node = BdLeafNode(i, second_stage_solver, -30000, 0, coupling_up)
     leaf_nodes[i] = leaf_node
-    root_node.add_child(i)
+    root_node.add_child(i, leaf_node.bound, multiplier=p[i])
 
-root_node.build([-30000])
+root_node.build([[1, 2]])
 
 bd_run = BdRun([root_node, *leaf_nodes.values()])
 bd_run.run()

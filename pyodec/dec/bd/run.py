@@ -24,13 +24,10 @@ class BdRun:
         if self.root_idx is not None:
             self._iterate(self.nodes[self.root_idx])
 
-    def _iterate(
-        self, node: BdNode, sol_up: List[float] | None = None
-    ) -> Tuple[float, Cut] | None:
+    def _iterate(self, node: BdNode, sol_up: List[float] | None = None) -> Cut | None:
         if isinstance(node, BdRootNode):
             if not node.built:
-                bounds = [self.nodes[child].bound for child in node.children]
-                node.build(bounds)
+                node.build()
             while True:
                 if isinstance(node, BdLeafNode):
                     cut_up = node.solve(sol_up)
@@ -40,19 +37,17 @@ class BdRun:
 
                 print(self.get_root_obj(), solution)
                 cuts_dn = {}
-                multipliers_dn = {}
                 for child in node.children:
-                    multiplier_dn, cut_dn = self._iterate(self.nodes[child], solution)
+                    cut_dn = self._iterate(self.nodes[child], solution)
                     print("\t", cut_dn.coefficients, cut_dn.constant)
                     cuts_dn[child] = cut_dn
-                    multipliers_dn[child] = multiplier_dn
-                optimal = node.add_cuts(multipliers_dn, cuts_dn)
+                optimal = node.add_cuts(cuts_dn)
                 if optimal:
                     if isinstance(node, BdLeafNode):
-                        return node.multiplier, cut_up
+                        return cut_up
                     else:
                         return None
         if isinstance(node, BdLeafNode):
             if not node.built:
                 node.build()
-            return node.multiplier, node.solve(sol_up)
+            return node.solve(sol_up)

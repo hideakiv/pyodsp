@@ -13,51 +13,59 @@ class BdRootNode(BdNode):
     def __init__(
         self,
         idx: int,
-        sub_solver: BdSolverRoot,
+        solver: BdSolverRoot,
         vars_dn: List[VarData],
-        multiplier: float = 1.0,
     ) -> None:
-        super().__init__(idx, sub_solver, parent=None, multiplier=multiplier)
+        super().__init__(idx, parent=None)
+        self.solver = solver
         self.coupling_vars_dn: List[VarData] = vars_dn
+
+        self.children_bounds: Dict[int, float] = {}
 
         self.built = False
 
-    def build(self, subobj_bounds: List[float]):
-        self.built = True
-        self._set_num_cuts(len(subobj_bounds))
+    def add_child(self, idx, bound: float, multiplier=1.0):
+        self.children_bounds[idx] = bound
+        return super().add_child(idx, multiplier)
 
-        self.assign = self._assign_children()
+    def remove_child(self, idx):
+        self.children_bounds.pop(idx)
+        return super().remove_child(idx)
+
+    def remove_children(self):
+        self.children_bounds = {}
+        return super().remove_children()
+
+    def build(self, groups: List[List[int]] | None = None):
+        if groups is None:
+            self.groups = [[child] for child in self.children]
+        else:
+            self.groups = groups
+        self.num_cuts = len(self.groups)
+
+        subobj_bounds = []
+        for group in self.groups:
+            bound = 0.0
+            for member in group:
+                bound += (
+                    self.children_multipliers[member] * self.children_bounds[member]
+                )
+            subobj_bounds.append(bound)
+
         self.solver.build(subobj_bounds)
-
-    def _assign_children(self) -> List[List[int]]:
-        assign = [[] for _ in range(self.num_cuts)]
-        for i, child in enumerate(self.children):
-            assign_i = i % self.num_cuts
-            assign[assign_i].append(child)
-        return assign
-
-    def _set_num_cuts(self, num_cuts: int):
-        if num_cuts < 0:
-            raise ValueError("Number of cuts must be non-negative")
-        if num_cuts > len(self.children):
-            raise ValueError(
-                "Number of cuts must be less than or equal to the number of children"
-            )
-        if num_cuts != 1:
-            raise ValueError("Only one cut is supported at the moment")
-        self.num_cuts = num_cuts
+        self.built = True
 
     def get_coupling_solution(self) -> List[float]:
         return self.solver.get_solution(self.coupling_vars_dn)
 
-    def add_cuts(self, multipliers: Dict[int, float], cuts: Dict[int, Cut]) -> bool:
+    def add_cuts(self, cuts: Dict[int, Cut]) -> bool:
         found_cuts = [False for _ in range(self.num_cuts)]
-        for i, group in enumerate(self.assign):
+        for i, group in enumerate(self.groups):
             group_cut = []
             group_multipliers = []
             for child in group:
                 group_cut.append(cuts[child])
-                group_multipliers.append(multipliers[child])
+                group_multipliers.append(self.children_multipliers[child])
             aggregate_cut = self._aggregate_cuts(group_multipliers, group_cut)
 
             for cut in aggregate_cut:

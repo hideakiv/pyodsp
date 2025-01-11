@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Dict
 
 
 class Node:
@@ -10,9 +10,11 @@ class Node:
         self.idx: int = idx
         self.parent: int = parent
         self.children: List[int] = []
+        self.children_multipliers: Dict[int, float] = {}
 
-    def add_child(self, idx: int):
+    def add_child(self, idx: int, multiplier: float = 1.0):
         self.children.append(idx)
+        self.children_multipliers[idx] = multiplier
 
     def get_children(self):
         return self.children
@@ -23,9 +25,11 @@ class Node:
     def remove_child(self, idx: int):
         if idx in self.children:
             self.children.remove(idx)
+            self.children_multipliers.pop(idx)
 
     def remove_children(self):
         self.children = []
+        self.children_multipliers = {}
 
     def set_parent(self, parent):
         self.parent = parent

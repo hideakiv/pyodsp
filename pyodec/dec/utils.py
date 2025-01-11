@@ -6,16 +6,19 @@ from pyomo.core.base.var import VarData
 from pyomo.core.base.constraint import ConstraintData, IndexedConstraint
 from pyomo.repn import generate_standard_repn
 
+
 @dataclass
 class CouplingData:
     """Coefficients of the variables in the constraint."""
+
     constraint: ConstraintData
     coefficients: Dict[int, float]
     vars: List[VarData]
 
+
 def get_nonzero_coefficients_from_model(
-        model: ConcreteModel, vars: List[VarData]
-    ) -> List[CouplingData]:
+    model: ConcreteModel, vars: List[VarData]
+) -> List[CouplingData]:
     """Get the nonzero coefficients of the variables in the constraints.
 
     Args:
@@ -33,14 +36,17 @@ def get_nonzero_coefficients_from_model(
                 coupling_list.append(coupling_data)
         elif isinstance(constraint, IndexedConstraint):
             for index in constraint:
-                coupling_data = get_nonzero_coefficients_from_constraint(constraint[index], vars)
+                coupling_data = get_nonzero_coefficients_from_constraint(
+                    constraint[index], vars
+                )
                 if len(coupling_data.coefficients) > 0:
                     coupling_list.append(coupling_data)
     return coupling_list
 
+
 def get_nonzero_coefficients_from_constraint(
-        constraint: ConstraintData, vars: List[VarData]
-    ) -> CouplingData:
+    constraint: ConstraintData, vars: List[VarData]
+) -> CouplingData:
     """Get the nonzero coefficients of the variables in the constraint.
 
     Args:
@@ -51,7 +57,9 @@ def get_nonzero_coefficients_from_constraint(
         A tuple of the constraint and the coefficients.
     """
     repn = generate_standard_repn(constraint.body)
-    all_coefficients = {var.name: coef for var, coef in zip(repn.linear_vars, repn.linear_coefs)}
+    all_coefficients = {
+        var.name: coef for var, coef in zip(repn.linear_vars, repn.linear_coefs)
+    }
     coefficients: Dict[int, float] = {}
     for i, var in enumerate(vars):
         if var.name in all_coefficients:

@@ -1,10 +1,10 @@
-
 from typing import List, Dict
 
 from .node import BdNode
 from .node_leaf import BdLeafNode
 from .node_root import BdRootNode
 from .cuts import Cut
+
 
 class BdRun:
     def __init__(self, nodes: List[BdNode]):
@@ -16,16 +16,16 @@ class BdRun:
             if node.parent is None:
                 return idx
         return None
-    
+
     def get_root_obj(self) -> float:
         return self.nodes[self.root_idx].solver.get_objective_value()
-    
+
     def run(self):
         if self.root_idx is not None:
             if not self.nodes[self.root_idx].built:
                 self.nodes[self.root_idx].build()
             self._iterate(self.nodes[self.root_idx])
-    
+
     def _iterate(self, node: BdNode, sol_up: List[float] | None = None) -> Cut | None:
         if isinstance(node, BdRootNode):
             while True:
@@ -34,7 +34,7 @@ class BdRun:
                 else:
                     node.solve()
                 solution = node.get_coupling_solution()
-                
+
                 print(self.get_root_obj(), solution)
                 cuts_dn = {}
                 for child in node.children:

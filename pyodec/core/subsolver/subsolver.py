@@ -1,14 +1,12 @@
 from abc import ABC, abstractmethod
 from typing import List
 
-from pyomo.environ import ConcreteModel
 from pyomo.core.base.var import VarData
 from pyomo.core.base.constraint import ConstraintData
 
-class SubSolver(ABC):
-    """Base class for subsolvers.
 
-    """
+class SubSolver(ABC):
+    """Base class for subsolvers."""
 
     @abstractmethod
     def solve(self) -> None:
@@ -46,7 +44,7 @@ class SubSolver(ABC):
     @abstractmethod
     def fix_variables(self, vars: List[VarData], values: List[float]) -> None:
         """Fix the variables to a specified value
-        
+
         Args:
             vars: The variables to be fixed.
             values: The values to be set.
@@ -62,4 +60,3 @@ class SubSolver(ABC):
     def is_infeasible(self) -> bool:
         """Returns whether the model is infeasible."""
         pass
-

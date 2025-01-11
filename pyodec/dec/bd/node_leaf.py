@@ -1,30 +1,32 @@
+from typing import List
 
-from typing import List, Dict, Tuple
-
-from pyomo.environ import Var
-from pyomo.core.base.var import VarData, IndexedVar
+from pyomo.core.base.var import VarData
 
 from .node import BdNode
 from .cuts import Cut, OptimalityCut
 from pyodec.dec.utils import CouplingData, get_nonzero_coefficients_from_model
 from pyodec.core.subsolver.subsolver import SubSolver
 
+
 class BdLeafNode(BdNode):
     def __init__(
-            self,
-            idx: int,
-            sub_solver: SubSolver,
-            parent: int,
-            vars_up: List[VarData],
-            multiplier: float = 1.0,
-        ) -> None:
+        self,
+        idx: int,
+        sub_solver: SubSolver,
+        parent: int,
+        vars_up: List[VarData],
+        multiplier: float = 1.0,
+    ) -> None:
         super().__init__(idx, sub_solver, parent=parent, multiplier=multiplier)
         self.coupling_vars_up: List[VarData] = vars_up
 
-        self.coupling_info: List[CouplingData] = \
-            get_nonzero_coefficients_from_model(self.solver.model, self.coupling_vars_up)
-        
-        self.coupling_constraints = [coupling_data.constraint for coupling_data in self.coupling_info]
+        self.coupling_info: List[CouplingData] = get_nonzero_coefficients_from_model(
+            self.solver.model, self.coupling_vars_up
+        )
+
+        self.coupling_constraints = [
+            coupling_data.constraint for coupling_data in self.coupling_info
+        ]
 
     def solve(self, coupling_values: List[float]) -> Cut:
         self._fix_coupling_variables(coupling_values)
@@ -54,7 +56,7 @@ class BdLeafNode(BdNode):
         constant = self.multiplier * constant
         objective = self.multiplier * self.solver.get_objective_value()
         return OptimalityCut(
-                coefficients=coef,
-                constant=constant,
-                objective_value=objective,
-            )
+            coefficients=coef,
+            constant=constant,
+            objective_value=objective,
+        )

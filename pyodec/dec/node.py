@@ -1,11 +1,12 @@
 from typing import List
 
+
 class Node:
     def __init__(
-            self,
-            idx: int,
-            parent: int | None = None,
-        ) -> None:
+        self,
+        idx: int,
+        parent: int | None = None,
+    ) -> None:
         self.idx: int = idx
         self.parent: int = parent
         self.children: List[int] = []
@@ -28,4 +29,3 @@ class Node:
 
     def set_parent(self, parent):
         self.parent = parent
-

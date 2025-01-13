@@ -30,5 +30,5 @@ class BdLeafNode(BdNode):
 
     def solve(self, coupling_values: List[float]) -> Cut:
         self.solver.fix_variables(self.coupling_vars_up, coupling_values)
-        super().solve()
+        self.solver.solve()
         return self.solver.get_subgradient(self.coupling_vars_up)

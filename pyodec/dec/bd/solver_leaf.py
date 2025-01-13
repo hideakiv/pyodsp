@@ -5,8 +5,10 @@ from pyomo.environ import (
     Suffix,
     Var,
     Constraint,
+    Objective,
     NonNegativeReals,
     RangeSet,
+    inequality,
 )
 from pyomo.core.base.var import VarData
 from pyomo.core.base.constraint import ConstraintData
@@ -42,6 +44,9 @@ class BdSolverLeaf(BdSolver):
         self.coupling_info: List[CouplingData] = None
         self.coupling_constraints: List[ConstraintData] = None
 
+        self.enfeasibled_constraints: List[ConstraintData] = []
+        self.enfeasibled_objective: Objective = None
+
     def build(self, coupling_vars: List[VarData]) -> None:
         self.coupling_info = get_nonzero_coefficients_from_model(
             self.model, coupling_vars
@@ -70,9 +75,13 @@ class BdSolverLeaf(BdSolver):
             raise ValueError("Unknown solver status")
 
     def _optimality_cut(self, coupling_vars: List[VarData]) -> OptimalityCut:
-        pi = self._get_dual_solution(self.coupling_constraints)
+        pi = [
+            self.sign_convention * self.model.dual[constr]
+            for constr in self.coupling_constraints
+        ]
+        objective = self.get_objective_value()
         coef = [0 for _ in range(len(coupling_vars))]
-        constant = self.get_objective_value()
+        constant = objective
         for i, dual_var in enumerate(pi):
             coupling_data = self.coupling_info[i]
             for j, coefficients in coupling_data.coefficients.items():
@@ -85,19 +94,23 @@ class BdSolverLeaf(BdSolver):
             objective_value=self.get_objective_value(),
         )
 
-    def _get_dual_solution(self, constrs: List[ConstraintData]) -> List[float]:
-        """Get the dual solution of the model.
-
-        Args:
-            constrs: The constraints to get the dual solution of.
-        """
-
-        return [self.sign_convention * self.model.dual[constr] for constr in constrs]
-
     def _feasibility_cut(self, coupling_vars: List[VarData]) -> FeasibilityCut:
-        sigma = self._get_dual_ray(self.coupling_constraints)
+        if self.enfeasibled_objective is None:
+            self._create_feasible_mode(self.coupling_constraints)
+
+        self._activate_feasible_mode()
+        self.solve()
+
+        sigma = [
+            self.sign_convention * self.model.dual[constr]
+            for constr in self.enfeasibled_constraints
+        ]
+        objective = self.get_objective_value()
+
+        self._deactivate_feasible_mode()
+
         coef = [0 for _ in range(len(coupling_vars))]
-        constant = self.get_objective_value()
+        constant = objective
         for i, dual_ray in enumerate(sigma):
             coupling_data = self.coupling_info[i]
             for j, coefficients in coupling_data.coefficients.items():
@@ -109,21 +122,7 @@ class BdSolverLeaf(BdSolver):
             constant=constant,
         )
 
-    def get_dual_ray(self, constrs: List[ConstraintData]) -> List[float]:
-        """Get the dual ray of the model.
-
-        Args:
-            constrs: The constraints to get the dual ray of.
-        """
-        if not self.use_dual:
-            raise ValueError("Cannot access to dual")
-
-        if len(self.enfeasibled_constraints) == 0:
-            self._create_enfeasibled_constraints(constrs)
-
-        return [self.sign_convention * self.model.dual[constr] for constr in constrs]
-
-    def _create_enfeasibled_constraints(self, constrs: List[ConstraintData]) -> None:
+    def _create_feasible_mode(self, constrs: List[ConstraintData]) -> None:
         self.model.add_component(
             "_v_feas_plus",
             Var(RangeSet(0, len(constrs) - 1), domain=NonNegativeReals),
@@ -133,8 +132,40 @@ class BdSolverLeaf(BdSolver):
             Var(RangeSet(0, len(constrs) - 1), domain=NonNegativeReals),
         )
         for i, constr in enumerate(constrs):
-            new_constr = (
-                constr.expr + self.model._v_feas_plus[i] - self.model._v_feas_minus[i]
+            lower = constr.lower
+            body = constr.body
+            upper = constr.upper
+            modified_body = (
+                body + self.model._v_feas_plus[i] - self.model._v_feas_minus[i]
             )
-            self.model.add_component(f"_c_feas_{i}", Constraint(expr=new_constr))
+            self.model.add_component(
+                f"_c_feas_{i}", Constraint(expr=inequality(lower, modified_body, upper))
+            )
             self.enfeasibled_constraints.append(self.model.component(f"_c_feas_{i}"))
+
+        self.model._enf_obj = Objective(
+            expr=sum(
+                self.model._v_feas_plus[i] + self.model._v_feas_minus[i]
+                for i in range(len(constrs))
+            ),
+            sense=self.original_objective.sense,
+        )
+        self.enfeasibled_objective = self.model._enf_obj
+
+    def _activate_feasible_mode(self) -> None:
+        self.original_objective.deactivate()
+        for constr in self.coupling_constraints:
+            constr.deactivate()
+
+        self.model._enf_obj.activate()
+        for constr in self.enfeasibled_constraints:
+            constr.activate()
+
+    def _deactivate_feasible_mode(self) -> None:
+        self.model._enf_obj.deactivate()
+        for constr in self.enfeasibled_constraints:
+            constr.deactivate()
+
+        self.original_objective.activate()
+        for constr in self.coupling_constraints:
+            constr.activate()

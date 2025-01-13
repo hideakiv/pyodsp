@@ -1,9 +1,9 @@
-from typing import List, Dict, Tuple
+from typing import List, Dict
 
 from .node import BdNode
 from .node_leaf import BdLeafNode
 from .node_root import BdRootNode
-from .cuts import Cut
+from .cuts import Cut, OptimalityCut, FeasibilityCut
 
 
 class BdRun:
@@ -39,7 +39,10 @@ class BdRun:
                 cuts_dn = {}
                 for child in node.children:
                     cut_dn = self._iterate(self.nodes[child], solution)
-                    print("\t", cut_dn.coefficients, cut_dn.constant)
+                    if isinstance(cut_dn, OptimalityCut):
+                        print("\tOptimality:\t", cut_dn.coefficients, cut_dn.constant)
+                    if isinstance(cut_dn, FeasibilityCut):
+                        print("\tFeasibility:\t", cut_dn.coefficients, cut_dn.constant)
                     cuts_dn[child] = cut_dn
                 optimal = node.add_cuts(cuts_dn)
                 if optimal:

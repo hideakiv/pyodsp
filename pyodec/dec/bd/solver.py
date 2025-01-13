@@ -25,7 +25,11 @@ class BdSolver:
     def solve(self) -> None:
         """Solve the model."""
 
-        self._results = self.solver.solve(self.model, **self._solver_kwargs)
+        self._results = self.solver.solve(
+            self.model, load_solutions=False, **self._solver_kwargs
+        )
+        if self.is_optimal():
+            self.model.solutions.load_from(self._results)
 
     def get_objective(self):
         """Get the objective of the model"""

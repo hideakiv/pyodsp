@@ -55,6 +55,9 @@ class BdRootNode(BdNode):
         self.solver.build(subobj_bounds)
         self.built = True
 
+    def solve(self) -> None:
+        self.solver.solve()
+
     def get_coupling_solution(self) -> List[float]:
         return self.solver.get_solution(self.coupling_vars_dn)
 

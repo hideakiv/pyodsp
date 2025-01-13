@@ -33,12 +33,12 @@ model.land_constraint = pyo.Constraint(rule=land_constraint_rule)
 
 # First stage objective
 def objective_rule(model):
-    return sum(
+    return -sum(
         model.PlantingCostPerAcre[crop] * model.DevotedAcreage[crop] for crop in CROPS
     )
 
 
-model.objective = pyo.Objective(rule=objective_rule, sense=pyo.minimize)
+model.objective = pyo.Objective(rule=objective_rule, sense=pyo.maximize)
 
 first_stage_solver = BdSolverRoot(model, "appsi_highs")
 coupling_dn = [model.DevotedAcreage[crop] for crop in CROPS]
@@ -124,9 +124,9 @@ for scenario, block in second_stage.items():
                 for crop in CROPS
             )
         )
-        return -profit
+        return profit
 
-    block.objective = pyo.Objective(rule=profit_rule, sense=pyo.minimize)
+    block.objective = pyo.Objective(rule=profit_rule, sense=pyo.maximize)
 
 second_stage_solver = {
     scenario: BdSolverLeaf(block, "appsi_highs")
@@ -137,7 +137,9 @@ leaf_nodes = {}
 idx = 1
 for scenario, block in second_stage.items():
     coupling_vars_up = [block.DevotedAcreage[crop] for crop in CROPS]
-    leaf_node = BdLeafNode(idx, second_stage_solver[scenario], 0.0, 0, coupling_vars_up)
+    leaf_node = BdLeafNode(
+        idx, second_stage_solver[scenario], 1000000.0, 0, coupling_vars_up
+    )
     leaf_nodes[scenario] = leaf_node
     root_node.add_child(idx, leaf_node.bound, multiplier=1 / len(SCENARIOS))
     idx += 1

@@ -40,9 +40,21 @@ class BdRun:
                 for child in node.children:
                     cut_dn = self._iterate(self.nodes[child], solution)
                     if isinstance(cut_dn, OptimalityCut):
-                        print("\tOptimality:\t", cut_dn.coefficients, cut_dn.constant)
+                        print(
+                            "\t",
+                            child,
+                            "\tOptimality:\t",
+                            cut_dn.coefficients,
+                            cut_dn.constant,
+                        )
                     if isinstance(cut_dn, FeasibilityCut):
-                        print("\tFeasibility:\t", cut_dn.coefficients, cut_dn.constant)
+                        print(
+                            "\t",
+                            child,
+                            "\tFeasibility:\t",
+                            cut_dn.coefficients,
+                            cut_dn.constant,
+                        )
                     cuts_dn[child] = cut_dn
                 optimal = node.add_cuts(cuts_dn)
                 if optimal:

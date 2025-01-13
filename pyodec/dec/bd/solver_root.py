@@ -53,13 +53,13 @@ class BdSolverRoot(BdSolver):
     ) -> bool:
 
         theta_val = self.model._theta[i].value
-        if theta_val >= cut.objective_value - self.tolerance:
-            # No need to add the cut
-            return False
         cut_num = len(self.optimality_cuts[i])
 
         if self.get_objective_sense():
             # Minimization
+            if theta_val >= cut.objective_value - self.tolerance:
+                # No need to add the cut
+                return False
             self.model.add_component(
                 f"_optimality_cut_{i}_{cut_num}",
                 Constraint(
@@ -70,6 +70,9 @@ class BdSolverRoot(BdSolver):
             )
         else:
             # Maximization
+            if theta_val <= cut.objective_value + self.tolerance:
+                # No need to add the cut
+                return False
             self.model.add_component(
                 f"_optimality_cut_{i}_{cut_num}",
                 Constraint(

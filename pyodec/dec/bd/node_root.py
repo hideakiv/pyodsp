@@ -24,9 +24,8 @@ class BdRootNode(BdNode):
 
         self.built = False
 
-    def add_child(self, idx, bound: float, multiplier=1.0):
+    def set_bound(self, idx, bound) -> None:
         self.children_bounds[idx] = bound
-        return super().add_child(idx, multiplier)
 
     def remove_child(self, idx):
         self.children_bounds.pop(idx)

@@ -43,7 +43,7 @@ for i, block in model2.items():
     coupling_up = [block.x1, block.x2]
     leaf_node = BdLeafNode(i, second_stage_solver, 0.0, 0, coupling_up)
     leaf_nodes[i] = leaf_node
-    root_node.add_child(i, leaf_node.bound, multiplier=p[i])
+    root_node.add_child(i, multiplier=p[i])
 
 root_node.build([[1, 2]])
 

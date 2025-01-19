@@ -32,3 +32,6 @@ class BdLeafNode(BdNode):
         self.solver.fix_variables(self.coupling_vars_up, coupling_values)
         self.solver.solve()
         return self.solver.get_subgradient(self.coupling_vars_up)
+
+    def get_bound(self) -> float:
+        return self.bound

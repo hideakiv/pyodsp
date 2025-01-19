@@ -6,30 +6,36 @@ from pyodec.dec.bd.node_leaf import BdLeafNode
 from pyodec.dec.bd.solver_leaf import BdSolverLeaf
 from pyodec.dec.bd.run import BdRun
 
-model1 = pyo.ConcreteModel()
 
-model1.x1 = pyo.Var(within=pyo.NonNegativeReals)
-model1.x2 = pyo.Var(within=pyo.NonNegativeReals)
+def create_root_node():
+    model1 = pyo.ConcreteModel()
 
-model1.c1 = pyo.Constraint(expr=model1.x1 + model1.x2 <= 120)
-model1.c2 = pyo.Constraint(expr=model1.x1 >= 40)
-model1.c3 = pyo.Constraint(expr=model1.x2 >= 20)
+    model1.x1 = pyo.Var(within=pyo.NonNegativeReals)
+    model1.x2 = pyo.Var(within=pyo.NonNegativeReals)
 
-model1.obj = pyo.Objective(expr=100 * model1.x1 + 150 * model1.x2, sense=pyo.minimize)
+    model1.c1 = pyo.Constraint(expr=model1.x1 + model1.x2 <= 120)
+    model1.c2 = pyo.Constraint(expr=model1.x1 >= 40)
+    model1.c3 = pyo.Constraint(expr=model1.x2 >= 20)
 
-first_stage_solver = BdSolverRoot(model1, "appsi_highs")
-coupling_dn = [model1.x1, model1.x2]
-root_node = BdRootNode(0, first_stage_solver, coupling_dn)
+    model1.obj = pyo.Objective(
+        expr=100 * model1.x1 + 150 * model1.x2, sense=pyo.minimize
+    )
 
-model2 = {1: pyo.ConcreteModel(), 2: pyo.ConcreteModel()}
+    first_stage_solver = BdSolverRoot(model1, "appsi_highs")
+    coupling_dn = [model1.x1, model1.x2]
+    root_node = BdRootNode(0, first_stage_solver, coupling_dn)
+    return root_node
+
+
 d1 = {1: 500, 2: 300}
 d2 = {1: 100, 2: 300}
 q1 = {1: -24, 2: -28}
 q2 = {1: -28, 2: -32}
 p = {1: 0.4, 2: 0.6}
-leaf_nodes = {}
 
-for i, block in model2.items():
+
+def create_leaf_node(i):
+    block = pyo.ConcreteModel()
     block.x1 = pyo.Var(within=pyo.Reals)
     block.x2 = pyo.Var(within=pyo.Reals)
 
@@ -48,10 +54,18 @@ for i, block in model2.items():
     second_stage_solver = BdSolverLeaf(block, "appsi_highs")
     coupling_up = [block.x1, block.x2]
     leaf_node = BdLeafNode(i, second_stage_solver, -30000, 0, coupling_up)
-    leaf_nodes[i] = leaf_node
-    root_node.add_child(i, leaf_node.bound, multiplier=p[i])
+    return leaf_node
 
-root_node.build([[1, 2]])
 
-bd_run = BdRun([root_node, *leaf_nodes.values()])
-bd_run.run()
+if __name__ == "__main__":
+    root_node = create_root_node()
+    leaf_node_1 = create_leaf_node(1)
+    leaf_node_2 = create_leaf_node(2)
+
+    root_node.add_child(1, multiplier=p[1])
+    root_node.add_child(2, multiplier=p[2])
+
+    root_node.build([[1, 2]])
+
+    bd_run = BdRun([root_node, leaf_node_1, leaf_node_2])
+    bd_run.run()

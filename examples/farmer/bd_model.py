@@ -141,7 +141,7 @@ for scenario, block in second_stage.items():
         idx, second_stage_solver[scenario], 1000000.0, 0, coupling_vars_up
     )
     leaf_nodes[scenario] = leaf_node
-    root_node.add_child(idx, leaf_node.bound, multiplier=1 / len(SCENARIOS))
+    root_node.add_child(idx, multiplier=1 / len(SCENARIOS))
     idx += 1
 
 bd_run = BdRun([root_node, *leaf_nodes.values()])

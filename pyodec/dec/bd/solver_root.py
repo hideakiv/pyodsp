@@ -9,11 +9,9 @@ from .cuts import OptimalityCut, FeasibilityCut
 
 class BdSolverRoot(BdSolver):
 
-    def __init__(
-        self, model: ConcreteModel, solver: str, tolerance: float = 1e-6, **kwargs
-    ):
+    def __init__(self, model: ConcreteModel, solver: str, **kwargs):
         super().__init__(model, solver, **kwargs)
-        self.tolerance = tolerance
+        self.tolerance = 1e-6
 
         self.optimality_cuts: Dict[int, List[Constraint]] = {}
         self.feasibility_cuts: Dict[int, List[Constraint]] = {}
@@ -24,6 +22,9 @@ class BdSolverRoot(BdSolver):
         for i in range(self.num_cuts):
             self.optimality_cuts[i] = []
             self.feasibility_cuts[i] = []
+
+    def set_tolerance(self, tolerance) -> None:
+        self.tolerance = tolerance
 
     def _update_objective(self, subobj_bounds: List[float]):
         def theta_bounds(model, i):

@@ -8,7 +8,6 @@ from .solver_root import BdSolverRoot
 
 
 class BdRootNode(BdNode):
-    TOLERANCE = 1e-6
 
     def __init__(
         self,
@@ -53,6 +52,9 @@ class BdRootNode(BdNode):
 
         self.solver.build(subobj_bounds)
         self.built = True
+
+    def set_tolerance(self, tolerance: float) -> None:
+        self.solver.set_tolerance(tolerance)
 
     def solve(self) -> None:
         self.solver.solve()

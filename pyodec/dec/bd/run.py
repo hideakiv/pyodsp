@@ -55,25 +55,29 @@ class BdRun:
     def _get_cuts(self, node: BdNode, solution: List[float]) -> Dict[int, Cut]:
         cuts_dn = {}
         for child in node.children:
-            cut_dn = self._run_node(self.nodes[child], solution)
-            if isinstance(cut_dn, OptimalityCut):
-                print(
-                    "\t",
-                    child,
-                    "\tOptimality:\t",
-                    cut_dn.coefficients,
-                    cut_dn.constant,
-                )
-            if isinstance(cut_dn, FeasibilityCut):
-                print(
-                    "\t",
-                    child,
-                    "\tFeasibility:\t",
-                    cut_dn.coefficients,
-                    cut_dn.constant,
-                )
+            cut_dn = self._get_cut(child, solution)
             cuts_dn[child] = cut_dn
         return cuts_dn
+
+    def _get_cut(self, idx: int, solution: List[float]) -> Cut:
+        cut_dn = self._run_node(self.nodes[idx], solution)
+        if isinstance(cut_dn, OptimalityCut):
+            print(
+                "\t",
+                idx,
+                "\tOptimality:\t",
+                cut_dn.coefficients,
+                cut_dn.constant,
+            )
+        if isinstance(cut_dn, FeasibilityCut):
+            print(
+                "\t",
+                idx,
+                "\tFeasibility:\t",
+                cut_dn.coefficients,
+                cut_dn.constant,
+            )
+        return cut_dn
 
     def _set_bounds(self, node: BdRootNode) -> None:
         for child in node.children:

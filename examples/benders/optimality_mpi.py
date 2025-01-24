@@ -1,11 +1,18 @@
 from mpi4py import MPI
 
-from .optimality import create_root_node, create_leaf_node, p
+from optimality import create_root_node, create_leaf_node, p
+from pyodec.dec.bd.run_mpi import BdRunMpi
+
+
+"""
+mpiexec -n 3 python optimality_mpi.py
+"""
 
 if __name__ == "__main__":
 
     comm = MPI.COMM_WORLD
     rank = comm.Get_rank()
+    size = comm.Get_size()
 
     if rank == 0:
         node = create_root_node()
@@ -17,3 +24,10 @@ if __name__ == "__main__":
 
     if rank == 2:
         node = create_leaf_node(2)
+
+    node_rank_map = {0: 0, 1: 1, 2: 2}
+
+    bd_run = BdRunMpi([node], node_rank_map)
+    bd_run.run()
+
+    MPI.Finalize()

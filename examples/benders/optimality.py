@@ -65,7 +65,7 @@ if __name__ == "__main__":
     root_node.add_child(1, multiplier=p[1])
     root_node.add_child(2, multiplier=p[2])
 
-    root_node.build([[1, 2]])
+    root_node.set_groups([[1, 2]])
 
     bd_run = BdRun([root_node, leaf_node_1, leaf_node_2])
     bd_run.run()

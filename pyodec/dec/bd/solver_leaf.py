@@ -13,9 +13,10 @@ from pyomo.environ import (
 from pyomo.core.base.var import VarData
 from pyomo.core.base.constraint import ConstraintData
 
-from .solver import BdSolver
-from .cuts import Cut, OptimalityCut, FeasibilityCut
 from pyodec.dec.utils import CouplingData, get_nonzero_coefficients_from_model
+from pyodec.alg.bm.cuts import Cut, OptimalityCut, FeasibilityCut
+
+from .solver import BdSolver
 
 solver_dual_sign_convention = dict()
 solver_dual_sign_convention["ipopt"] = -1
@@ -89,8 +90,8 @@ class BdSolverLeaf(BdSolver):
                 coef[j] += temp
                 constant += temp * self.coupling_values[j]
         return OptimalityCut(
-            coefficients=coef,
-            constant=constant,
+            coeffs=coef,
+            rhs=constant,
             objective_value=self.get_objective_value(),
         )
 
@@ -118,8 +119,8 @@ class BdSolverLeaf(BdSolver):
                 coef[j] += temp
                 constant += temp * self.coupling_values[j]
         return FeasibilityCut(
-            coefficients=coef,
-            constant=constant,
+            coeffs=coef,
+            rhs=constant,
         )
 
     def _create_feasible_mode(self, constrs: List[ConstraintData]) -> None:

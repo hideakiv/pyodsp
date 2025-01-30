@@ -6,8 +6,8 @@ from dataclasses import dataclass
 class Cut:
     """Base class for cuts."""
 
-    coefficients: List[float]
-    constant: float
+    coeffs: List[float]
+    rhs: float
 
 
 @dataclass
@@ -22,3 +22,13 @@ class FeasibilityCut(Cut):
     """Class for feasibility cuts."""
 
     pass
+
+
+@dataclass
+class WrappedCut:
+    """Class for wrapping cuts with info"""
+
+    cut: Cut
+    iteration: int
+    trial_point: List[float]
+    period: int

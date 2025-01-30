@@ -18,9 +18,10 @@ class BdLogger:
         # Add the handler to the logger
         self.logger.addHandler(ch)
 
-    def log_initialization(self, tolerance, max_iteration):
+    def log_initialization(self, **kwargs):
         self.logger.info("Starting Benders decomposition")
-        self.logger.info(f"tolerance: {tolerance}\tmax_iteration: {max_iteration}")
+        for key, var in kwargs.items():
+            self.logger.info(f"{key}: {var}")
 
     def log_master_problem(self, iteration, objective_value, x):
         self.logger.info(f"Iteration {iteration}: {objective_value}")

@@ -2,9 +2,9 @@ from typing import List
 
 from pyomo.core.base.var import VarData
 
-from .node import BdNode
-from .cuts import Cut
+from pyodec.alg.bm.cuts import Cut
 
+from .node import BdNode
 from .solver_leaf import BdSolverLeaf
 
 

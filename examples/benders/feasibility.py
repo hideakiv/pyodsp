@@ -45,7 +45,7 @@ for i, block in model2.items():
     leaf_nodes[i] = leaf_node
     root_node.add_child(i, multiplier=p[i])
 
-root_node.build([[1, 2]])
+root_node.set_groups([[1, 2]])
 
 bd_run = BdRun([root_node, *leaf_nodes.values()])
 bd_run.run()

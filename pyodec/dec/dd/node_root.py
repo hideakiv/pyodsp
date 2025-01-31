@@ -4,16 +4,16 @@ from pyomo.core.base.var import VarData
 
 from pyodec.alg.bm.cuts import Cut, OptimalityCut, FeasibilityCut
 
-from .node import BdNode
-from .solver_root import BdSolverRoot
+from .node import DdNode
+from .solver_root import DdSolverRoot
 
 
-class BdRootNode(BdNode):
+class DdRootNode(DdNode):
 
     def __init__(
         self,
         idx: int,
-        solver: BdSolverRoot,
+        solver: DdSolverRoot,
         vars_dn: List[VarData],
     ) -> None:
         super().__init__(idx, parent=None)

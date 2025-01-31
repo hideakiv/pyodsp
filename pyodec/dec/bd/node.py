@@ -11,6 +11,3 @@ class BdNode(Node):
 
     def build(self):
         pass
-
-    def solve(self):
-        pass

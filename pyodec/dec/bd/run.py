@@ -36,8 +36,7 @@ class BdRun:
     def _run_node(self, node: BdNode, sol_up: List[float] | None = None) -> Cut | None:
         if isinstance(node, BdRootNode):
             self._set_bounds(node)
-            if not node.built:
-                node.build()
+            node.build()
 
             node.solver.reset_iteration()
             while True:
@@ -63,8 +62,7 @@ class BdRun:
                     else:
                         return None
         if isinstance(node, BdLeafNode):
-            if not node.built:
-                node.build()
+            node.build()
             return node.solve(sol_up)
 
     def _get_cuts(self, node: BdNode, solution: List[float]) -> Dict[int, Cut]:

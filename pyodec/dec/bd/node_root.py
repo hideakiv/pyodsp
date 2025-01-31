@@ -39,7 +39,9 @@ class BdRootNode(BdNode):
         self.children_bounds = {}
         return super().remove_children()
 
-    def build(self):
+    def build(self) -> None:
+        if self.built:
+            return
         if self.groups is None:
             self.groups = [[child] for child in self.children]
         self.num_cuts = len(self.groups)

@@ -35,8 +35,7 @@ class BdRunMpi(BdRun):
             assert isinstance(root, BdRootNode)
             for child in root.children:
                 root.set_bound(child, combined_bounds[child])
-            if not root.built:
-                root.build()
+            root.build()
 
             root.solver.reset_iteration()
             while True:

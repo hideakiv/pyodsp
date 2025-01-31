@@ -11,6 +11,3 @@ class DdNode(Node):
 
     def build(self):
         pass
-
-    def solve(self):
-        pass

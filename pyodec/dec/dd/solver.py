@@ -1,5 +1,10 @@
 from typing import List
-from pyomo.environ import ConcreteModel, SolverFactory, Objective, value
+from pyomo.environ import (
+    ConcreteModel,
+    SolverFactory,
+    Objective,
+    value,
+)
 from pyomo.core.base.var import VarData
 from pyomo.opt import TerminationCondition
 
@@ -31,11 +36,13 @@ class DdSolver:
         if self.is_optimal():
             self.model.solutions.load_from(self._results)
 
-    def get_objective(self):
+    def get_objective(self) -> Objective:
         """Get the objective of the model"""
         for obj in self.model.component_objects(Objective, active=True):
             # There should be only one objective
             return obj
+        else:
+            raise ValueError("Objective not found")
 
     def get_objective_value(self) -> float:
         """Get the objective value of the model"""

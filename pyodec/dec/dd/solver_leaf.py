@@ -41,18 +41,14 @@ class DdSolverLeaf(DdSolver):
         self.model.dual = Suffix(direction=Suffix.IMPORT)
         self.sign_convention = solver_dual_sign_convention[solver]
 
-        self.coupling_values: List[float] = None
-        self.coupling_info: List[CouplingData] = None
-        self.coupling_constraints: List[ConstraintData] = None
-
         self.enfeasibled_constraints: List[ConstraintData] = []
-        self.enfeasibled_objective: Objective = None
+        self.enfeasibled_objective: Objective | None = None
 
     def build(self, coupling_vars: List[VarData]) -> None:
-        self.coupling_info = get_nonzero_coefficients_from_model(
+        self.coupling_info: List[CouplingData] = get_nonzero_coefficients_from_model(
             self.model, coupling_vars
         )
-        self.coupling_constraints = [
+        self.coupling_constraints: List[ConstraintData] = [
             coupling_data.constraint for coupling_data in self.coupling_info
         ]
 
@@ -63,7 +59,7 @@ class DdSolverLeaf(DdSolver):
             vars: The variables to be fixed.
             values: The values to be set.
         """
-        self.coupling_values = values
+        self.coupling_values: List[float] = values
         for i, var in enumerate(vars):
             var.fix(values[i])
 
@@ -81,7 +77,7 @@ class DdSolverLeaf(DdSolver):
             for constr in self.coupling_constraints
         ]
         objective = self.get_objective_value()
-        coef = [0 for _ in range(len(coupling_vars))]
+        coef = [0.0 for _ in range(len(coupling_vars))]
         constant = objective
         for i, dual_var in enumerate(pi):
             coupling_data = self.coupling_info[i]
@@ -110,7 +106,7 @@ class DdSolverLeaf(DdSolver):
 
         self._deactivate_feasible_mode()
 
-        coef = [0 for _ in range(len(coupling_vars))]
+        coef = [0.0 for _ in range(len(coupling_vars))]
         constant = objective
         for i, dual_ray in enumerate(sigma):
             coupling_data = self.coupling_info[i]

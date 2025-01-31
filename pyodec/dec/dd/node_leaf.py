@@ -24,7 +24,9 @@ class DdLeafNode(DdNode):
 
         self.built = False
 
-    def build(self):
+    def build(self) -> None:
+        if self.built:
+            return
         self.solver.build(self.coupling_vars_up)
         self.built = True
 

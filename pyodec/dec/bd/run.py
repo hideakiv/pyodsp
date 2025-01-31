@@ -16,7 +16,7 @@ class BdRun:
         self.logger = BdLogger()
         self.lb: List[float] = []
 
-    def _get_root_idx(self) -> int:
+    def _get_root_idx(self) -> int | None:
         for idx, node in self.nodes.items():
             if node.parent is None:
                 return idx
@@ -24,7 +24,9 @@ class BdRun:
 
     def get_root_obj(self) -> float | None:
         if self.root_idx is not None:
-            return self.nodes[self.root_idx].solver.get_objective_value()
+            node = self.nodes[self.root_idx]
+            assert isinstance(node, BdRootNode)
+            return node.solver.get_objective_value()
         return None
 
     def run(self):
@@ -42,11 +44,12 @@ class BdRun:
                 if isinstance(node, BdLeafNode):
                     cut_up = node.solve(sol_up)
                 else:
-                    node.solve()
+                    cut_up = node.solve()
                 solution = node.get_coupling_solution()
 
                 if node.idx == self.root_idx:
                     obj = self.get_root_obj()
+                    assert obj is not None
                     self.lb.append(obj)
                     self.logger.log_master_problem(iteration, obj, solution)
                 cuts_dn = self._get_cuts(node, solution)
@@ -72,6 +75,7 @@ class BdRun:
 
     def _get_cut(self, idx: int, solution: List[float]) -> Cut:
         cut_dn = self._run_node(self.nodes[idx], solution)
+        assert cut_dn is not None
         if isinstance(cut_dn, OptimalityCut):
             self.logger.log_sub_problem(idx, "Optimality", cut_dn.coeffs, cut_dn.rhs)
         if isinstance(cut_dn, FeasibilityCut):
@@ -80,4 +84,6 @@ class BdRun:
 
     def _set_bounds(self, node: BdRootNode) -> None:
         for child in node.children:
-            node.set_bound(child, self.nodes[child].get_bound())
+            child_node = self.nodes[child]
+            assert isinstance(child_node, BdLeafNode)
+            node.set_bound(child, child_node.get_bound())

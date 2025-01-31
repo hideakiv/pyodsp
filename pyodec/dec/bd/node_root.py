@@ -2,7 +2,7 @@ from typing import List, Dict
 
 from pyomo.core.base.var import VarData
 
-from pyodec.alg.bm.cuts import Cut, OptimalityCut, FeasibilityCut
+from pyodec.alg.bm.cuts import Cut, OptimalityCut, FeasibilityCut, CutList
 
 from .node import BdNode
 from .solver_root import BdSolverRoot
@@ -64,7 +64,8 @@ class BdRootNode(BdNode):
 
     def add_cuts(self, iteration: int, cuts: Dict[int, Cut]) -> bool:
         aggregate_cuts = []
-        for i, group in enumerate(self.groups):
+        assert self.groups is not None
+        for group in self.groups:
             group_cut = []
             group_multipliers = []
             for child in group:
@@ -79,8 +80,8 @@ class BdRootNode(BdNode):
         optimal = not any(found_cuts)
         return optimal
 
-    def _aggregate_cuts(self, multipliers: List[float], cuts: List[Cut]) -> List[Cut]:
-        new_coef = [0 for _ in range(len(self.coupling_vars_dn))]
+    def _aggregate_cuts(self, multipliers: List[float], cuts: List[Cut]) -> CutList:
+        new_coef = [0.0 for _ in range(len(self.coupling_vars_dn))]
         new_constant = 0
         new_objective = 0
         feasibility_cuts = []
@@ -96,11 +97,13 @@ class BdRootNode(BdNode):
             elif isinstance(cut, FeasibilityCut):
                 feasibility_cuts.append(cut)
         if len(feasibility_cuts) > 0:
-            return feasibility_cuts
-        return [
-            OptimalityCut(
-                coeffs=new_coef,
-                rhs=new_constant,
-                objective_value=new_objective,
-            )
-        ]
+            return CutList(feasibility_cuts)
+        return CutList(
+            [
+                OptimalityCut(
+                    coeffs=new_coef,
+                    rhs=new_constant,
+                    objective_value=new_objective,
+                )
+            ]
+        )

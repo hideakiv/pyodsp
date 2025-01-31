@@ -1,10 +1,10 @@
-from typing import List, Dict
+from typing import List
 
 from pyomo.environ import ConcreteModel
 from pyomo.core.base.var import VarData
 
 from pyodec.alg.bm.bm import BundleManager
-from pyodec.alg.bm.cuts import Cut, OptimalityCut, FeasibilityCut
+from pyodec.alg.bm.cuts import OptimalityCut, FeasibilityCut, CutList
 from .solver import BdSolver
 
 
@@ -21,7 +21,7 @@ class BdSolverRoot(BdSolver):
         )
 
     def add_cuts(
-        self, iteration: int, cuts_list: List[List[Cut]], vars: List[VarData]
+        self, iteration: int, cuts_list: List[CutList], vars: List[VarData]
     ) -> List[bool]:
         solution = self.get_solution(vars)
         found_cuts = [False for _ in range(len(cuts_list))]

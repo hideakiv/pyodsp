@@ -44,6 +44,7 @@ class BdRunMpi(BdRun):
                 solution = root.get_coupling_solution()
 
                 obj = self.get_root_obj()
+                assert obj is not None
                 self.lb.append(obj)
                 self.logger.log_master_problem(iteration, obj, solution)
                 self.comm.bcast(solution, root=0)
@@ -61,7 +62,7 @@ class BdRunMpi(BdRun):
                 optimal = root.add_cuts(iteration, combined_cuts_dn)
                 if optimal:
                     self.logger.log_completion(iteration, self.lb[-1])
-                    if isinstance(node, BdLeafNode):
+                    if isinstance(root, BdLeafNode):
                         raise NotImplementedError()
                     else:
                         self.comm.bcast(-1, root=0)

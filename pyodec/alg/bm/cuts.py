@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, TypeVar, Generic
 from dataclasses import dataclass
 
 
@@ -22,6 +22,14 @@ class FeasibilityCut(Cut):
     """Class for feasibility cuts."""
 
     pass
+
+
+T = TypeVar("T", bound=Cut)
+
+
+class CutList(list[T], Generic[T]):
+    def __init__(self, items: list[T] | None = None):
+        super().__init__(items or [])
 
 
 @dataclass

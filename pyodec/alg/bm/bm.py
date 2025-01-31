@@ -3,7 +3,7 @@ from typing import List, Dict
 from pyomo.environ import ConcreteModel, Var, Constraint, Objective, Reals, RangeSet
 from pyomo.core.base.var import VarData
 
-from .cuts import Cut, OptimalityCut, FeasibilityCut, WrappedCut
+from .cuts import Cut, CutList, OptimalityCut, FeasibilityCut, WrappedCut
 from .logger import BmLogger
 from ..const import BM_ABS_TOLERANCE
 
@@ -70,11 +70,35 @@ class BundleManager:
             expr=modified_expr, sense=self.original_objective.sense
         )
 
+    def add_cuts(
+        self, cuts_list: List[CutList], vars: List[VarData], solution: List[float]
+    ) -> bool:
+        found_cuts = [False for _ in range(len(cuts_list))]
+        for i, cuts in enumerate(cuts_list):
+            for cut in cuts:
+                found_cut = False
+                if isinstance(cut, OptimalityCut):
+                    found_cut = self._add_optimality_cut(i, cut, vars, solution)
+                elif isinstance(cut, FeasibilityCut):
+                    found_cut = self._add_feasibility_cut(i, cut, vars, solution)
+                found_cuts[i] = found_cut or found_cuts[i]
+
+        optimal = not any(found_cuts)
+        if optimal:
+            self.logger.log_status_optimal()
+            return True
+
+        reached_max_iteration = self.increment()
+        if reached_max_iteration:
+            self.logger.log_status_max_iter()
+
+        return False
+
     def _append_cut(self, cut: Cut, trial_point: List[float]):
         wrapped_cut = WrappedCut(cut, self.iteration, trial_point, 0)
         self.active_cuts.append(wrapped_cut)
 
-    def add_optimality_cut(
+    def _add_optimality_cut(
         self,
         i: int,
         cut: OptimalityCut,
@@ -117,7 +141,7 @@ class BundleManager:
 
         return True
 
-    def add_feasibility_cut(
+    def _add_feasibility_cut(
         self,
         i: int,
         cut: FeasibilityCut,

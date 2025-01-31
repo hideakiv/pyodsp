@@ -62,7 +62,7 @@ class BdRootNode(BdNode):
     def get_coupling_solution(self) -> List[float]:
         return self.solver.get_solution(self.coupling_vars_dn)
 
-    def add_cuts(self, iteration: int, cuts: Dict[int, Cut]) -> bool:
+    def add_cuts(self, cuts: Dict[int, Cut]) -> bool:
         aggregate_cuts = []
         assert self.groups is not None
         for group in self.groups:
@@ -74,11 +74,8 @@ class BdRootNode(BdNode):
             aggregate_cut = self._aggregate_cuts(group_multipliers, group_cut)
 
             aggregate_cuts.append(aggregate_cut)
-        found_cuts = self.solver.add_cuts(
-            iteration, aggregate_cuts, self.coupling_vars_dn
-        )
-        optimal = not any(found_cuts)
-        return optimal
+        finished = self.solver.add_cuts(aggregate_cuts, self.coupling_vars_dn)
+        return finished
 
     def _aggregate_cuts(self, multipliers: List[float], cuts: List[Cut]) -> CutList:
         new_coef = [0.0 for _ in range(len(self.coupling_vars_dn))]

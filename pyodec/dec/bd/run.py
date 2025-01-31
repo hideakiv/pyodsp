@@ -9,12 +9,11 @@ from .node_root import BdRootNode
 
 
 class BdRun:
-    def __init__(self, nodes: List[BdNode], max_iteration=1000):
+    def __init__(self, nodes: List[BdNode]):
         self.nodes: Dict[int, BdNode] = {node.idx: node for node in nodes}
-        self.max_iteration = max_iteration
         self.root_idx = self._get_root_idx()
         self.logger = BdLogger()
-        self.lb: List[float] = []
+        self.relax_bound: List[float] = []
 
     def _get_root_idx(self) -> int | None:
         for idx, node in self.nodes.items():
@@ -31,7 +30,7 @@ class BdRun:
 
     def run(self):
         if self.root_idx is not None:
-            self.logger.log_initialization(max_iteration=self.max_iteration)
+            self.logger.log_initialization()
             self._run_node(self.nodes[self.root_idx])
 
     def _run_node(self, node: BdNode, sol_up: List[float] | None = None) -> Cut | None:
@@ -39,8 +38,9 @@ class BdRun:
             self._set_bounds(node)
             if not node.built:
                 node.build()
-            iteration = 1
-            while iteration <= self.max_iteration:
+
+            node.solver.reset_iteration()
+            while True:
                 if isinstance(node, BdLeafNode):
                     cut_up = node.solve(sol_up)
                 else:
@@ -50,17 +50,18 @@ class BdRun:
                 if node.idx == self.root_idx:
                     obj = self.get_root_obj()
                     assert obj is not None
-                    self.lb.append(obj)
-                    self.logger.log_master_problem(iteration, obj, solution)
+                    self.relax_bound.append(obj)
+                    self.logger.log_master_problem(len(self.relax_bound), obj, solution)
                 cuts_dn = self._get_cuts(node, solution)
-                optimal = node.add_cuts(iteration, cuts_dn)
-                if optimal:
-                    self.logger.log_completion(iteration, self.lb[-1])
+                finished = node.add_cuts(cuts_dn)
+                if finished:
+                    self.logger.log_completion(
+                        len(self.relax_bound), self.relax_bound[-1]
+                    )
                     if isinstance(node, BdLeafNode):
                         return cut_up
                     else:
                         return None
-                iteration += 1
         if isinstance(node, BdLeafNode):
             if not node.built:
                 node.build()

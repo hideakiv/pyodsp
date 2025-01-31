@@ -10,32 +10,38 @@ from .solver import BdSolver
 
 class BdSolverRoot(BdSolver):
 
-    def __init__(self, model: ConcreteModel, solver: str, **kwargs):
+    def __init__(self, model: ConcreteModel, solver: str, max_iteration=1000, **kwargs):
         super().__init__(model, solver, **kwargs)
 
-        self.bm = BundleManager(model)
+        self.bm = BundleManager(model, max_iteration)
 
     def build(self, subobj_bounds: List[float]):
         self.bm.build(
             subobj_bounds, self.original_objective, self.get_objective_sense()
         )
 
-    def add_cuts(
-        self, iteration: int, cuts_list: List[CutList], vars: List[VarData]
-    ) -> List[bool]:
+    def add_cuts(self, cuts_list: List[CutList], vars: List[VarData]) -> bool:
         solution = self.get_solution(vars)
         found_cuts = [False for _ in range(len(cuts_list))]
         for i, cuts in enumerate(cuts_list):
             for cut in cuts:
                 found_cut = False
                 if isinstance(cut, OptimalityCut):
-                    found_cut = self.bm.add_optimality_cut(
-                        iteration, i, cut, vars, solution
-                    )
+                    found_cut = self.bm.add_optimality_cut(i, cut, vars, solution)
                 elif isinstance(cut, FeasibilityCut):
-                    found_cut = self.bm.add_feasibility_cut(
-                        iteration, i, cut, vars, solution
-                    )
+                    found_cut = self.bm.add_feasibility_cut(i, cut, vars, solution)
                 found_cuts[i] = found_cut or found_cuts[i]
 
-        return found_cuts
+        optimal = not any(found_cuts)
+        if optimal:
+            self.bm.logger.log_status_optimal()
+            return True
+
+        reached_max_iteration = self.bm.increment()
+        if reached_max_iteration:
+            self.bm.logger.log_status_max_iter()
+
+        return False
+
+    def reset_iteration(self) -> None:
+        self.bm.reset_iteration()

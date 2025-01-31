@@ -4,16 +4,21 @@ from pyomo.environ import ConcreteModel, Var, Constraint, Objective, Reals, Rang
 from pyomo.core.base.var import VarData
 
 from .cuts import Cut, OptimalityCut, FeasibilityCut, WrappedCut
+from .logger import BmLogger
 from ..const import BM_ABS_TOLERANCE
 
 
 class BundleManager:
-    def __init__(self, model: ConcreteModel) -> None:
+    def __init__(self, model: ConcreteModel, max_iteration=1000) -> None:
         self.model = model
         self.active_cuts: List[WrappedCut] = []
 
         self.optimality_cuts: Dict[int, int] = {}
         self.feasibility_cuts: Dict[int, int] = {}
+
+        self.max_iteration = max_iteration
+        self.iteration = 1
+        self.logger = BmLogger()
 
     def build(
         self,
@@ -28,6 +33,19 @@ class BundleManager:
         for i in range(self.num_cuts):
             self.optimality_cuts[i] = 0
             self.feasibility_cuts[i] = 0
+
+        self.logger.log_initialization(
+            tolerance=BM_ABS_TOLERANCE, max_iteration=self.max_iteration
+        )
+
+    def increment(self) -> bool:
+        self.iteration += 1
+
+        # reached max iteration
+        return self.iteration > self.max_iteration
+
+    def reset_iteration(self) -> None:
+        self.iteration = 0
 
     def _update_objective(self, subobj_bounds: List[float]):
         def theta_bounds(model, i):
@@ -52,13 +70,12 @@ class BundleManager:
             expr=modified_expr, sense=self.original_objective.sense
         )
 
-    def _append_cut(self, cut: Cut, iteration: int, trial_point: List[float]):
-        wrapped_cut = WrappedCut(cut, iteration, trial_point, 0)
+    def _append_cut(self, cut: Cut, trial_point: List[float]):
+        wrapped_cut = WrappedCut(cut, self.iteration, trial_point, 0)
         self.active_cuts.append(wrapped_cut)
 
     def add_optimality_cut(
         self,
-        iteration: int,
         i: int,
         cut: OptimalityCut,
         vars: List[VarData],
@@ -96,13 +113,12 @@ class BundleManager:
             )
 
         self.optimality_cuts[i] += 1
-        self._append_cut(cut, iteration, trial_point)
+        self._append_cut(cut, trial_point)
 
         return True
 
     def add_feasibility_cut(
         self,
-        iteration: int,
         i: int,
         cut: FeasibilityCut,
         vars: List[VarData],
@@ -131,6 +147,6 @@ class BundleManager:
             )
 
         self.feasibility_cuts[i] += 1
-        self._append_cut(cut, iteration, trial_point)
+        self._append_cut(cut, trial_point)
 
         return True

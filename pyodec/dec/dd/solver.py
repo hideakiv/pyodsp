@@ -76,3 +76,9 @@ class DdSolver:
             self._results.solver.termination_condition
             == TerminationCondition.infeasible
         )
+
+    def is_unbounded(self) -> bool:
+        """Returns whether the model is unbounded."""
+        return (
+            self._results.solver.termination_condition == TerminationCondition.unbounded
+        )

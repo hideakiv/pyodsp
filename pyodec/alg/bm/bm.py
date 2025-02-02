@@ -8,7 +8,7 @@ from .logger import BmLogger
 from ..const import BM_ABS_TOLERANCE
 
 
-class BundleManager:
+class BundleMethod:
     def __init__(self, model: ConcreteModel, max_iteration=1000) -> None:
         self.model = model
         self.active_cuts: List[WrappedCut] = []

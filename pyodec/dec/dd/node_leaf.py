@@ -24,8 +24,10 @@ class DdLeafNode(DdNode):
         self.built = False
 
     def set_coupling_matrix(self, coupling_matrix: List[Dict[int, float]]) -> None:
-        self.row_major: List[Dict[int, float]]
-        self.col_major: List[Dict[int, float]]
+        self.row_major: List[Dict[int, float]] = coupling_matrix
+        self.col_major: List[Dict[int, float]] = self._convert_to_col_major(
+            coupling_matrix
+        )
 
     def build(self) -> None:
         if self.built:
@@ -46,6 +48,15 @@ class DdLeafNode(DdNode):
             return OptimalityCut(dual_coeffs, rhs, obj)
         else:
             NotImplementedError()
+
+    def _convert_to_col_major(
+        self, row_major: List[Dict[int, float]]
+    ) -> List[Dict[int, float]]:
+        cols: List[Dict[int, float]] = [{} for _ in range(len(self.coupling_vars_up))]
+        for i, row in enumerate(row_major):
+            for j, val in row.items():
+                cols[j][i] = val
+        return cols
 
     def _dual_times_matrix(self, dual_values: List[float]) -> List[float]:
         # multiply dual_values and coupling_matrix

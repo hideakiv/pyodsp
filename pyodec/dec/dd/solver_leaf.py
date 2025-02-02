@@ -23,7 +23,8 @@ class DdSolverLeaf(DdSolver):
             coeff * coupling_var
             for coeff, coupling_var in zip(coeffs, coupling_vars_up)
         )
-
+        if self.model.component("_mod_obj") is not None:
+            self.model.del_component("_mod_obj")
         self.model._mod_obj = Objective(
             expr=modified_expr, sense=self.original_objective.sense
         )

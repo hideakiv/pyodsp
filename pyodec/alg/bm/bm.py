@@ -8,7 +8,7 @@ from .logger import BmLogger
 from ..const import BM_ABS_TOLERANCE
 
 
-class BundleManager:
+class BundleMethod:
     def __init__(self, model: ConcreteModel, max_iteration=1000) -> None:
         self.model = model
         self.active_cuts: List[WrappedCut] = []
@@ -111,7 +111,10 @@ class BundleManager:
 
         if self.is_minimize:
             # Minimization
-            if theta_val >= cut.objective_value - BM_ABS_TOLERANCE:
+            if (
+                theta_val is not None
+                and theta_val >= cut.objective_value - BM_ABS_TOLERANCE
+            ):
                 # No need to add the cut
                 return False
             self.model.add_component(
@@ -124,7 +127,10 @@ class BundleManager:
             )
         else:
             # Maximization
-            if theta_val <= cut.objective_value + BM_ABS_TOLERANCE:
+            if (
+                theta_val is not None
+                and theta_val <= cut.objective_value + BM_ABS_TOLERANCE
+            ):
                 # No need to add the cut
                 return False
             self.model.add_component(

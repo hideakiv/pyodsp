@@ -5,10 +5,10 @@ from pyomo.core.base.var import VarData
 
 from pyodec.alg.bm.bm import BundleMethod
 from pyodec.alg.bm.cuts import CutList
-from .solver import BdSolver
+from .solver import DdSolver
 
 
-class BdSolverRoot(BdSolver):
+class DdSolverRoot(DdSolver):
 
     def __init__(self, model: ConcreteModel, solver: str, max_iteration=1000, **kwargs):
         super().__init__(model, solver, **kwargs)

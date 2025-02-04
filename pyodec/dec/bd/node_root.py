@@ -3,7 +3,6 @@ from typing import List, Dict
 from pyomo.core.base.var import VarData
 
 from pyodec.alg.bm.cuts import Cut, OptimalityCut, FeasibilityCut, CutList
-from pyodec.solver.pyomo_solver import PyomoSolver
 
 from .node import BdNode
 from .solver_root import BdAlgRoot

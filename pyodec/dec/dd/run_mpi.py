@@ -1,8 +1,6 @@
 from typing import List, Dict
 from mpi4py import MPI
 
-from pyodec.dec.utils import LagrangianData
-
 from .run import DdRun
 from .node import DdNode
 from .node_leaf import DdLeafNode
@@ -44,7 +42,7 @@ class DdRunMpi(DdRun):
                         node_id = node.idx
                         node.set_coupling_matrix(matrix_info[node_id])
 
-            root.solver.reset_iteration()
+            root.alg.reset_iteration()
             solution = [0.0 for _ in range(root.num_constrs)]
             self.comm.bcast(solution, root=0)
             cuts_dn = self._run_leaf(solution)
@@ -55,9 +53,6 @@ class DdRunMpi(DdRun):
             finished = root.add_cuts(combined_cuts_dn)
             while True:
                 if finished:
-                    self.logger.log_completion(
-                        len(self.relax_bound), self.relax_bound[-1]
-                    )
                     self.comm.bcast(-1, root=0)
                     return None
                 solution = self._run_root(root)

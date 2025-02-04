@@ -5,9 +5,10 @@ from pyomo.core.base.var import VarData
 
 from pyodec.alg.bm.cuts import Cut, OptimalityCut, FeasibilityCut, CutList
 from pyodec.dec.utils import get_nonzero_coefficients_group
+from pyodec.solver.pyomo_solver import PyomoSolver
 
 from .node import DdNode
-from .solver_root import DdSolverRoot
+from .solver_root import DdAlgRoot
 
 
 class DdRootNode(DdNode):
@@ -25,7 +26,7 @@ class DdRootNode(DdNode):
         super().__init__(idx, parent=None)
         self.coupling_vars_dn: Dict[int, List[VarData]] = vars_dn
         self.is_minimize = is_minimize
-        self.solver = self._create_master(
+        self.alg = self._create_master(
             coupling_model, solver_name, max_iteration, **kwargs
         )
 
@@ -38,7 +39,7 @@ class DdRootNode(DdNode):
         solver_name: str,
         max_iteration: int,
         **kwargs
-    ) -> DdSolverRoot:
+    ) -> DdAlgRoot:
         master = ConcreteModel()
         self.lagrangian_data = get_nonzero_coefficients_group(
             coupling_model, self.coupling_vars_dn
@@ -56,7 +57,7 @@ class DdRootNode(DdNode):
         master.lagrangian_dual = Var(
             RangeSet(0, self.num_constrs - 1), bounds=_bounds_rule
         )
-        self.lagrangian_duals: List[VarData] = [
+        lagrangian_duals: List[VarData] = [
             master.lagrangian_dual[i] for i in range(self.num_constrs)
         ]
         if self.is_minimize:
@@ -75,7 +76,8 @@ class DdRootNode(DdNode):
                 ),
                 sense=minimize,
             )
-        return DdSolverRoot(master, solver_name, max_iteration, **kwargs)
+        solver = PyomoSolver(master, solver_name, lagrangian_duals, **kwargs)
+        return DdAlgRoot(solver, max_iteration)
 
     def set_groups(self, groups: List[List[int]]):
         self.groups = groups
@@ -92,14 +94,14 @@ class DdRootNode(DdNode):
         else:
             dummy_bounds = [-1e9 for _ in range(self.num_cuts)]  # FIXME
 
-        self.solver.build(dummy_bounds)
+        self.alg.build(dummy_bounds)
         self.built = True
 
     def solve(self) -> None:
-        self.solver.solve()
+        self.alg.solve()
 
     def get_dual_solution(self) -> List[float]:
-        return self.solver.get_solution(self.lagrangian_duals)
+        return self.alg.get_solution()
 
     def add_cuts(self, cuts: Dict[int, Cut]) -> bool:
         aggregate_cuts = []
@@ -113,7 +115,7 @@ class DdRootNode(DdNode):
             aggregate_cut = self._aggregate_cuts(group_multipliers, group_cut)
 
             aggregate_cuts.append(aggregate_cut)
-        finished = self.solver.add_cuts(aggregate_cuts, self.lagrangian_duals)
+        finished = self.alg.add_cuts(aggregate_cuts)
         return finished
 
     def _aggregate_cuts(self, multipliers: List[float], cuts: List[Cut]) -> CutList:

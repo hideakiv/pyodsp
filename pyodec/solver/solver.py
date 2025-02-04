@@ -16,7 +16,7 @@ class Solver(ABC):
         return 0.0
 
     @abstractmethod
-    def get_objective_sense(self) -> bool:
+    def is_minimize(self) -> bool:
         """Get the sense of the objective.
 
         Returns:

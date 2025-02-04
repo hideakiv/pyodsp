@@ -66,22 +66,18 @@ class PyomoSolver(Solver):
 
     def get_objective_value(self) -> float:
         """Get the objective value of the model"""
-        return value(self.get_objective())
+        return value(self._get_objective())
 
-    def get_objective_sense(self) -> bool:
+    def is_minimize(self) -> bool:
         """Get the sense of the objective.
 
         Returns:
             True if the objective is to be minimized, False otherwise.
         """
-        return self.get_objective().sense > 0
+        return self._get_objective().sense > 0
 
     def get_solution(self) -> List[float]:
-        """Get the solution of the model.
-
-        Args:
-            vars: The variables to get the solution of.
-        """
+        """Get the solution of the model."""
         return [var.value for var in self.vars]
 
     def is_optimal(self) -> bool:

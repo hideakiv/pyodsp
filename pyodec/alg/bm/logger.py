@@ -1,4 +1,5 @@
 import logging
+from typing import List
 
 
 class BmLogger:
@@ -18,25 +19,31 @@ class BmLogger:
         # Add the handler to the logger
         self.logger.addHandler(ch)
 
-    def log_initialization(self, **kwargs):
+    def log_initialization(self, **kwargs) -> None:
         self.logger.info("Starting Bundle method")
         for key, var in kwargs.items():
             self.logger.info(f"{key}: {var}")
 
-    def log_master_problem(self, iteration, objective_value, x):
-        self.logger.info(f"Iteration {iteration}: {objective_value}")
+    def log_master_problem(
+        self, iteration: int, lb: float | None, ub: float | None, x: List[float]
+    ) -> None:
+        if lb is None:
+            lb = "-"
+        if ub is None:
+            ub = "-"
+        self.logger.info(f"Iteration {iteration}:\tLB: {lb}, UB: {ub}")
         self.logger.debug(f"\tsolution: {x}")
 
-    def log_sub_problem(self, idx, cut_type: str, coefficients, constant):
+    def log_sub_problem(self, idx, cut_type: str, coefficients, constant) -> None:
         self.logger.debug(f"\t{idx}\t{cut_type}\t{coefficients}\t{constant}")
 
-    def log_status_optimal(self):
+    def log_status_optimal(self) -> None:
         self.logger.info("Bundle method terminated by optimality")
 
-    def log_status_max_iter(self):
+    def log_status_max_iter(self) -> None:
         self.logger.info("Bundle method terminated by max iteration reached")
 
-    def log_completion(self, iteration, objective_value):
+    def log_completion(self, iteration: int, objective_value: float | None) -> None:
         self.logger.info("Bundle method completed")
         self.logger.info(f"Total iterations: {iteration}")
         self.logger.info(f"Final objective value: {objective_value}")

@@ -87,7 +87,11 @@ class DdRootNode(DdNode):
             self.groups = [[child] for child in self.children]
         self.num_cuts = len(self.groups)
 
-        dummy_bounds = [1e9 for _ in range(self.num_cuts)]  # FIXME
+        if self.is_minimize:
+            dummy_bounds = [1e9 for _ in range(self.num_cuts)]  # FIXME
+        else:
+            dummy_bounds = [-1e9 for _ in range(self.num_cuts)]  # FIXME
+
         self.solver.build(dummy_bounds)
         self.built = True
 

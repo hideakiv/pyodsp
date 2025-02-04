@@ -1,7 +1,5 @@
 from typing import List, Dict
 
-from numpy import isin
-
 from pyodec.alg.bm.cuts import Cut, OptimalityCut, FeasibilityCut
 
 from .logger import DdLogger

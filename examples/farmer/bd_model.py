@@ -1,7 +1,9 @@
 import pyomo.environ as pyo
 
+from pyodec.solver.pyomo_solver import PyomoSolver
+
 from pyodec.dec.bd.node_root import BdRootNode
-from pyodec.dec.bd.solver_root import BdSolverRoot
+from pyodec.dec.bd.solver_root import BdAlgRoot
 from pyodec.dec.bd.node_leaf import BdLeafNode
 from pyodec.dec.bd.solver_leaf import BdSolverLeaf
 from pyodec.dec.bd.run import BdRun
@@ -40,9 +42,10 @@ def objective_rule(model):
 
 model.objective = pyo.Objective(rule=objective_rule, sense=pyo.maximize)
 
-first_stage_solver = BdSolverRoot(model, "appsi_highs")
 coupling_dn = [model.DevotedAcreage[crop] for crop in CROPS]
-root_node = BdRootNode(0, first_stage_solver, coupling_dn)
+first_stage_solver = PyomoSolver(model, "appsi_highs", coupling_dn)
+first_stage_alg = BdAlgRoot(first_stage_solver)
+root_node = BdRootNode(0, first_stage_alg)
 
 
 # Second stage

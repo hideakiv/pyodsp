@@ -1,7 +1,9 @@
 import pyomo.environ as pyo
 
+from pyodec.solver.pyomo_solver import PyomoSolver
+
 from pyodec.dec.bd.node_root import BdRootNode
-from pyodec.dec.bd.solver_root import BdSolverRoot
+from pyodec.dec.bd.solver_root import BdAlgRoot
 from pyodec.dec.bd.node_leaf import BdLeafNode
 from pyodec.dec.bd.solver_leaf import BdSolverLeaf
 from pyodec.dec.bd.run import BdRun
@@ -21,9 +23,10 @@ def create_root_node():
         expr=100 * model1.x1 + 150 * model1.x2, sense=pyo.minimize
     )
 
-    first_stage_solver = BdSolverRoot(model1, "appsi_highs")
     coupling_dn = [model1.x1, model1.x2]
-    root_node = BdRootNode(0, first_stage_solver, coupling_dn)
+    first_stage_solver = PyomoSolver(model1, "appsi_highs", coupling_dn)
+    first_stage_alg = BdAlgRoot(first_stage_solver)
+    root_node = BdRootNode(0, first_stage_alg)
     return root_node
 
 

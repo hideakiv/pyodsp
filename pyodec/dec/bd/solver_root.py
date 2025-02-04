@@ -1,28 +1,32 @@
 from typing import List
 
-from pyomo.environ import ConcreteModel
 from pyomo.core.base.var import VarData
 
+from pyodec.solver.pyomo_solver import PyomoSolver
 from pyodec.alg.bm.bm import BundleMethod
 from pyodec.alg.bm.cuts import CutList
-from .solver import BdSolver
 
 
-class BdSolverRoot(BdSolver):
+class BdAlgRoot:
 
-    def __init__(self, model: ConcreteModel, solver: str, max_iteration=1000, **kwargs):
-        super().__init__(model, solver, **kwargs)
+    def __init__(self, solver: PyomoSolver, max_iteration=1000) -> None:
 
-        self.bm = BundleMethod(model, max_iteration)
+        self.bm = BundleMethod(solver, max_iteration)
 
-    def build(self, subobj_bounds: List[float]):
-        self.bm.build(
-            subobj_bounds, self.original_objective, self.get_objective_sense()
-        )
+    def get_vars(self) -> List[VarData]:
+        return self.bm.solver.vars
 
-    def add_cuts(self, cuts_list: List[CutList], vars: List[VarData]) -> bool:
-        solution = self.get_solution(vars)
-        return self.bm.add_cuts(cuts_list, vars, solution)
+    def build(self, subobj_bounds: List[float]) -> None:
+        self.bm.build(subobj_bounds)
 
     def reset_iteration(self) -> None:
         self.bm.reset_iteration()
+
+    def solve(self) -> None:
+        self.bm.solve()
+
+    def get_solution(self) -> List[float]:
+        return self.bm.get_solution()
+
+    def add_cuts(self, cuts_list: List[CutList]) -> bool:
+        return self.bm.add_cuts(cuts_list)

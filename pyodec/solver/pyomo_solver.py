@@ -37,6 +37,7 @@ class PyomoSolver(Solver):
         Args:
             model: The Pyomo model.
             solver: The solver to use.
+            vars: The variables in focus
         """
         self.solver = SolverFactory(solver)
         self.model = model
@@ -44,6 +45,7 @@ class PyomoSolver(Solver):
         self._solver_kwargs = kwargs
 
         self.original_objective = self._get_objective()
+        self.sign_convention = solver_dual_sign_convention[solver]
 
         self._results = None
 

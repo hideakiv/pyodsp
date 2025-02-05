@@ -41,15 +41,15 @@ def add_terms_to_objective(solver: PyomoSolver, vars: Var) -> None:
     add_linear_terms_to_objective(solver, coeffs, vars)
 
 
-def create_slack_mode(
+def create_relaxed_mode(
     solver: PyomoSolver, constrs: List[ConstraintData]
 ) -> Tuple[Objective, Constraint]:
     solver.model.add_component(
-        "_slack_plus",
+        "_relaxed_plus",
         Var(RangeSet(0, len(constrs) - 1), domain=NonNegativeReals),
     )
     solver.model.add_component(
-        "_slack_minus",
+        "_relaxed_minus",
         Var(RangeSet(0, len(constrs) - 1), domain=NonNegativeReals),
     )
 
@@ -59,36 +59,36 @@ def create_slack_mode(
         body = constr.body
         upper = constr.upper
         modified_body = (
-            body + solver.model._slack_plus[i] - solver.model._slack_minus[i]
+            body + solver.model._relaxed_plus[i] - solver.model._relaxed_minus[i]
         )
         return inequality(lower, modified_body, upper)
 
-    solver.model._slack_constrs = Constraint(
+    solver.model._relaxed_constrs = Constraint(
         RangeSet(0, len(constrs) - 1), rule=constr_rule
     )
 
-    solver.model._slack_obj = Objective(
+    solver.model._relaxed_obj = Objective(
         expr=sum(
-            solver.model._slack_plus[i] + solver.model._slack_minus[i]
+            solver.model._relaxed_plus[i] + solver.model._relaxed_minus[i]
             for i in range(len(constrs))
         ),
         sense=solver.original_objective.sense,
     )
-    return solver.model._slack_obj, solver.model._slack_constrs
+    return solver.model._relaxed_obj, solver.model._relaxed_constrs
 
 
-def activate_slack_mode(solver: PyomoSolver, constrs: List[ConstraintData]):
+def activate_relaxed_mode(solver: PyomoSolver, constrs: List[ConstraintData]):
     solver.original_objective.deactivate()
     for constr in constrs:
         constr.deactivate()
 
-    solver.model._slack_obj.activate()
-    solver.model._slack_constrs.activate()
+    solver.model._relaxed_obj.activate()
+    solver.model._relaxed_constrs.activate()
 
 
-def deactivate_slack_mode(solver: PyomoSolver, constrs: List[ConstraintData]):
-    solver.model._slack_obj.deactivate()
-    solver.model._slack_constrs.deactivate()
+def deactivate_relaxed_mode(solver: PyomoSolver, constrs: List[ConstraintData]):
+    solver.model._relaxed_obj.deactivate()
+    solver.model._relaxed_constrs.deactivate()
 
     solver.original_objective.activate()
     for constr in constrs:

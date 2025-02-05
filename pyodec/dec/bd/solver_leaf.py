@@ -7,9 +7,9 @@ from ..utils import CouplingData, get_nonzero_coefficients_from_model
 from pyodec.alg.bm.cuts import Cut, OptimalityCut, FeasibilityCut
 from pyodec.solver.pyomo_solver import PyomoSolver
 from pyodec.solver.pyomo_utils import (
-    create_slack_mode,
-    activate_slack_mode,
-    deactivate_slack_mode,
+    create_relaxed_mode,
+    activate_relaxed_mode,
+    deactivate_relaxed_mode,
 )
 
 
@@ -69,20 +69,20 @@ class BdAlgLeaf:
         )
 
     def _feasibility_cut(self) -> FeasibilityCut:
-        if self.solver.model.component("_slack_obj") is None:
-            create_slack_mode(self.solver, self.coupling_constraints)
+        if self.solver.model.component("_relaxed_obj") is None:
+            create_relaxed_mode(self.solver, self.coupling_constraints)
 
-        activate_slack_mode(self.solver, self.coupling_constraints)
+        activate_relaxed_mode(self.solver, self.coupling_constraints)
         self.solver.solve()
 
         sigma = [
             self.sign_convention
-            * self.solver.model.dual[self.solver.model._slack_constrs[i]]
+            * self.solver.model.dual[self.solver.model._relaxed_constrs[i]]
             for i in range(len(self.coupling_constraints))
         ]
         objective = self.solver.get_objective_value()
 
-        deactivate_slack_mode(self.solver, self.coupling_constraints)
+        deactivate_relaxed_mode(self.solver, self.coupling_constraints)
 
         coeff = [0.0 for _ in range(len(self.solver.vars))]
         rhs = objective

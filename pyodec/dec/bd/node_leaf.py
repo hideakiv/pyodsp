@@ -18,7 +18,6 @@ class BdLeafNode(BdNode):
     ) -> None:
         super().__init__(idx, parent=parent)
         self.alg = alg
-        self.coupling_vars_up: List[VarData] = self.alg.solver.vars
         self.bound = bound
 
         self.built = False

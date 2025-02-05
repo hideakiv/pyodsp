@@ -8,18 +8,28 @@ from pyomo.environ import (
     NonNegativeReals,
     inequality,
 )
+from pyomo.core.base.var import VarData
 from pyomo.core.base.constraint import ConstraintData
 
 from pyodec.solver.pyomo_solver import PyomoSolver
 
 
 def add_linear_terms_to_objective(
-    solver: PyomoSolver, coeffs: List[float], vars: Var
+    solver: PyomoSolver, coeffs: List[float], vars: Var | List[VarData]
 ) -> None:
     solver.original_objective.deactivate()
+    update_linear_terms_in_objective(solver, coeffs, vars)
+
+
+def update_linear_terms_in_objective(
+    solver: PyomoSolver, coeffs: List[float], vars: Var | List[VarData]
+) -> None:
     modified_expr = solver.original_objective.expr + sum(
         coeffs[i] * vars[i] for i in range(len(coeffs))
     )
+
+    if solver.model.component("_mod_obj") is not None:
+        solver.model.del_component("_mod_obj")
 
     solver.model._mod_obj = Objective(
         expr=modified_expr, sense=solver.original_objective.sense

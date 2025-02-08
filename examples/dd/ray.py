@@ -3,8 +3,9 @@ import pyomo.environ as pyo
 from pyodec.solver.pyomo_solver import PyomoSolver
 
 from pyodec.dec.dd.node_root import DdRootNode
+from pyodec.dec.dd.alg_root_bm import DdAlgRootBm
 from pyodec.dec.dd.node_leaf import DdLeafNode
-from pyodec.dec.dd.alg_leaf import DdAlgLeaf
+from pyodec.dec.dd.alg_leaf_pyomo import DdAlgLeafPyomo
 from pyodec.dec.dd.run import DdRun
 
 
@@ -20,7 +21,8 @@ def create_master() -> DdRootNode:
         expr=-1 * block.x1 + 5 * block.x2 + 7 * block.y1 - 6 * block.y2 == 1
     )
 
-    root_node = DdRootNode(0, block, True, "appsi_highs", vars_dn)
+    root_alg = DdAlgRootBm(block, True, "appsi_highs", vars_dn)
+    root_node = DdRootNode(0, root_alg)
     return root_node
 
 
@@ -45,7 +47,7 @@ def create_sub(i) -> DdLeafNode:
         block.c2 = pyo.Constraint(expr=block.x1 + 2 * block.x2 >= 3)
 
     sub_solver = PyomoSolver(block, "appsi_highs", vars_up)
-    sub_alg = DdAlgLeaf(sub_solver)
+    sub_alg = DdAlgLeafPyomo(sub_solver)
     leaf_node = DdLeafNode(i, sub_alg, 0)
     return leaf_node
 

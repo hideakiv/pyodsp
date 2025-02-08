@@ -30,7 +30,7 @@ class DdRunMpi(DdRun):
                 target = self.node_rank_map[child_id]
                 if not target in matrices:
                     matrices[target] = {}
-                matrices[target][child_id] = root.lagrangian_data.matrix[child_id]
+                matrices[target][child_id] = root.alg.lagrangian_data.matrix[child_id]
 
             for target, matrix in matrices.items():
                 self.comm.send(matrix, dest=target, tag=0)

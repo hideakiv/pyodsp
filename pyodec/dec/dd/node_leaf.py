@@ -3,7 +3,7 @@ from typing import List, Dict
 from pyodec.alg.bm.cuts import Cut, OptimalityCut, FeasibilityCut
 
 from .node import DdNode
-from .solver_leaf import DdAlgLeaf
+from .alg_leaf import DdAlgLeaf
 
 
 class DdLeafNode(DdNode):

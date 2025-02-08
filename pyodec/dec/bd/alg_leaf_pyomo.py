@@ -3,6 +3,7 @@ from typing import List
 from pyomo.environ import Suffix
 from pyomo.core.base.constraint import ConstraintData
 
+from .alg_leaf import BdAlgLeaf
 from ..utils import CouplingData, get_nonzero_coefficients_from_model
 from pyodec.alg.bm.cuts import Cut, OptimalityCut, FeasibilityCut
 from pyodec.solver.pyomo_solver import PyomoSolver
@@ -13,7 +14,7 @@ from pyodec.solver.pyomo_utils import (
 )
 
 
-class BdAlgLeaf:
+class BdAlgLeafPyomo(BdAlgLeaf):
     def __init__(self, solver: PyomoSolver):
         self.solver = solver
         self.solver.model.dual = Suffix(direction=Suffix.IMPORT)

@@ -1,6 +1,6 @@
 from mpi4py import MPI
 
-from equality import create_master, create_sub, cost
+from equality import create_master, create_sub
 from pyodec.dec.dd.run_mpi import DdRunMpi
 
 """

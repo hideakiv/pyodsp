@@ -2,12 +2,13 @@ from typing import List
 
 from pyomo.core.base.var import VarData
 
+from .alg_root import BdAlgRoot
 from pyodec.solver.pyomo_solver import PyomoSolver
 from pyodec.alg.bm.bm import BundleMethod
 from pyodec.alg.bm.cuts import CutList
 
 
-class BdAlgRoot:
+class BdAlgRootBm(BdAlgRoot):
 
     def __init__(self, solver: PyomoSolver, max_iteration=1000) -> None:
 

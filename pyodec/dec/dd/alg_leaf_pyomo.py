@@ -2,6 +2,7 @@ from typing import List, Tuple
 
 from pyomo.core.base.constraint import ConstraintData
 
+from .alg_leaf import DdAlgLeaf
 from ..utils import CouplingData, get_nonzero_coefficients_from_model
 from pyodec.solver.pyomo_solver import PyomoSolver
 from pyodec.solver.pyomo_utils import (
@@ -12,7 +13,7 @@ from pyodec.solver.pyomo_utils import (
 )
 
 
-class DdAlgLeaf:
+class DdAlgLeafPyomo(DdAlgLeaf):
     def __init__(self, solver: PyomoSolver):
         self.solver = solver
 

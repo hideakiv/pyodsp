@@ -28,7 +28,7 @@ class DdRun:
         for child_id in root.get_children():
             child = self.nodes[child_id]
             assert isinstance(child, DdLeafNode)
-            child.set_coupling_matrix(root.lagrangian_data.matrix[child_id])
+            child.set_coupling_matrix(root.alg.lagrangian_data.matrix[child_id])
 
         root.alg.reset_iteration()
         cuts_dn = self._run_leaf([0.0 for _ in range(root.num_constrs)])

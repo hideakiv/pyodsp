@@ -1,11 +1,9 @@
 from typing import List
 
-from pyomo.core.base.var import VarData
-
 from pyodec.alg.bm.cuts import Cut
 
 from .node import BdNode
-from .solver_leaf import BdAlgLeaf
+from .alg_leaf import BdAlgLeaf
 
 
 class BdLeafNode(BdNode):

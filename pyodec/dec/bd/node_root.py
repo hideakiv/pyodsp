@@ -5,7 +5,7 @@ from pyomo.core.base.var import VarData
 from pyodec.alg.bm.cuts import Cut, OptimalityCut, FeasibilityCut, CutList
 
 from .node import BdNode
-from .solver_root import BdAlgRoot
+from .alg_root import BdAlgRoot
 
 
 class BdRootNode(BdNode):

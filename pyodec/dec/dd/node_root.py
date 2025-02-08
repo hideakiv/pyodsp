@@ -18,7 +18,7 @@ from pyodec.dec.utils import get_nonzero_coefficients_group
 from pyodec.solver.pyomo_solver import PyomoSolver
 
 from .node import DdNode
-from .solver_root import DdAlgRoot
+from .alg_root import DdAlgRoot
 
 
 class DdRootNode(DdNode):

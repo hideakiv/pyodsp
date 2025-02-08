@@ -3,9 +3,9 @@ import pyomo.environ as pyo
 from pyodec.solver.pyomo_solver import PyomoSolver
 
 from pyodec.dec.bd.node_root import BdRootNode
-from pyodec.dec.bd.solver_root import BdAlgRoot
+from pyodec.dec.bd.alg_root import BdAlgRoot
 from pyodec.dec.bd.node_leaf import BdLeafNode
-from pyodec.dec.bd.solver_leaf import BdAlgLeaf
+from pyodec.dec.bd.alg_leaf import BdAlgLeaf
 from pyodec.dec.bd.run import BdRun
 
 

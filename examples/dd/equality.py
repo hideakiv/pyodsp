@@ -4,7 +4,7 @@ from pyodec.solver.pyomo_solver import PyomoSolver
 
 from pyodec.dec.dd.node_root import DdRootNode
 from pyodec.dec.dd.node_leaf import DdLeafNode
-from pyodec.dec.dd.solver_leaf import DdAlgLeaf
+from pyodec.dec.dd.alg_leaf import DdAlgLeaf
 from pyodec.dec.dd.run import DdRun
 
 

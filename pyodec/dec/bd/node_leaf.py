@@ -1,6 +1,6 @@
 from typing import List
 
-from pyodec.alg.bm.cuts import Cut
+from pyodec.alg.cuts import Cut
 
 from .node import BdNode
 from .alg_leaf import BdAlgLeaf

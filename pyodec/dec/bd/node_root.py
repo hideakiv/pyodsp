@@ -2,7 +2,7 @@ from typing import List, Dict
 
 from pyomo.core.base.var import VarData
 
-from pyodec.alg.bm.cuts import Cut, OptimalityCut, FeasibilityCut, CutList
+from pyodec.alg.cuts import Cut, OptimalityCut, FeasibilityCut, CutList
 
 from .node import BdNode
 from .alg_root import BdAlgRoot

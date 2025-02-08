@@ -5,7 +5,7 @@ from pyomo.core.base.var import VarData
 from .alg_root import BdAlgRoot
 from pyodec.solver.pyomo_solver import PyomoSolver
 from pyodec.alg.bm.bm import BundleMethod
-from pyodec.alg.bm.cuts import CutList
+from pyodec.alg.cuts import CutList
 
 
 class BdAlgRootBm(BdAlgRoot):

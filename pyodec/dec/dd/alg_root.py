@@ -16,7 +16,7 @@ from pyomo.core.base.var import VarData
 
 from pyodec.dec.utils import get_nonzero_coefficients_group
 from pyodec.solver.pyomo_solver import PyomoSolver
-from pyodec.alg.bm.cuts import CutList
+from pyodec.alg.cuts import CutList
 
 
 class DdAlgRoot:

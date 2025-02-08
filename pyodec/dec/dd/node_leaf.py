@@ -1,6 +1,6 @@
 from typing import List, Dict
 
-from pyodec.alg.bm.cuts import Cut, OptimalityCut, FeasibilityCut
+from pyodec.alg.cuts import Cut, OptimalityCut, FeasibilityCut
 
 from .node import DdNode
 from .alg_leaf import DdAlgLeaf

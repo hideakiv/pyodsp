@@ -21,7 +21,7 @@ class DdAlgRoot:
         self.bm.build(subobj_bounds)
 
     def reset_iteration(self) -> None:
-        self.bm.reset_iteration()
+        self.bm.reset_iteration(0)
 
     def solve(self) -> None:
         self.bm.solve()

@@ -34,13 +34,20 @@ class BundleMethod:
             tolerance=BM_ABS_TOLERANCE, max_iteration=self.max_iteration
         )
 
-    def reset_iteration(self) -> None:
-        self.iteration = 1
+    def reset_iteration(self, i=1) -> None:
+        self.iteration = i
 
     def solve(self) -> None:
         self.solver.solve()
         self.current_solution = self.solver.get_solution()
         self.relax_bound.append(self.solver.get_objective_value())
+        if self.solver.is_minimize():
+            lb = self.relax_bound[-1]
+            ub = self.feas_bound[-1]
+        else:
+            lb = self.feas_bound[-1]
+            ub = self.relax_bound[-1]
+        self.logger.log_master_problem(self.iteration, lb, ub, self.current_solution)
 
     def get_solution(self) -> List[float]:
         return self.current_solution
@@ -64,14 +71,6 @@ class BundleMethod:
             self.feas_bound.append(obj_val)
         else:
             self.feas_bound.append(None)
-
-        if self.solver.is_minimize():
-            lb = self.relax_bound[-1]
-            ub = self.feas_bound[-1]
-        else:
-            lb = self.feas_bound[-1]
-            ub = self.relax_bound[-1]
-        self.logger.log_master_problem(self.iteration, lb, ub, self.current_solution)
 
         optimal = not any(found_cuts)
         if optimal:

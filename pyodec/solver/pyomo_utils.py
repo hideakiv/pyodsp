@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from typing import List, Tuple
 
 from pyomo.environ import (
@@ -58,9 +59,7 @@ def create_relaxed_mode(
         lower = constr.lower
         body = constr.body
         upper = constr.upper
-        modified_body = (
-            body + solver.model._relaxed_plus[i] - solver.model._relaxed_minus[i]
-        )
+        modified_body = body + m._relaxed_plus[i] - m._relaxed_minus[i]
         return inequality(lower, modified_body, upper)
 
     solver.model._relaxed_constrs = Constraint(
@@ -92,4 +91,52 @@ def deactivate_relaxed_mode(solver: PyomoSolver, constrs: List[ConstraintData]):
 
     solver.original_objective.activate()
     for constr in constrs:
+        constr.activate()
+
+
+@dataclass
+class RestrictedInfo:
+    constrs: List[ConstraintData]
+    xlb: List[float | None]
+    xub: List[float | None]
+
+
+def create_restricted_mode(
+    solver: PyomoSolver, constrs: List[ConstraintData]
+) -> RestrictedInfo:
+    xlb: List[float | None] = []
+    xub: List[float | None] = []
+    for var in solver.vars:
+        xlb.append(var.lb)
+        xub.append(var.ub)
+
+    def constr_rule(m, i: int):
+        constr = constrs[i]
+        lower = None if constr.lower is None else 0
+        body = constr.body
+        upper = None if constr.upper is None else 0
+        return inequality(lower, body, upper)
+
+    solver.model._restricted_constrs = Constraint(
+        RangeSet(0, len(constrs) - 1), rule=constr_rule
+    )
+
+    return RestrictedInfo(constrs, xlb, xub)
+
+
+def activate_restricted_mode(solver: PyomoSolver, info: RestrictedInfo):
+    for constr in info.constrs:
+        constr.deactivate()
+    solver.model._restricted_constrs.activate()
+    for var in solver.vars:
+        var.setlb(-1)
+        var.setub(1)
+
+
+def deactivate_restricted_mode(solver: PyomoSolver, info: RestrictedInfo):
+    solver.model._restricted_constrs.deactivate()
+    for i, var in enumerate(solver.vars):
+        var.setlb(info.xlb[i])
+        var.setub(info.xub[i])
+    for constr in info.constrs:
         constr.activate()

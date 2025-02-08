@@ -1,6 +1,4 @@
-from typing import List, Dict, Tuple
-
-from pyomo.core.base.var import VarData
+from typing import List, Dict
 
 from pyodec.alg.bm.cuts import Cut, OptimalityCut, FeasibilityCut
 
@@ -37,15 +35,17 @@ class DdLeafNode(DdNode):
     def solve(self, dual_values: List[float]) -> Cut:
         primal_coeffs = self._dual_times_matrix(dual_values)
         self.alg.update_objective(primal_coeffs)
-        is_optimal, solution = self.alg.get_solution_or_ray()
+        is_optimal, solution, obj = self.alg.get_solution_or_ray()
         if is_optimal:
             dual_coeffs = self._matrix_times_primal(solution)
             product = self._inner_product(primal_coeffs, solution)
-            obj = self.alg.get_objective_value()
             rhs = obj - product
             return OptimalityCut(dual_coeffs, rhs, obj)
         else:
-            NotImplementedError()
+            dual_coeffs = self._matrix_times_primal(solution)
+            product = self._inner_product(primal_coeffs, solution)
+            rhs = obj - product
+            return FeasibilityCut(dual_coeffs, rhs)
 
     def _convert_to_col_major(
         self, row_major: List[Dict[int, float]]

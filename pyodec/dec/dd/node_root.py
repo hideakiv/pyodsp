@@ -1,6 +1,16 @@
 from typing import List, Dict
 
-from pyomo.environ import ConcreteModel, Var, RangeSet, Objective, minimize, maximize
+from pyomo.environ import (
+    ConcreteModel,
+    Var,
+    Constraint,
+    RangeSet,
+    Objective,
+    minimize,
+    maximize,
+    NonNegativeReals,
+    Reals,
+)
 from pyomo.core.base.var import VarData
 
 from pyodec.alg.bm.cuts import Cut, OptimalityCut, FeasibilityCut, CutList
@@ -46,36 +56,44 @@ class DdRootNode(DdNode):
         )
         self.num_constrs = len(self.lagrangian_data.constraints)
 
-        def _bounds_rule(m, i):
-            if self.lagrangian_data.sense[i] < 0:
-                return (None, 0)
-            elif self.lagrangian_data.sense[i] > 0:
-                return (0, None)
-            else:
-                return (None, None)
-
-        master.lagrangian_dual = Var(
-            RangeSet(0, self.num_constrs - 1), bounds=_bounds_rule
+        master.ld_plus = Var(RangeSet(0, self.num_constrs - 1), domain=NonNegativeReals)
+        master.ld_minus = Var(
+            RangeSet(0, self.num_constrs - 1), domain=NonNegativeReals
         )
-        lagrangian_duals: List[VarData] = [
-            master.lagrangian_dual[i] for i in range(self.num_constrs)
-        ]
+        for i in range(self.num_constrs):
+            if self.lagrangian_data.lbs[i] is None:
+                master.ld_minus[i].fix(0)
+            if self.lagrangian_data.ubs[i] is None:
+                master.ld_plus[i].fix(0)
+        master.ld = Var(RangeSet(0, self.num_constrs - 1), domain=Reals)
+
+        def constr_rule(m, i):
+            return m.ld[i] == m.ld_plus[i] - m.ld_minus[i]
+
+        master.constr = Constraint(RangeSet(0, self.num_constrs - 1), rule=constr_rule)
+
+        def min_obj(m):
+            expr = 0.0
+            for i in range(self.num_constrs):
+                ub = self.lagrangian_data.ubs[i]
+                if ub is not None:
+                    expr -= ub * m.ld_plus[i]
+                lb = self.lagrangian_data.lbs[i]
+                if lb is not None:
+                    expr += lb * m.ld_minus[i]
+            return expr
+
+        def max_obj(m):
+            return -min_obj(m)
+
         if self.is_minimize:
-            master.objective = Objective(
-                expr=sum(
-                    -self.lagrangian_data.rhs[i] * master.lagrangian_dual[i]
-                    for i in range(self.num_constrs)
-                ),
-                sense=maximize,
-            )
+            master.objective = Objective(rule=min_obj, sense=maximize)
         else:
-            master.objective = Objective(
-                expr=sum(
-                    self.lagrangian_data.rhs[i] * master.lagrangian_dual[i]
-                    for i in range(self.num_constrs)
-                ),
-                sense=minimize,
-            )
+            master.objective = Objective(rule=min_obj, sense=minimize)
+
+        lagrangian_duals: List[VarData] = [
+            master.ld[i] for i in range(self.num_constrs)
+        ]
         solver = PyomoSolver(master, solver_name, lagrangian_duals, **kwargs)
         return DdAlgRoot(solver, max_iteration)
 

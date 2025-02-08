@@ -3,9 +3,9 @@ import pyomo.environ as pyo
 from pyodec.solver.pyomo_solver import PyomoSolver
 
 from pyodec.dec.bd.node_root import BdRootNode
-from pyodec.dec.bd.alg_root import BdAlgRoot
+from pyodec.dec.bd.alg_root_bm import BdAlgRootBm
 from pyodec.dec.bd.node_leaf import BdLeafNode
-from pyodec.dec.bd.alg_leaf import BdAlgLeaf
+from pyodec.dec.bd.alg_leaf_pyomo import BdAlgLeafPyomo
 from pyodec.dec.bd.run import BdRun
 
 # Create a model
@@ -44,7 +44,7 @@ model.objective = pyo.Objective(rule=objective_rule, sense=pyo.maximize)
 
 coupling_dn = [model.DevotedAcreage[crop] for crop in CROPS]
 first_stage_solver = PyomoSolver(model, "appsi_highs", coupling_dn)
-first_stage_alg = BdAlgRoot(first_stage_solver)
+first_stage_alg = BdAlgRootBm(first_stage_solver)
 root_node = BdRootNode(0, first_stage_alg)
 
 
@@ -140,7 +140,7 @@ for scenario, block in second_stage.items():
 leaf_nodes = {}
 idx = 1
 for scenario, block in second_stage.items():
-    alg = BdAlgLeaf(second_stage_solver[scenario])
+    alg = BdAlgLeafPyomo(second_stage_solver[scenario])
     leaf_node = BdLeafNode(idx, alg, 1000000.0, 0)
     leaf_nodes[scenario] = leaf_node
     root_node.add_child(idx, multiplier=1 / len(SCENARIOS))

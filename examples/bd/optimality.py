@@ -3,9 +3,9 @@ import pyomo.environ as pyo
 from pyodec.solver.pyomo_solver import PyomoSolver
 
 from pyodec.dec.bd.node_root import BdRootNode
-from pyodec.dec.bd.alg_root import BdAlgRoot
+from pyodec.dec.bd.alg_root_bm import BdAlgRootBm
 from pyodec.dec.bd.node_leaf import BdLeafNode
-from pyodec.dec.bd.alg_leaf import BdAlgLeaf
+from pyodec.dec.bd.alg_leaf_pyomo import BdAlgLeafPyomo
 from pyodec.dec.bd.run import BdRun
 
 
@@ -25,7 +25,7 @@ def create_root_node():
 
     coupling_dn = [model1.x1, model1.x2]
     first_stage_solver = PyomoSolver(model1, "appsi_highs", coupling_dn)
-    first_stage_alg = BdAlgRoot(first_stage_solver)
+    first_stage_alg = BdAlgRootBm(first_stage_solver)
     root_node = BdRootNode(0, first_stage_alg)
     return root_node
 
@@ -56,7 +56,7 @@ def create_leaf_node(i):
 
     coupling_up = [block.x1, block.x2]
     second_stage_solver = PyomoSolver(block, "appsi_highs", coupling_up)
-    second_stage_alg = BdAlgLeaf(second_stage_solver)
+    second_stage_alg = BdAlgLeafPyomo(second_stage_solver)
     leaf_node = BdLeafNode(i, second_stage_alg, -30000, 0)
     return leaf_node
 

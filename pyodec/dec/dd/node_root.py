@@ -1,13 +1,24 @@
 from typing import List, Dict
 
-from pyomo.environ import ConcreteModel, Var, RangeSet, Objective, minimize, maximize
+from pyomo.environ import (
+    ConcreteModel,
+    Var,
+    Constraint,
+    RangeSet,
+    Objective,
+    minimize,
+    maximize,
+    NonNegativeReals,
+    Reals,
+)
 from pyomo.core.base.var import VarData
 
 from pyodec.alg.bm.cuts import Cut, OptimalityCut, FeasibilityCut, CutList
 from pyodec.dec.utils import get_nonzero_coefficients_group
+from pyodec.solver.pyomo_solver import PyomoSolver
 
 from .node import DdNode
-from .solver_root import DdSolverRoot
+from .solver_root import DdAlgRoot
 
 
 class DdRootNode(DdNode):
@@ -25,7 +36,7 @@ class DdRootNode(DdNode):
         super().__init__(idx, parent=None)
         self.coupling_vars_dn: Dict[int, List[VarData]] = vars_dn
         self.is_minimize = is_minimize
-        self.solver = self._create_master(
+        self.alg = self._create_master(
             coupling_model, solver_name, max_iteration, **kwargs
         )
 
@@ -38,44 +49,53 @@ class DdRootNode(DdNode):
         solver_name: str,
         max_iteration: int,
         **kwargs
-    ) -> DdSolverRoot:
+    ) -> DdAlgRoot:
         master = ConcreteModel()
         self.lagrangian_data = get_nonzero_coefficients_group(
             coupling_model, self.coupling_vars_dn
         )
         self.num_constrs = len(self.lagrangian_data.constraints)
 
-        def _bounds_rule(m, i):
-            if self.lagrangian_data.sense[i] < 0:
-                return (None, 0)
-            elif self.lagrangian_data.sense[i] > 0:
-                return (0, None)
-            else:
-                return (None, None)
-
-        master.lagrangian_dual = Var(
-            RangeSet(0, self.num_constrs - 1), bounds=_bounds_rule
+        master.ld_plus = Var(RangeSet(0, self.num_constrs - 1), domain=NonNegativeReals)
+        master.ld_minus = Var(
+            RangeSet(0, self.num_constrs - 1), domain=NonNegativeReals
         )
-        self.lagrangian_duals: List[VarData] = [
-            master.lagrangian_dual[i] for i in range(self.num_constrs)
-        ]
+        for i in range(self.num_constrs):
+            if self.lagrangian_data.lbs[i] is None:
+                master.ld_minus[i].fix(0)
+            if self.lagrangian_data.ubs[i] is None:
+                master.ld_plus[i].fix(0)
+        master.ld = Var(RangeSet(0, self.num_constrs - 1), domain=Reals)
+
+        def constr_rule(m, i):
+            return m.ld[i] == m.ld_plus[i] - m.ld_minus[i]
+
+        master.constr = Constraint(RangeSet(0, self.num_constrs - 1), rule=constr_rule)
+
+        def min_obj(m):
+            expr = 0.0
+            for i in range(self.num_constrs):
+                ub = self.lagrangian_data.ubs[i]
+                if ub is not None:
+                    expr -= ub * m.ld_plus[i]
+                lb = self.lagrangian_data.lbs[i]
+                if lb is not None:
+                    expr += lb * m.ld_minus[i]
+            return expr
+
+        def max_obj(m):
+            return -min_obj(m)
+
         if self.is_minimize:
-            master.objective = Objective(
-                expr=sum(
-                    -self.lagrangian_data.rhs[i] * master.lagrangian_dual[i]
-                    for i in range(self.num_constrs)
-                ),
-                sense=maximize,
-            )
+            master.objective = Objective(rule=min_obj, sense=maximize)
         else:
-            master.objective = Objective(
-                expr=sum(
-                    self.lagrangian_data.rhs[i] * master.lagrangian_dual[i]
-                    for i in range(self.num_constrs)
-                ),
-                sense=minimize,
-            )
-        return DdSolverRoot(master, solver_name, max_iteration, **kwargs)
+            master.objective = Objective(rule=min_obj, sense=minimize)
+
+        lagrangian_duals: List[VarData] = [
+            master.ld[i] for i in range(self.num_constrs)
+        ]
+        solver = PyomoSolver(master, solver_name, lagrangian_duals, **kwargs)
+        return DdAlgRoot(solver, max_iteration)
 
     def set_groups(self, groups: List[List[int]]):
         self.groups = groups
@@ -92,14 +112,14 @@ class DdRootNode(DdNode):
         else:
             dummy_bounds = [-1e9 for _ in range(self.num_cuts)]  # FIXME
 
-        self.solver.build(dummy_bounds)
+        self.alg.build(dummy_bounds)
         self.built = True
 
     def solve(self) -> None:
-        self.solver.solve()
+        self.alg.solve()
 
     def get_dual_solution(self) -> List[float]:
-        return self.solver.get_solution(self.lagrangian_duals)
+        return self.alg.get_solution()
 
     def add_cuts(self, cuts: Dict[int, Cut]) -> bool:
         aggregate_cuts = []
@@ -113,7 +133,7 @@ class DdRootNode(DdNode):
             aggregate_cut = self._aggregate_cuts(group_multipliers, group_cut)
 
             aggregate_cuts.append(aggregate_cut)
-        finished = self.solver.add_cuts(aggregate_cuts, self.lagrangian_duals)
+        finished = self.alg.add_cuts(aggregate_cuts)
         return finished
 
     def _aggregate_cuts(self, multipliers: List[float], cuts: List[Cut]) -> CutList:

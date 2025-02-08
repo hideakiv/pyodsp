@@ -37,15 +37,11 @@ class BdRunMpi(BdRun):
                 root.set_bound(child, combined_bounds[child])
             root.build()
 
-            root.solver.reset_iteration()
+            root.alg.reset_iteration()
             while True:
                 root.solve()
                 solution = root.get_coupling_solution()
 
-                obj = self.get_root_obj()
-                assert obj is not None
-                self.relax_bound.append(obj)
-                self.logger.log_master_problem(len(self.relax_bound), obj, solution)
                 self.comm.bcast(solution, root=0)
 
                 cuts_dn = {}
@@ -60,9 +56,6 @@ class BdRunMpi(BdRun):
                     combined_cuts_dn.update(d)
                 finished = root.add_cuts(combined_cuts_dn)
                 if finished:
-                    self.logger.log_completion(
-                        len(self.relax_bound), self.relax_bound[-1]
-                    )
                     if isinstance(root, BdLeafNode):
                         raise NotImplementedError()
                     else:

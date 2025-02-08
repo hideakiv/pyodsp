@@ -1,8 +1,10 @@
 import pyomo.environ as pyo
 
+from pyodec.solver.pyomo_solver import PyomoSolver
+
 from pyodec.dec.dd.node_root import DdRootNode
 from pyodec.dec.dd.node_leaf import DdLeafNode
-from pyodec.dec.dd.solver_leaf import DdSolverLeaf
+from pyodec.dec.dd.solver_leaf import DdAlgLeaf
 from pyodec.dec.dd.run import DdRun
 
 
@@ -29,8 +31,9 @@ def create_sub(i) -> DdLeafNode:
 
     block.obj = pyo.Objective(expr=cost[i] * block.x, sense=pyo.minimize)
 
-    sub_solver = DdSolverLeaf(block, "appsi_highs")
-    leaf_node = DdLeafNode(i, sub_solver, 0, vars_up)
+    sub_solver = PyomoSolver(block, "appsi_highs", vars_up)
+    sub_alg = DdAlgLeaf(sub_solver)
+    leaf_node = DdLeafNode(i, sub_alg, 0)
     return leaf_node
 
 

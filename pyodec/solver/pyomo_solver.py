@@ -8,22 +8,44 @@ from pyomo.environ import (
 from pyomo.core.base.var import VarData
 from pyomo.opt import TerminationCondition
 
+from .solver import Solver
 
-class DdSolver:
-    """Base class for Dual Decomposition subproblem solvers"""
+solver_dual_sign_convention = dict()
+solver_dual_sign_convention["ipopt"] = -1
+solver_dual_sign_convention["gurobi"] = -1
+solver_dual_sign_convention["gurobi_direct"] = -1
+solver_dual_sign_convention["gurobi_persistent"] = -1
+solver_dual_sign_convention["cplex"] = -1
+solver_dual_sign_convention["cplex_direct"] = -1
+solver_dual_sign_convention["cplexdirect"] = -1
+solver_dual_sign_convention["cplex_persistent"] = -1
+solver_dual_sign_convention["glpk"] = -1
+solver_dual_sign_convention["cbc"] = -1
+solver_dual_sign_convention["xpress_direct"] = -1
+solver_dual_sign_convention["xpress_persistent"] = -1
+solver_dual_sign_convention["appsi_highs"] = 1
 
-    def __init__(self, model: ConcreteModel, solver: str, **kwargs):
+
+class PyomoSolver(Solver):
+    """Base class for solvers using Pyomo"""
+
+    def __init__(
+        self, model: ConcreteModel, solver: str, vars: List[VarData], **kwargs
+    ):
         """Initialize the subsolver.
 
         Args:
             model: The Pyomo model.
             solver: The solver to use.
+            vars: The variables in focus
         """
         self.solver = SolverFactory(solver)
         self.model = model
+        self.vars = vars
         self._solver_kwargs = kwargs
 
-        self.original_objective = self.get_objective()
+        self.original_objective = self._get_objective()
+        self.sign_convention = solver_dual_sign_convention[solver]
 
         self._results = None
 
@@ -36,7 +58,7 @@ class DdSolver:
         if self.is_optimal():
             self.model.solutions.load_from(self._results)
 
-    def get_objective(self) -> Objective:
+    def _get_objective(self) -> Objective:
         """Get the objective of the model"""
         for obj in self.model.component_objects(Objective, active=True):
             # There should be only one objective
@@ -46,23 +68,19 @@ class DdSolver:
 
     def get_objective_value(self) -> float:
         """Get the objective value of the model"""
-        return value(self.get_objective())
+        return value(self._get_objective())
 
-    def get_objective_sense(self) -> bool:
+    def is_minimize(self) -> bool:
         """Get the sense of the objective.
 
         Returns:
             True if the objective is to be minimized, False otherwise.
         """
-        return self.get_objective().sense > 0
+        return self._get_objective().sense > 0
 
-    def get_solution(self, vars: List[VarData]) -> List[float]:
-        """Get the solution of the model.
-
-        Args:
-            vars: The variables to get the solution of.
-        """
-        return [var.value for var in vars]
+    def get_solution(self) -> List[float]:
+        """Get the solution of the model."""
+        return [var.value for var in self.vars]
 
     def is_optimal(self) -> bool:
         """Returns whether the model is optimal."""

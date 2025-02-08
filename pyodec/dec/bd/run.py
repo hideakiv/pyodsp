@@ -13,19 +13,11 @@ class BdRun:
         self.nodes: Dict[int, BdNode] = {node.idx: node for node in nodes}
         self.root_idx = self._get_root_idx()
         self.logger = BdLogger()
-        self.relax_bound: List[float] = []
 
     def _get_root_idx(self) -> int | None:
         for idx, node in self.nodes.items():
             if node.parent is None:
                 return idx
-        return None
-
-    def get_root_obj(self) -> float | None:
-        if self.root_idx is not None:
-            node = self.nodes[self.root_idx]
-            assert isinstance(node, BdRootNode)
-            return node.solver.get_objective_value()
         return None
 
     def run(self):
@@ -38,7 +30,7 @@ class BdRun:
             self._set_bounds(node)
             node.build()
 
-            node.solver.reset_iteration()
+            node.alg.reset_iteration()
             while True:
                 if isinstance(node, BdLeafNode):
                     cut_up = node.solve(sol_up)
@@ -46,17 +38,9 @@ class BdRun:
                     cut_up = node.solve()
                 solution = node.get_coupling_solution()
 
-                if node.idx == self.root_idx:
-                    obj = self.get_root_obj()
-                    assert obj is not None
-                    self.relax_bound.append(obj)
-                    self.logger.log_master_problem(len(self.relax_bound), obj, solution)
                 cuts_dn = self._get_cuts(node, solution)
                 finished = node.add_cuts(cuts_dn)
                 if finished:
-                    self.logger.log_completion(
-                        len(self.relax_bound), self.relax_bound[-1]
-                    )
                     if isinstance(node, BdLeafNode):
                         return cut_up
                     else:

@@ -30,13 +30,3 @@ T = TypeVar("T", bound=Cut)
 class CutList(list[T], Generic[T]):
     def __init__(self, items: list[T] | None = None):
         super().__init__(items or [])
-
-
-@dataclass
-class WrappedCut:
-    """Class for wrapping cuts with info"""
-
-    cut: Cut
-    iteration: int
-    trial_point: List[float]
-    period: int

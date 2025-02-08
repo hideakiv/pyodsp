@@ -5,21 +5,19 @@ from pyomo.core.base.var import VarData
 from pyodec.alg.bm.cuts import Cut
 
 from .node import BdNode
-from .solver_leaf import BdSolverLeaf
+from .solver_leaf import BdAlgLeaf
 
 
 class BdLeafNode(BdNode):
     def __init__(
         self,
         idx: int,
-        solver: BdSolverLeaf,
+        alg: BdAlgLeaf,
         bound: float,
         parent: int,
-        vars_up: List[VarData],
     ) -> None:
         super().__init__(idx, parent=parent)
-        self.solver = solver
-        self.coupling_vars_up: List[VarData] = vars_up
+        self.alg = alg
         self.bound = bound
 
         self.built = False
@@ -27,13 +25,12 @@ class BdLeafNode(BdNode):
     def build(self) -> None:
         if self.built:
             return
-        self.solver.build(self.coupling_vars_up)
+        self.alg.build()
         self.built = True
 
     def solve(self, coupling_values: List[float]) -> Cut:
-        self.solver.fix_variables(self.coupling_vars_up, coupling_values)
-        self.solver.solve()
-        return self.solver.get_subgradient(self.coupling_vars_up)
+        self.alg.fix_variables(coupling_values)
+        return self.alg.get_subgradient()
 
     def get_bound(self) -> float:
         return self.bound

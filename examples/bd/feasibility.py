@@ -1,9 +1,11 @@
 import pyomo.environ as pyo
 
+from pyodec.solver.pyomo_solver import PyomoSolver
+
 from pyodec.dec.bd.node_root import BdRootNode
-from pyodec.dec.bd.solver_root import BdSolverRoot
+from pyodec.dec.bd.solver_root import BdAlgRoot
 from pyodec.dec.bd.node_leaf import BdLeafNode
-from pyodec.dec.bd.solver_leaf import BdSolverLeaf
+from pyodec.dec.bd.solver_leaf import BdAlgLeaf
 from pyodec.dec.bd.run import BdRun
 
 model1 = pyo.ConcreteModel()
@@ -13,9 +15,10 @@ model1.x2 = pyo.Var(within=pyo.NonNegativeReals)
 
 model1.obj = pyo.Objective(expr=3 * model1.x1 + 2 * model1.x2, sense=pyo.minimize)
 
-first_stage_solver = BdSolverRoot(model1, "appsi_highs")
 coupling_dn = [model1.x1, model1.x2]
-root_node = BdRootNode(0, first_stage_solver, coupling_dn)
+first_stage_solver = PyomoSolver(model1, "appsi_highs", coupling_dn)
+first_stage_alg = BdAlgRoot(first_stage_solver)
+root_node = BdRootNode(0, first_stage_alg)
 
 model2 = {1: pyo.ConcreteModel(), 2: pyo.ConcreteModel()}
 xi1 = {1: 6, 2: 4}
@@ -39,9 +42,10 @@ for i, block in model2.items():
 
     block.obj = pyo.Objective(expr=-15 * block.y1 - 12 * block.y2, sense=pyo.minimize)
 
-    second_stage_solver = BdSolverLeaf(block, "appsi_highs")
     coupling_up = [block.x1, block.x2]
-    leaf_node = BdLeafNode(i, second_stage_solver, 0.0, 0, coupling_up)
+    second_stage_solver = PyomoSolver(block, "appsi_highs", coupling_up)
+    second_stage_alg = BdAlgLeaf(second_stage_solver)
+    leaf_node = BdLeafNode(i, second_stage_alg, 0.0, 0)
     leaf_nodes[i] = leaf_node
     root_node.add_child(i, multiplier=p[i])
 

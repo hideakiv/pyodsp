@@ -1,25 +1,22 @@
-from typing import List, Dict, Tuple
-
-from pyomo.core.base.var import VarData
+from typing import List, Dict
 
 from pyodec.alg.bm.cuts import Cut, OptimalityCut, FeasibilityCut
 
 from .node import DdNode
-from .solver_leaf import DdSolverLeaf
+from .solver_leaf import DdAlgLeaf
 
 
 class DdLeafNode(DdNode):
     def __init__(
         self,
         idx: int,
-        solver: DdSolverLeaf,
+        alg: DdAlgLeaf,
         parent: int,
-        vars_up: List[VarData],
     ) -> None:
         super().__init__(idx, parent=parent)
-        self.solver = solver
-        self.coupling_vars_up: List[VarData] = vars_up
-        self.is_minimize = self.solver.get_objective_sense()
+        self.alg = alg
+        self.is_minimize = self.alg.is_minimize()
+        self.len_vars = self.alg.get_len_vars()
 
         self.built = False
 
@@ -32,27 +29,28 @@ class DdLeafNode(DdNode):
     def build(self) -> None:
         if self.built:
             return
-        self.solver.build()
+        self.alg.build()
         self.built = True
 
     def solve(self, dual_values: List[float]) -> Cut:
         primal_coeffs = self._dual_times_matrix(dual_values)
-        self.solver.add_to_objective(self.coupling_vars_up, primal_coeffs)
-        self.solver.solve()
-        is_optimal, solution = self.solver.get_solution_or_ray(self.coupling_vars_up)
+        self.alg.update_objective(primal_coeffs)
+        is_optimal, solution, obj = self.alg.get_solution_or_ray()
         if is_optimal:
             dual_coeffs = self._matrix_times_primal(solution)
             product = self._inner_product(primal_coeffs, solution)
-            obj = self.solver.get_objective_value()
             rhs = obj - product
             return OptimalityCut(dual_coeffs, rhs, obj)
         else:
-            NotImplementedError()
+            dual_coeffs = self._matrix_times_primal(solution)
+            product = self._inner_product(primal_coeffs, solution)
+            rhs = obj - product
+            return FeasibilityCut(dual_coeffs, rhs)
 
     def _convert_to_col_major(
         self, row_major: List[Dict[int, float]]
     ) -> List[Dict[int, float]]:
-        cols: List[Dict[int, float]] = [{} for _ in range(len(self.coupling_vars_up))]
+        cols: List[Dict[int, float]] = [{} for _ in range(self.len_vars)]
         for i, row in enumerate(row_major):
             for j, val in row.items():
                 cols[j][i] = val
@@ -60,7 +58,7 @@ class DdLeafNode(DdNode):
 
     def _dual_times_matrix(self, dual_values: List[float]) -> List[float]:
         # multiply dual_values and coupling_matrix
-        coeffs = [0.0] * len(self.coupling_vars_up)
+        coeffs = [0.0] * self.len_vars
         for j, col in enumerate(self.col_major):
             coeff = 0.0
             for i, val in col.items():
@@ -73,7 +71,7 @@ class DdLeafNode(DdNode):
 
     def _matrix_times_primal(self, primal_values: List[float]) -> List[float]:
         # multiply coupling_matrix and primal
-        coeffs = [0.0] * len(self.coupling_vars_up)
+        coeffs = [0.0] * self.len_vars
         for i, row in enumerate(self.row_major):
             coeff = 0.0
             for j, val in row.items():

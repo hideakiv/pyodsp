@@ -5,7 +5,7 @@ from pyomo.core.base.var import VarData
 from pyodec.alg.bm.cuts import Cut, OptimalityCut, FeasibilityCut, CutList
 
 from .node import BdNode
-from .solver_root import BdSolverRoot
+from .solver_root import BdAlgRoot
 
 
 class BdRootNode(BdNode):
@@ -13,12 +13,11 @@ class BdRootNode(BdNode):
     def __init__(
         self,
         idx: int,
-        solver: BdSolverRoot,
-        vars_dn: List[VarData],
+        alg: BdAlgRoot,
     ) -> None:
         super().__init__(idx, parent=None)
-        self.solver = solver
-        self.coupling_vars_dn: List[VarData] = vars_dn
+        self.alg = alg
+        self.coupling_vars_dn: List[VarData] = alg.get_vars()
 
         self.children_bounds: Dict[int, float] = {}
 
@@ -55,14 +54,14 @@ class BdRootNode(BdNode):
                 )
             subobj_bounds.append(bound)
 
-        self.solver.build(subobj_bounds)
+        self.alg.build(subobj_bounds)
         self.built = True
 
     def solve(self) -> None:
-        self.solver.solve()
+        self.alg.solve()
 
     def get_coupling_solution(self) -> List[float]:
-        return self.solver.get_solution(self.coupling_vars_dn)
+        return self.alg.get_solution()
 
     def add_cuts(self, cuts: Dict[int, Cut]) -> bool:
         aggregate_cuts = []
@@ -76,7 +75,7 @@ class BdRootNode(BdNode):
             aggregate_cut = self._aggregate_cuts(group_multipliers, group_cut)
 
             aggregate_cuts.append(aggregate_cut)
-        finished = self.solver.add_cuts(aggregate_cuts, self.coupling_vars_dn)
+        finished = self.alg.add_cuts(aggregate_cuts)
         return finished
 
     def _aggregate_cuts(self, multipliers: List[float], cuts: List[Cut]) -> CutList:

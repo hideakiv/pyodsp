@@ -50,19 +50,18 @@ class DdRunMpi(DdRun):
             combined_cuts_dn = {}
             for d in all_cuts_dn:
                 combined_cuts_dn.update(d)
-            finished = root.add_cuts(combined_cuts_dn)
             while True:
-                if finished:
+                solution = root.run_step(combined_cuts_dn)
+                if solution is None:
                     self.comm.bcast(-1, root=0)
-                    return None
-                solution = self._run_root(root)
+                    return
                 self.comm.bcast(solution, root=0)
+
                 cuts_dn = self._run_leaf(solution)
                 all_cuts_dn = self.comm.gather(cuts_dn, root=0)
                 combined_cuts_dn = {}
                 for d in all_cuts_dn:
                     combined_cuts_dn.update(d)
-                finished = root.add_cuts(combined_cuts_dn)
         else:
             matrix_info = self.comm.recv(source=0, tag=0)
 

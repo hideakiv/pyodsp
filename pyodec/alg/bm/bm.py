@@ -5,8 +5,8 @@ from pyomo.environ import Var, Constraint, Reals, RangeSet
 from pyodec.solver.pyomo_solver import PyomoSolver
 from pyodec.solver.pyomo_utils import add_terms_to_objective
 
-from .cuts import CutList, OptimalityCut, FeasibilityCut
-from .cuts_manager import CutsManager, CutInfo
+from ..cuts import CutList, OptimalityCut, FeasibilityCut
+from ..cuts_manager import CutsManager, CutInfo
 from .logger import BmLogger
 from ..const import BM_ABS_TOLERANCE
 
@@ -17,7 +17,7 @@ class BundleMethod:
         self.cuts_manager = CutsManager()
 
         self.max_iteration = max_iteration
-        self.iteration = 1
+        self.iteration = 0
         self.logger = BmLogger()
 
         self.current_solution: List[float] = []
@@ -25,8 +25,10 @@ class BundleMethod:
         self.relax_bound: List[float | None] = []
         self.feas_bound: List[float | None] = []
 
-    def build(self, subobj_bounds: List[float]) -> None:
-        self.num_cuts = len(subobj_bounds)
+    def build(self, num_cuts: int, subobj_bounds: List[float] | None) -> None:
+        self.num_cuts = num_cuts
+        assert subobj_bounds is not None
+        assert self.num_cuts == len(subobj_bounds)
         self._update_objective(subobj_bounds)
         self.cuts_manager.build(self.num_cuts)
 
@@ -34,13 +36,24 @@ class BundleMethod:
             tolerance=BM_ABS_TOLERANCE, max_iteration=self.max_iteration
         )
 
-    def reset_iteration(self, i=1) -> None:
-        self.iteration = i
+    def run_step(self, cuts_list: List[CutList] | None) -> List[float] | None:
+        if cuts_list is not None:
+            optimal = self._add_cuts(cuts_list)
+            if optimal:
+                self.logger.log_status_optimal()
+                self.logger.log_completion(self.iteration, self.relax_bound[-1])
+                return
+        else:
+            self.feas_bound.append(None)
 
-    def solve(self) -> None:
-        self.solver.solve()
-        self.current_solution = self.solver.get_solution()
-        self.relax_bound.append(self.solver.get_objective_value())
+        reached_max_iteration = self._increment()
+        if reached_max_iteration:
+            self.logger.log_status_max_iter()
+            self.logger.log_completion(self.iteration, self.relax_bound[-1])
+            return
+
+        self._solve()
+
         if self.solver.is_minimize():
             lb = self.relax_bound[-1]
             ub = self.feas_bound[-1]
@@ -49,13 +62,23 @@ class BundleMethod:
             ub = self.relax_bound[-1]
         self.logger.log_master_problem(self.iteration, lb, ub, self.current_solution)
 
+        return self.current_solution
+
+    def reset_iteration(self, i=0) -> None:
+        self.iteration = i
+
+    def _solve(self) -> None:
+        self.solver.solve()
+        self.current_solution = self.solver.get_solution()
+        self.relax_bound.append(self.solver.get_objective_value())
+
     def get_solution(self) -> List[float]:
         return self.current_solution
 
-    def add_cuts(self, cuts_list: List[CutList]) -> bool:
+    def _add_cuts(self, cuts_list: List[CutList]) -> bool:
         found_cuts = [False for _ in range(self.num_cuts)]
-        feasible = True
-        obj_val = 0.0
+        self.feasible = True
+        obj_val = self.solver.get_original_objective_value()
         for idx, cuts in enumerate(cuts_list):
             for cut in cuts:
                 found_cut = False
@@ -64,29 +87,18 @@ class BundleMethod:
                     obj_val += cut.objective_value
                 elif isinstance(cut, FeasibilityCut):
                     found_cut = self._add_feasibility_cut(idx, cut)
-                    feasible = False
+                    self.feasible = False
                 found_cuts[idx] = found_cut or found_cuts[idx]
 
-        if feasible:
+        if self.feasible:
             self.feas_bound.append(obj_val)
         else:
             self.feas_bound.append(None)
 
         optimal = not any(found_cuts)
-        if optimal:
-            self.logger.log_status_optimal()
-            self.logger.log_completion(self.iteration, self.relax_bound[-1])
-            return True
+        return optimal
 
-        reached_max_iteration = self.increment()
-        if reached_max_iteration:
-            self.logger.log_status_max_iter()
-            self.logger.log_completion(self.iteration, self.relax_bound[-1])
-            return True
-
-        return False
-
-    def increment(self) -> bool:
+    def _increment(self) -> bool:
         self.iteration += 1
         self.cuts_manager.increment()
 

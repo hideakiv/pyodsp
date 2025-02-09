@@ -3,7 +3,7 @@ from typing import List
 
 from pyomo.core.base.var import VarData
 
-from pyodec.alg.bm.cuts import CutList
+from pyodec.alg.cuts import CutList
 
 
 class BdAlgRoot(ABC):
@@ -17,17 +17,9 @@ class BdAlgRoot(ABC):
         pass
 
     @abstractmethod
+    def run_step(self, cuts_list: List[CutList] | None) -> List[float] | None:
+        pass
+
+    @abstractmethod
     def reset_iteration(self) -> None:
-        pass
-
-    @abstractmethod
-    def solve(self) -> None:
-        pass
-
-    @abstractmethod
-    def get_solution(self) -> List[float]:
-        pass
-
-    @abstractmethod
-    def add_cuts(self, cuts_list: List[CutList]) -> bool:
         pass

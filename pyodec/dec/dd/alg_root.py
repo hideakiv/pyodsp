@@ -16,7 +16,7 @@ from pyomo.core.base.var import VarData
 
 from pyodec.dec.utils import get_nonzero_coefficients_group
 from pyodec.solver.pyomo_solver import PyomoSolver
-from pyodec.alg.bm.cuts import CutList
+from pyodec.alg.cuts import CutList
 
 
 class DdAlgRoot:
@@ -47,16 +47,18 @@ class DdAlgRoot:
         self.lagrangian_data = get_nonzero_coefficients_group(coupling_model, vars_dn)
         self.num_constrs = len(self.lagrangian_data.constraints)
 
-        master.ld_plus = Var(RangeSet(0, self.num_constrs - 1), domain=NonNegativeReals)
+        master.ld_plus = Var(
+            RangeSet(0, self.num_constrs - 1), domain=NonNegativeReals, initialize=0
+        )
         master.ld_minus = Var(
-            RangeSet(0, self.num_constrs - 1), domain=NonNegativeReals
+            RangeSet(0, self.num_constrs - 1), domain=NonNegativeReals, initialize=0
         )
         for i in range(self.num_constrs):
             if self.lagrangian_data.lbs[i] is None:
                 master.ld_minus[i].fix(0)
             if self.lagrangian_data.ubs[i] is None:
                 master.ld_plus[i].fix(0)
-        master.ld = Var(RangeSet(0, self.num_constrs - 1), domain=Reals)
+        master.ld = Var(RangeSet(0, self.num_constrs - 1), domain=Reals, initialize=0)
 
         def constr_rule(m, i):
             return m.ld[i] == m.ld_plus[i] - m.ld_minus[i]
@@ -95,17 +97,9 @@ class DdAlgRoot:
         pass
 
     @abstractmethod
+    def run_step(self, cuts_list: List[CutList] | None) -> List[float] | None:
+        pass
+
+    @abstractmethod
     def reset_iteration(self) -> None:
-        pass
-
-    @abstractmethod
-    def solve(self) -> None:
-        pass
-
-    @abstractmethod
-    def get_solution(self) -> List[float]:
-        pass
-
-    @abstractmethod
-    def add_cuts(self, cuts_list: List[CutList]) -> bool:
         pass

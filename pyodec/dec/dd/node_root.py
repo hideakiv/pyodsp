@@ -2,7 +2,7 @@ from typing import List, Dict
 
 from pyomo.core.base.var import VarData
 
-from pyodec.alg.bm.cuts import Cut, OptimalityCut, FeasibilityCut, CutList
+from pyodec.alg.cuts import Cut, OptimalityCut, FeasibilityCut, CutList
 
 from .node import DdNode
 from .alg_root import DdAlgRoot
@@ -38,13 +38,9 @@ class DdRootNode(DdNode):
         self.alg.build(dummy_bounds)
         self.built = True
 
-    def solve(self) -> None:
-        self.alg.solve()
-
-    def get_dual_solution(self) -> List[float]:
-        return self.alg.get_solution()
-
-    def add_cuts(self, cuts: Dict[int, Cut]) -> bool:
+    def run_step(self, cuts: Dict[int, Cut] | None) -> List[float] | None:
+        if cuts is None:
+            return self.alg.run_step(None)
         aggregate_cuts = []
         assert self.groups is not None
         for group in self.groups:
@@ -56,8 +52,7 @@ class DdRootNode(DdNode):
             aggregate_cut = self._aggregate_cuts(group_multipliers, group_cut)
 
             aggregate_cuts.append(aggregate_cut)
-        finished = self.alg.add_cuts(aggregate_cuts)
-        return finished
+        return self.alg.run_step(aggregate_cuts)
 
     def _aggregate_cuts(self, multipliers: List[float], cuts: List[Cut]) -> CutList:
         new_coef = [0.0 for _ in range(self.num_constrs)]

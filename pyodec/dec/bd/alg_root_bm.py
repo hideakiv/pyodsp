@@ -5,7 +5,7 @@ from pyomo.core.base.var import VarData
 from .alg_root import BdAlgRoot
 from pyodec.solver.pyomo_solver import PyomoSolver
 from pyodec.alg.bm.bm import BundleMethod
-from pyodec.alg.bm.cuts import CutList
+from pyodec.alg.cuts import CutList
 
 
 class BdAlgRootBm(BdAlgRoot):
@@ -18,16 +18,11 @@ class BdAlgRootBm(BdAlgRoot):
         return self.bm.solver.vars
 
     def build(self, subobj_bounds: List[float]) -> None:
-        self.bm.build(subobj_bounds)
+        num_cuts = len(subobj_bounds)
+        self.bm.build(num_cuts, subobj_bounds)
+
+    def run_step(self, cuts_list: List[CutList] | None) -> List[float] | None:
+        return self.bm.run_step(cuts_list)
 
     def reset_iteration(self) -> None:
         self.bm.reset_iteration()
-
-    def solve(self) -> None:
-        self.bm.solve()
-
-    def get_solution(self) -> List[float]:
-        return self.bm.get_solution()
-
-    def add_cuts(self, cuts_list: List[CutList]) -> bool:
-        return self.bm.add_cuts(cuts_list)

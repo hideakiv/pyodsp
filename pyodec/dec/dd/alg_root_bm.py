@@ -4,7 +4,7 @@ from pyomo.environ import ConcreteModel
 from pyomo.core.base.var import VarData
 
 from .alg_root import DdAlgRoot
-from pyodec.alg.bm.bm import BundleMethod
+from pyodec.alg.pbm.pbm import ProximalBundleMethod
 from pyodec.alg.cuts import CutList
 
 
@@ -21,15 +21,15 @@ class DdAlgRootBm(DdAlgRoot):
     ) -> None:
         super().__init__(coupling_model, is_minimize, solver_name, vars_dn, **kwargs)
 
-        self.bm = BundleMethod(self.solver, max_iteration)
-        self.bm.relax_bound.append(None)
+        self.pbm = ProximalBundleMethod(self.solver, max_iteration)
+        self.pbm.relax_bound.append(None)
 
-    def build(self, subobj_bounds: List[float]) -> None:
-        num_cuts = len(subobj_bounds)
-        self.bm.build(num_cuts, subobj_bounds)
+    def build(self, num_cuts: int) -> None:
+        self.pbm.set_init_solution([0.0 for _ in range(num_cuts)])
+        self.pbm.build(num_cuts)
 
     def run_step(self, cuts_list: List[CutList] | None) -> List[float] | None:
-        return self.bm.run_step(cuts_list)
+        return self.pbm.run_step(cuts_list)
 
     def reset_iteration(self) -> None:
-        self.bm.reset_iteration()
+        self.pbm.reset_iteration()

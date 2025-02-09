@@ -93,7 +93,7 @@ class DdAlgRoot:
         return self.vars_dn
 
     @abstractmethod
-    def build(self, subobj_bounds: List[float]) -> None:
+    def build(self, num_cuts: int) -> None:
         pass
 
     @abstractmethod

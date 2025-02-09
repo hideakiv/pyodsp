@@ -13,6 +13,7 @@ from pyodec.solver.pyomo_utils import (
 )
 
 """
+TODO: As of now this is just a regularized method. Update alg to:
 Kiwiel, K. C. (1990). 
 Proximity control in bundle methods for convex nondifferentiable minimization. 
 Mathematical programming, 46(1), 105-122.

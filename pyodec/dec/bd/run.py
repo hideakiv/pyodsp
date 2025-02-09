@@ -31,20 +31,14 @@ class BdRun:
             node.build()
 
             node.alg.reset_iteration()
+            cuts_dn = None
             while True:
-                if isinstance(node, BdLeafNode):
-                    cut_up = node.solve(sol_up)
-                else:
-                    cut_up = node.solve()
-                solution = node.get_coupling_solution()
+                solution = node.run_step(cuts_dn)
+
+                if solution is None:
+                    return
 
                 cuts_dn = self._get_cuts(node, solution)
-                finished = node.add_cuts(cuts_dn)
-                if finished:
-                    if isinstance(node, BdLeafNode):
-                        return cut_up
-                    else:
-                        return None
         if isinstance(node, BdLeafNode):
             node.build()
             return node.solve(sol_up)

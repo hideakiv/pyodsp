@@ -17,17 +17,9 @@ class BdAlgRoot(ABC):
         pass
 
     @abstractmethod
+    def run_step(self, cuts_list: List[CutList] | None) -> List[float] | None:
+        pass
+
+    @abstractmethod
     def reset_iteration(self) -> None:
-        pass
-
-    @abstractmethod
-    def solve(self) -> None:
-        pass
-
-    @abstractmethod
-    def get_solution(self) -> List[float]:
-        pass
-
-    @abstractmethod
-    def add_cuts(self, cuts_list: List[CutList]) -> bool:
         pass

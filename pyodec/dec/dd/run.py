@@ -32,19 +32,11 @@ class DdRun:
 
         root.alg.reset_iteration()
         cuts_dn = self._run_leaf([0.0 for _ in range(root.num_constrs)])
-        finished = root.add_cuts(cuts_dn)
         while True:
-            if finished:
-                return None
-            solution = self._run_root(root)
+            solution = root.run_step(cuts_dn)
+            if solution is None:
+                return
             cuts_dn = self._run_leaf(solution)
-            finished = root.add_cuts(cuts_dn)
-
-    def _run_root(self, root: DdRootNode) -> List[float]:
-        root.solve()
-        solution = root.get_dual_solution()
-
-        return solution
 
     def _run_leaf(self, solution: List[float]) -> Dict[int, Cut]:
         cuts_dn = {}

@@ -70,6 +70,10 @@ class PyomoSolver(Solver):
         """Get the objective value of the model"""
         return value(self._get_objective())
 
+    def get_original_objective_value(self) -> float:
+        """Get the objective value of the model"""
+        return value(self.original_objective)
+
     def is_minimize(self) -> bool:
         """Get the sense of the objective.
 

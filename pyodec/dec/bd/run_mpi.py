@@ -38,9 +38,13 @@ class BdRunMpi(BdRun):
             root.build()
 
             root.alg.reset_iteration()
+            combined_cuts_dn = None
             while True:
-                root.solve()
-                solution = root.get_coupling_solution()
+                solution = root.run_step(combined_cuts_dn)
+
+                if solution is None:
+                    self.comm.bcast(-1, root=0)
+                    return
 
                 self.comm.bcast(solution, root=0)
 
@@ -54,13 +58,6 @@ class BdRunMpi(BdRun):
                 combined_cuts_dn = {}
                 for d in all_cuts_dn:
                     combined_cuts_dn.update(d)
-                finished = root.add_cuts(combined_cuts_dn)
-                if finished:
-                    if isinstance(root, BdLeafNode):
-                        raise NotImplementedError()
-                    else:
-                        self.comm.bcast(-1, root=0)
-                        return None
 
         else:
             solution = None

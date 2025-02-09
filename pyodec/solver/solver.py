@@ -16,6 +16,11 @@ class Solver(ABC):
         return 0.0
 
     @abstractmethod
+    def get_original_objective_value(self) -> float:
+        """Get the original objective value of the model"""
+        return 0.0
+
+    @abstractmethod
     def is_minimize(self) -> bool:
         """Get the sense of the objective.
 

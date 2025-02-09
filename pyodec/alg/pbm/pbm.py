@@ -4,6 +4,7 @@ from pyomo.environ import Var, Reals, RangeSet
 
 from pyodec.alg.cuts import CutList
 
+from .logger import PbmLogger
 from ..bm.bm import BundleMethod
 from ..const import BM_ABS_TOLERANCE, BM_REL_TOLERANCE
 from pyodec.solver.pyomo_solver import PyomoSolver
@@ -26,6 +27,7 @@ class ProximalBundleMethod(BundleMethod):
         super().__init__(solver, max_iteration)
         self.penalty = penalty
         self.center_val = []
+        self.logger = PbmLogger()
 
     def set_init_solution(self, solution: List[float]) -> None:
         self.center = solution
@@ -69,7 +71,9 @@ class ProximalBundleMethod(BundleMethod):
         else:
             lb = self.feas_bound[-1]
             ub = self.relax_bound[-1]
-        self.logger.log_master_problem(self.iteration, lb, ub, self.current_solution)
+        self.logger.log_master_problem(
+            self.iteration, lb, self.center_val[-1], ub, self.current_solution
+        )
 
         if self._optimal():
             self.logger.log_status_optimal()

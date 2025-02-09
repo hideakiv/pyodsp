@@ -30,12 +30,7 @@ class DdRootNode(DdNode):
             self.groups = [[child] for child in self.children]
         self.num_cuts = len(self.groups)
 
-        if self.is_minimize:
-            dummy_bounds = [1e9 for _ in range(self.num_cuts)]  # FIXME
-        else:
-            dummy_bounds = [-1e9 for _ in range(self.num_cuts)]  # FIXME
-
-        self.alg.build(dummy_bounds)
+        self.alg.build(self.num_cuts)
         self.built = True
 
     def run_step(self, cuts: Dict[int, Cut] | None) -> List[float] | None:

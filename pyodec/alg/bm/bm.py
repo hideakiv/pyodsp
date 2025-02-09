@@ -70,7 +70,12 @@ class BundleMethod:
     def _solve(self) -> None:
         self.solver.solve()
         self.current_solution = self.solver.get_solution()
-        self.relax_bound.append(self.solver.get_objective_value())
+        current_obj = self.solver.get_original_objective_value()
+        for idx in range(self.num_cuts):
+            theta = self.solver.model._theta[idx]
+            theta_val = theta.value
+            current_obj += theta_val
+        self.relax_bound.append(current_obj)
 
     def get_solution(self) -> List[float]:
         return self.current_solution

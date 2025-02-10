@@ -73,5 +73,5 @@ if __name__ == "__main__":
 
     root_node.set_groups([[1, 2]])
 
-    bd_run = BdRun([root_node, leaf_node_1, leaf_node_2], Path("output/bb/optimality"))
+    bd_run = BdRun([root_node, leaf_node_1, leaf_node_2], Path("output/bd/optimality"))
     bd_run.run()

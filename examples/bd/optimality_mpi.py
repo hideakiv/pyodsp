@@ -28,7 +28,7 @@ if __name__ == "__main__":
 
     node_rank_map = {0: 0, 1: 1, 2: 2}
 
-    bd_run = BdRunMpi([node], node_rank_map, Path("output/bb/optimality_mpi"))
+    bd_run = BdRunMpi([node], node_rank_map, Path("output/bd/optimality_mpi"))
     bd_run.run()
 
     MPI.Finalize()

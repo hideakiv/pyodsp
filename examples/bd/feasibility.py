@@ -53,5 +53,5 @@ for i, block in model2.items():
 
 root_node.set_groups([[1, 2]])
 
-bd_run = BdRun([root_node, *leaf_nodes.values()], Path("output/bb/feasibility"))
+bd_run = BdRun([root_node, *leaf_nodes.values()], Path("output/bd/feasibility"))
 bd_run.run()

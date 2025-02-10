@@ -43,6 +43,12 @@ class BundleMethod:
         nocuts = False
         if cuts_list is not None:
             nocuts = self._add_cuts(cuts_list)
+            if nocuts:
+                if len(self.relax_bound) < len(self.feas_bound):
+                    self.relax_bound.append(self.relax_bound[-1])
+                self.logger.log_status_optimal()
+                self.logger.log_completion(self.iteration, self.relax_bound[-1])
+                return
         else:
             self.feas_bound.append(None)
 
@@ -62,7 +68,7 @@ class BundleMethod:
             ub = self.relax_bound[-1]
         self.logger.log_master_problem(self.iteration, lb, ub, self.current_solution)
 
-        if self._optimal() or nocuts:
+        if self._optimal():
             self.logger.log_status_optimal()
             self.logger.log_completion(self.iteration, self.relax_bound[-1])
             return

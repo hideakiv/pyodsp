@@ -1,4 +1,5 @@
 from typing import List, Dict
+from pathlib import Path
 
 from pyodec.alg.cuts import Cut, OptimalityCut, FeasibilityCut
 
@@ -6,13 +7,17 @@ from .logger import DdLogger
 from .node import DdNode
 from .node_leaf import DdLeafNode
 from .node_root import DdRootNode
+from ..utils import create_directory
 
 
 class DdRun:
-    def __init__(self, nodes: List[DdNode]):
+    def __init__(self, nodes: List[DdNode], filedir: Path):
         self.nodes: Dict[int, DdNode] = {node.idx: node for node in nodes}
         self.root_idx = self._get_root_idx()
         self.logger = DdLogger()
+
+        self.filedir = filedir
+        create_directory(self.filedir)
 
     def _get_root_idx(self) -> int | None:
         for idx, node in self.nodes.items():
@@ -35,8 +40,11 @@ class DdRun:
         while True:
             solution = root.run_step(cuts_dn)
             if solution is None:
-                return
+                break
             cuts_dn = self._run_leaf(solution)
+
+        for node in self.nodes.values():
+            node.save(self.filedir)
 
     def _run_leaf(self, solution: List[float]) -> Dict[int, Cut]:
         cuts_dn = {}

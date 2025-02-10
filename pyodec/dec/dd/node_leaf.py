@@ -1,9 +1,11 @@
 from typing import List, Dict
+from pathlib import Path
 
 from pyodec.alg.cuts import Cut, OptimalityCut, FeasibilityCut
 
 from .node import DdNode
 from .alg_leaf import DdAlgLeaf
+from ..utils import create_directory
 
 
 class DdLeafNode(DdNode):
@@ -46,6 +48,11 @@ class DdLeafNode(DdNode):
             product = self._inner_product(primal_coeffs, solution)
             rhs = obj - product
             return FeasibilityCut(dual_coeffs, rhs)
+
+    def save(self, dir: Path):
+        node_dir = dir / f"node{self.idx}"
+        create_directory(node_dir)
+        self.alg.save(node_dir)
 
     def _convert_to_col_major(
         self, row_major: List[Dict[int, float]]

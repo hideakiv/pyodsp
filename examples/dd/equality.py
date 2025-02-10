@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import pyomo.environ as pyo
 
 from pyodec.solver.pyomo_solver import PyomoSolver
@@ -49,5 +51,5 @@ if __name__ == "__main__":
     master.add_child(2)
     master.add_child(3)
 
-    dd_run = DdRun([master, sub_1, sub_2, sub_3])
+    dd_run = DdRun([master, sub_1, sub_2, sub_3], Path("output/dd/equality"))
     dd_run.run()

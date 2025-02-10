@@ -1,4 +1,5 @@
 from typing import List, Dict
+from pathlib import Path
 
 from pyomo.environ import ConcreteModel
 from pyomo.core.base.var import VarData
@@ -37,3 +38,6 @@ class DdAlgRootBm(DdAlgRoot):
 
     def reset_iteration(self) -> None:
         self.bm.reset_iteration()
+
+    def save(self, dir: Path) -> None:
+        self.bm.save(dir)

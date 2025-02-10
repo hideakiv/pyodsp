@@ -1,4 +1,5 @@
 from typing import List, Tuple
+from pathlib import Path
 
 from pyomo.core.base.constraint import ConstraintData
 
@@ -66,3 +67,6 @@ class DdAlgLeafPyomo(DdAlgLeaf):
         deactivate_restricted_mode(self.solver, self.restricted_info)
 
         return ray, obj
+
+    def save(self, dir: Path) -> None:
+        self.solver.save(dir)

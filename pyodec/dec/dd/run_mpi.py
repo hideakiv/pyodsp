@@ -1,4 +1,5 @@
 from typing import List, Dict
+from pathlib import Path
 from mpi4py import MPI
 
 from .run import DdRun
@@ -9,11 +10,9 @@ from .node_root import DdRootNode
 
 class DdRunMpi(DdRun):
     def __init__(
-        self,
-        nodes: List[DdNode],
-        node_rank_map: Dict[int, int],
+        self, nodes: List[DdNode], node_rank_map: Dict[int, int], filedir: Path
     ):
-        super().__init__(nodes)
+        super().__init__(nodes, filedir)
         self.node_rank_map = node_rank_map
         self.comm = MPI.COMM_WORLD
         self.rank = self.comm.Get_rank()
@@ -54,7 +53,7 @@ class DdRunMpi(DdRun):
                 solution = root.run_step(combined_cuts_dn)
                 if solution is None:
                     self.comm.bcast(-1, root=0)
-                    return
+                    break
                 self.comm.bcast(solution, root=0)
 
                 cuts_dn = self._run_leaf(solution)
@@ -77,6 +76,9 @@ class DdRunMpi(DdRun):
             while True:
                 solution = self.comm.bcast(solution, root=0)
                 if solution == -1:
-                    return None
+                    break
                 cuts_dn = self._run_leaf(solution)
                 all_cuts_dn = self.comm.gather(cuts_dn, root=0)
+
+        for node in self.nodes.values():
+            node.save(self.filedir)

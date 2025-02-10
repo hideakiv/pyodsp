@@ -1,4 +1,5 @@
 from typing import List, Dict
+from pathlib import Path
 
 from pyomo.core.base.var import VarData
 
@@ -6,6 +7,7 @@ from pyodec.alg.cuts import Cut, OptimalityCut, FeasibilityCut, CutList
 
 from .node import BdNode
 from .alg_root import BdAlgRoot
+from ..utils import create_directory
 
 
 class BdRootNode(BdNode):
@@ -72,6 +74,11 @@ class BdRootNode(BdNode):
 
             aggregate_cuts.append(aggregate_cut)
         return self.alg.run_step(aggregate_cuts)
+
+    def save(self, dir: Path):
+        node_dir = dir / f"node{self.idx}"
+        create_directory(node_dir)
+        self.alg.save(node_dir)
 
     def _aggregate_cuts(self, multipliers: List[float], cuts: List[Cut]) -> CutList:
         new_coef = [0.0 for _ in range(len(self.coupling_vars_dn))]

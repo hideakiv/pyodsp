@@ -1,5 +1,7 @@
 from typing import List
+from pathlib import Path
 
+import pandas as pd
 from pyomo.environ import Var, Reals, RangeSet
 
 from pyodec.alg.cuts import CutList
@@ -76,11 +78,27 @@ class ProximalBundleMethod(BundleMethod):
         )
 
         if self._optimal():
+            if len(self.relax_bound) > len(self.center_val):
+                self.center_val.append(self.center_val[-1])
+            if len(self.relax_bound) > len(self.feas_bound):
+                self.feas_bound.append(self.feas_bound[-1])
             self.logger.log_status_optimal()
             self.logger.log_completion(self.iteration, self.relax_bound[-1])
             return
 
         return self.current_solution
+
+    def save(self, dir: Path) -> None:
+        path = dir / "pbm.csv"
+        df = pd.DataFrame(
+            {
+                "obj_bound": self.relax_bound,
+                "center_val": self.center_val,
+                "obj_val": self.feas_bound,
+            }
+        )
+        df.to_csv(path)
+        self.solver.save(dir)
 
     def _improved(self) -> bool:
         if len(self.center_val) == 0 or self.center_val[-1] is None:

@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 from typing import List
+from pathlib import Path
 
 from pyodec.alg.cuts import Cut
 
@@ -21,4 +22,8 @@ class BdAlgLeaf(ABC):
 
     @abstractmethod
     def get_subgradient(self) -> Cut:
+        pass
+
+    @abstractmethod
+    def save(self, dir: Path) -> None:
         pass

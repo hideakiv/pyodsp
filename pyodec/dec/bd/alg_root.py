@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 from typing import List
+from pathlib import Path
 
 from pyomo.core.base.var import VarData
 
@@ -22,4 +23,8 @@ class BdAlgRoot(ABC):
 
     @abstractmethod
     def reset_iteration(self) -> None:
+        pass
+
+    @abstractmethod
+    def save(self, dir: Path) -> None:
         pass

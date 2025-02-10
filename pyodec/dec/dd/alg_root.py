@@ -1,5 +1,6 @@
 from abc import abstractmethod
 from typing import List, Dict
+from pathlib import Path
 
 from pyomo.environ import (
     ConcreteModel,
@@ -102,4 +103,8 @@ class DdAlgRoot:
 
     @abstractmethod
     def reset_iteration(self) -> None:
+        pass
+
+    @abstractmethod
+    def save(self, dir: Path) -> None:
         pass

@@ -1,4 +1,7 @@
 from typing import List
+from pathlib import Path
+
+import pandas as pd
 
 from pyomo.environ import Var, Constraint, Reals, RangeSet
 
@@ -8,7 +11,7 @@ from pyodec.solver.pyomo_utils import add_terms_to_objective
 from ..cuts import CutList, OptimalityCut, FeasibilityCut
 from ..cuts_manager import CutsManager, CutInfo
 from .logger import BmLogger
-from ..const import BM_ABS_TOLERANCE
+from ..const import BM_ABS_TOLERANCE, BM_REL_TOLERANCE
 
 
 class BundleMethod:
@@ -37,9 +40,12 @@ class BundleMethod:
         )
 
     def run_step(self, cuts_list: List[CutList] | None) -> List[float] | None:
+        nocuts = False
         if cuts_list is not None:
-            optimal = self._add_cuts(cuts_list)
-            if optimal:
+            nocuts = self._add_cuts(cuts_list)
+            if nocuts:
+                if len(self.relax_bound) < len(self.feas_bound):
+                    self.relax_bound.append(self.relax_bound[-1])
                 self.logger.log_status_optimal()
                 self.logger.log_completion(self.iteration, self.relax_bound[-1])
                 return
@@ -62,6 +68,11 @@ class BundleMethod:
             ub = self.relax_bound[-1]
         self.logger.log_master_problem(self.iteration, lb, ub, self.current_solution)
 
+        if self._optimal():
+            self.logger.log_status_optimal()
+            self.logger.log_completion(self.iteration, self.relax_bound[-1])
+            return
+
         return self.current_solution
 
     def reset_iteration(self, i=0) -> None:
@@ -77,8 +88,11 @@ class BundleMethod:
             current_obj += theta_val
         self.relax_bound.append(current_obj)
 
-    def get_solution(self) -> List[float]:
-        return self.current_solution
+    def save(self, dir: Path) -> None:
+        path = dir / "bm.csv"
+        df = pd.DataFrame({"obj_bound": self.relax_bound, "obj_val": self.feas_bound})
+        df.to_csv(path)
+        self.solver.save(dir)
 
     def _add_cuts(self, cuts_list: List[CutList]) -> bool:
         found_cuts = [False for _ in range(self.num_cuts)]
@@ -109,6 +123,18 @@ class BundleMethod:
 
         # reached max iteration
         return self.iteration > self.max_iteration
+
+    def _optimal(self) -> bool:
+        if (
+            len(self.feas_bound) == 0
+            or self.feas_bound[-1] is None
+            or self.relax_bound[-1] is None
+        ):
+            return False
+
+        gap = abs(self.relax_bound[-1] - self.feas_bound[-1]) / abs(self.feas_bound[-1])
+
+        return gap < BM_REL_TOLERANCE
 
     def _update_objective(self, subobj_bounds: List[float]):
         def theta_bounds(model, i):

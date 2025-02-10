@@ -1,6 +1,11 @@
 from typing import List
+from pathlib import Path
+
+import pandas as pd
+
 from pyomo.environ import (
     ConcreteModel,
+    Var,
     SolverFactory,
     Objective,
     value,
@@ -104,3 +109,21 @@ class PyomoSolver(Solver):
         return (
             self._results.solver.termination_condition == TerminationCondition.unbounded
         )
+
+    def save(self, dir: Path) -> None:
+        """outputs solution to dir"""
+        path = dir / "sol.csv"
+        solution = {}
+        for v in self.model.component_objects(Var, active=True):
+            varobject = getattr(self.model, str(v))
+            for index in varobject:
+                if index is None:
+                    varname = str(v)
+                else:
+                    varname = f"{v}_{index}"
+                solution[varname] = varobject[index].value
+
+        # Convert the solution to a DataFrame
+        sol = pd.DataFrame(list(solution.items()), columns=["var", "val"])
+
+        sol.to_csv(path, sep="\t", index=False)

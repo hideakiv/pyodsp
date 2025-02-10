@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from pyodec.dec.node import Node
 
 
@@ -10,4 +12,7 @@ class DdNode(Node):
         super().__init__(idx, parent=parent)
 
     def build(self):
+        pass
+
+    def save(self, dir: Path):
         pass

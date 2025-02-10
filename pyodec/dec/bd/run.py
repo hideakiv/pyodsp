@@ -1,4 +1,5 @@
 from typing import List, Dict
+from pathlib import Path
 
 from pyodec.alg.cuts import Cut, OptimalityCut, FeasibilityCut
 
@@ -6,13 +7,17 @@ from .logger import BdLogger
 from .node import BdNode
 from .node_leaf import BdLeafNode
 from .node_root import BdRootNode
+from ..utils import create_directory
 
 
 class BdRun:
-    def __init__(self, nodes: List[BdNode]):
+    def __init__(self, nodes: List[BdNode], filedir: Path):
         self.nodes: Dict[int, BdNode] = {node.idx: node for node in nodes}
         self.root_idx = self._get_root_idx()
         self.logger = BdLogger()
+
+        self.filedir = filedir
+        create_directory(self.filedir)
 
     def _get_root_idx(self) -> int | None:
         for idx, node in self.nodes.items():
@@ -24,6 +29,8 @@ class BdRun:
         if self.root_idx is not None:
             self.logger.log_initialization()
             self._run_node(self.nodes[self.root_idx])
+        for node in self.nodes.values():
+            node.save(self.filedir)
 
     def _run_node(self, node: BdNode, sol_up: List[float] | None = None) -> Cut | None:
         if isinstance(node, BdRootNode):

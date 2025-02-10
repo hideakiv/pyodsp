@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 from typing import List, Tuple
+from pathlib import Path
 
 
 class DdAlgLeaf(ABC):
@@ -26,4 +27,8 @@ class DdAlgLeaf(ABC):
 
     @abstractmethod
     def get_objective_value(self) -> float:
+        pass
+
+    @abstractmethod
+    def save(self, dir: Path) -> None:
         pass

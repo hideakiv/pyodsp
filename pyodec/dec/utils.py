@@ -1,11 +1,18 @@
-from calendar import c
 from typing import List, Dict, Tuple
+from pathlib import Path
 from dataclasses import dataclass
 
 from pyomo.environ import ConcreteModel, Constraint
 from pyomo.core.base.var import VarData
 from pyomo.core.base.constraint import ConstraintData, IndexedConstraint
 from pyomo.repn import generate_standard_repn
+
+
+def create_directory(filedir: Path) -> None:
+    try:
+        filedir.mkdir(parents=True, exist_ok=True)
+    except Exception as e:
+        print(f"An error occurred: {e}")
 
 
 @dataclass

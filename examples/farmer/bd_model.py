@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import pyomo.environ as pyo
 
 from pyodec.solver.pyomo_solver import PyomoSolver
@@ -146,5 +148,5 @@ for scenario, block in second_stage.items():
     root_node.add_child(idx, multiplier=1 / len(SCENARIOS))
     idx += 1
 
-bd_run = BdRun([root_node, *leaf_nodes.values()])
+bd_run = BdRun([root_node, *leaf_nodes.values()], Path("output/farmer/bd_model"))
 bd_run.run()

@@ -9,6 +9,7 @@ setup(
     packages=["pyodec"],
     install_requires=[
         "numpy",
+        "pandas",
         "Pyomo",
         "mpi4py",
     ],

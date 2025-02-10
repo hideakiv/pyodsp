@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 from typing import List
+from pathlib import Path
 
 
 class Solver(ABC):
@@ -48,3 +49,8 @@ class Solver(ABC):
     def is_unbounded(self) -> bool:
         """Returns whether the model is unbounded."""
         return False
+
+    @abstractmethod
+    def save(self, dir: Path) -> None:
+        """outputs solution to dir"""
+        pass

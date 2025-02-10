@@ -1,4 +1,6 @@
 from typing import List
+from pathlib import Path
+
 
 from pyomo.environ import Suffix
 from pyomo.core.base.constraint import ConstraintData
@@ -97,3 +99,6 @@ class BdAlgLeafPyomo(BdAlgLeaf):
             coeffs=coeff,
             rhs=rhs,
         )
+
+    def save(self, dir: Path) -> None:
+        self.solver.save(dir)

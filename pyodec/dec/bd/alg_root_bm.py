@@ -1,4 +1,6 @@
 from typing import List
+from pathlib import Path
+
 
 from pyomo.core.base.var import VarData
 
@@ -26,3 +28,6 @@ class BdAlgRootBm(BdAlgRoot):
 
     def reset_iteration(self) -> None:
         self.bm.reset_iteration()
+
+    def save(self, dir: Path) -> None:
+        self.bm.save(dir)

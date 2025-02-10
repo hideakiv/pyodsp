@@ -1,9 +1,11 @@
 from typing import List
+from pathlib import Path
 
 from pyodec.alg.cuts import Cut
 
 from .node import BdNode
 from .alg_leaf import BdAlgLeaf
+from ..utils import create_directory
 
 
 class BdLeafNode(BdNode):
@@ -32,3 +34,8 @@ class BdLeafNode(BdNode):
 
     def get_bound(self) -> float:
         return self.bound
+
+    def save(self, dir: Path):
+        node_dir = dir / f"node{self.idx}"
+        create_directory(node_dir)
+        self.alg.save(node_dir)

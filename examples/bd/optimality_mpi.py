@@ -1,3 +1,4 @@
+from pathlib import Path
 from mpi4py import MPI
 
 from optimality import create_root_node, create_leaf_node, p
@@ -27,7 +28,7 @@ if __name__ == "__main__":
 
     node_rank_map = {0: 0, 1: 1, 2: 2}
 
-    bd_run = BdRunMpi([node], node_rank_map)
+    bd_run = BdRunMpi([node], node_rank_map, Path("output/bb/optimality_mpi"))
     bd_run.run()
 
     MPI.Finalize()

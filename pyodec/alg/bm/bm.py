@@ -1,4 +1,7 @@
 from typing import List
+from pathlib import Path
+
+import pandas as pd
 
 from pyomo.environ import Var, Constraint, Reals, RangeSet
 
@@ -40,6 +43,7 @@ class BundleMethod:
         if cuts_list is not None:
             optimal = self._add_cuts(cuts_list)
             if optimal:
+                self.relax_bound.append(self.relax_bound[-1])
                 self.logger.log_status_optimal()
                 self.logger.log_completion(self.iteration, self.relax_bound[-1])
                 return
@@ -77,8 +81,11 @@ class BundleMethod:
             current_obj += theta_val
         self.relax_bound.append(current_obj)
 
-    def get_solution(self) -> List[float]:
-        return self.current_solution
+    def save(self, dir: Path) -> None:
+        path = dir / "bm.csv"
+        df = pd.DataFrame({"obj_bound": self.relax_bound, "obj_val": self.feas_bound})
+        df.to_csv(path)
+        self.solver.save(dir)
 
     def _add_cuts(self, cuts_list: List[CutList]) -> bool:
         found_cuts = [False for _ in range(self.num_cuts)]

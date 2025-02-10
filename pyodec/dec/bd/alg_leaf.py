@@ -2,7 +2,6 @@ from abc import ABC, abstractmethod
 from typing import List
 from pathlib import Path
 
-
 from pyodec.alg.cuts import Cut
 
 

@@ -1,7 +1,6 @@
 from typing import List
 from pathlib import Path
 
-
 from pyomo.core.base.var import VarData
 
 from .alg_root import BdAlgRoot

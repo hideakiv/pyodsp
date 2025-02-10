@@ -1,7 +1,6 @@
 from typing import List
 from pathlib import Path
 
-
 from pyomo.environ import Suffix
 from pyomo.core.base.constraint import ConstraintData
 

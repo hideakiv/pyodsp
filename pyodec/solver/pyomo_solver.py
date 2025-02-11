@@ -16,7 +16,7 @@ from pyomo.opt import TerminationCondition
 from .solver import Solver
 
 solver_dual_sign_convention = dict()
-solver_dual_sign_convention["ipopt"] = -1
+solver_dual_sign_convention["ipopt"] = 1
 solver_dual_sign_convention["gurobi"] = -1
 solver_dual_sign_convention["gurobi_direct"] = -1
 solver_dual_sign_convention["gurobi_persistent"] = -1

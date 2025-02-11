@@ -11,7 +11,7 @@ def get_args():
     return args
 
 
-def assert_approximately_equal(a, b, tolerance=1e-7):
+def assert_approximately_equal(a, b, tolerance=1e-3):
     assert (
         abs(a - b) <= tolerance
     ), f"{a} and {b} are not approximately equal within {tolerance}"

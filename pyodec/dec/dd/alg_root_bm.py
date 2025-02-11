@@ -7,6 +7,7 @@ from pyomo.core.base.var import VarData
 from .alg_root import DdAlgRoot
 from pyodec.alg.bm.bm import BundleMethod
 from pyodec.alg.cuts import CutList
+from pyodec.alg.cuts_manager import CutInfo
 
 
 class DdAlgRootBm(DdAlgRoot):
@@ -38,6 +39,9 @@ class DdAlgRootBm(DdAlgRoot):
 
     def reset_iteration(self) -> None:
         self.bm.reset_iteration()
+
+    def get_cuts(self) -> List[List[CutInfo]]:
+        return self.bm.cuts_manager.get_cuts()
 
     def save(self, dir: Path) -> None:
         self.bm.save(dir)

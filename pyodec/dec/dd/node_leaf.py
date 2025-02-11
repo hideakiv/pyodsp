@@ -42,12 +42,19 @@ class DdLeafNode(DdNode):
             dual_coeffs = self._matrix_times_primal(solution)
             product = self._inner_product(primal_coeffs, solution)
             rhs = obj - product
-            return OptimalityCut(dual_coeffs, rhs, obj)
+            return OptimalityCut(
+                coeffs=dual_coeffs,
+                rhs=rhs,
+                objective_value=obj,
+                info={"solution": solution},
+            )
         else:
             dual_coeffs = self._matrix_times_primal(solution)
             product = self._inner_product(primal_coeffs, solution)
             rhs = obj - product
-            return FeasibilityCut(dual_coeffs, rhs)
+            return FeasibilityCut(
+                coeffs=dual_coeffs, rhs=rhs, info={"solution": solution}
+            )
 
     def save(self, dir: Path):
         node_dir = dir / f"node{self.idx}"

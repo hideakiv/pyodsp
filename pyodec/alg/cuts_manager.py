@@ -10,7 +10,7 @@ from .cuts import Cut, FeasibilityCut, OptimalityCut
 class CutInfo:
     """Class for cut with info"""
 
-    constrant: Constraint
+    constraint: Constraint
     cut: Cut
     idx: int
     iteration: int
@@ -49,3 +49,6 @@ class CutsManager:
 
     def increment(self) -> None:
         pass
+
+    def get_cuts(self) -> List[List[CutInfo]]:
+        return self._active_cuts

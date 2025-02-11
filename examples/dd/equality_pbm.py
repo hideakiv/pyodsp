@@ -10,7 +10,7 @@ from utils import get_args, assert_approximately_equal
 def main():
     args = get_args()
 
-    master = create_master("ipopt", pbm=True)
+    master = create_master(args.solver, pbm=True)
     sub_1 = create_sub(1, args.solver)
     sub_2 = create_sub(2, args.solver)
     sub_3 = create_sub(3, args.solver)

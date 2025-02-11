@@ -30,5 +30,9 @@ class DdAlgLeaf(ABC):
         pass
 
     @abstractmethod
+    def fix_variables_and_solve(self, values: List[float]) -> None:
+        pass
+
+    @abstractmethod
     def save(self, dir: Path) -> None:
         pass

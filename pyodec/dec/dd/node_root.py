@@ -1,3 +1,4 @@
+from multiprocessing import Value
 from typing import List, Dict
 from pathlib import Path
 
@@ -23,7 +24,13 @@ class DdRootNode(DdNode):
         self.built = False
 
     def set_groups(self, groups: List[List[int]]):
-        self.groups = groups
+        # self.groups = groups
+        raise ValueError("No support for set_groups yet")
+
+    def add_child(self, idx: int, multiplier: float = 1.0):
+        if multiplier != 1.0:
+            raise ValueError("No support for multipliers in dd")
+        super().add_child(idx, multiplier)
 
     def build(self) -> None:
         if self.built:

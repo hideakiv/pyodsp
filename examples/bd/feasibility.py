@@ -10,25 +10,29 @@ from pyodec.dec.bd.node_leaf import BdLeafNode
 from pyodec.dec.bd.alg_leaf_pyomo import BdAlgLeafPyomo
 from pyodec.dec.bd.run import BdRun
 
-model1 = pyo.ConcreteModel()
 
-model1.x1 = pyo.Var(within=pyo.NonNegativeReals)
-model1.x2 = pyo.Var(within=pyo.NonNegativeReals)
+def create_root_node(solver="appsi_highs"):
+    model1 = pyo.ConcreteModel()
 
-model1.obj = pyo.Objective(expr=3 * model1.x1 + 2 * model1.x2, sense=pyo.minimize)
+    model1.x1 = pyo.Var(within=pyo.NonNegativeReals)
+    model1.x2 = pyo.Var(within=pyo.NonNegativeReals)
 
-coupling_dn = [model1.x1, model1.x2]
-first_stage_solver = PyomoSolver(model1, "appsi_highs", coupling_dn)
-first_stage_alg = BdAlgRootBm(first_stage_solver)
-root_node = BdRootNode(0, first_stage_alg)
+    model1.obj = pyo.Objective(expr=3 * model1.x1 + 2 * model1.x2, sense=pyo.minimize)
 
-model2 = {1: pyo.ConcreteModel(), 2: pyo.ConcreteModel()}
+    coupling_dn = [model1.x1, model1.x2]
+    first_stage_solver = PyomoSolver(model1, solver, coupling_dn)
+    first_stage_alg = BdAlgRootBm(first_stage_solver)
+    root_node = BdRootNode(0, first_stage_alg)
+    return root_node
+
+
 xi1 = {1: 6, 2: 4}
 xi2 = {1: 8, 2: 4}
 p = {1: 0.5, 2: 0.5}
-leaf_nodes = {}
 
-for i, block in model2.items():
+
+def create_leaf_node(i, solver="appsi_highs"):
+    block = pyo.ConcreteModel()
     block.x1 = pyo.Var(within=pyo.Reals)
     block.x2 = pyo.Var(within=pyo.Reals)
 
@@ -45,13 +49,25 @@ for i, block in model2.items():
     block.obj = pyo.Objective(expr=-15 * block.y1 - 12 * block.y2, sense=pyo.minimize)
 
     coupling_up = [block.x1, block.x2]
-    second_stage_solver = PyomoSolver(block, "appsi_highs", coupling_up)
+    second_stage_solver = PyomoSolver(block, solver, coupling_up)
     second_stage_alg = BdAlgLeafPyomo(second_stage_solver)
     leaf_node = BdLeafNode(i, second_stage_alg, 0.0, 0)
-    leaf_nodes[i] = leaf_node
-    root_node.add_child(i, multiplier=p[i])
+    return leaf_node
 
-root_node.set_groups([[1, 2]])
 
-bd_run = BdRun([root_node, *leaf_nodes.values()], Path("output/bd/feasibility"))
-bd_run.run()
+def main():
+    root_node = create_root_node()
+    leaf_node_1 = create_leaf_node(1)
+    leaf_node_2 = create_leaf_node(2)
+
+    root_node.add_child(1, multiplier=p[1])
+    root_node.add_child(2, multiplier=p[2])
+
+    root_node.set_groups([[1, 2]])
+
+    bd_run = BdRun([root_node, leaf_node_1, leaf_node_2], Path("output/bd/feasibility"))
+    bd_run.run()
+
+
+if __name__ == "__main__":
+    main()

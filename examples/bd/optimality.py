@@ -11,7 +11,7 @@ from pyodec.dec.bd.alg_leaf_pyomo import BdAlgLeafPyomo
 from pyodec.dec.bd.run import BdRun
 
 
-def create_root_node():
+def create_root_node(solver="appsi_highs"):
     model1 = pyo.ConcreteModel()
 
     model1.x1 = pyo.Var(within=pyo.NonNegativeReals)
@@ -26,7 +26,7 @@ def create_root_node():
     )
 
     coupling_dn = [model1.x1, model1.x2]
-    first_stage_solver = PyomoSolver(model1, "appsi_highs", coupling_dn)
+    first_stage_solver = PyomoSolver(model1, solver, coupling_dn)
     first_stage_alg = BdAlgRootBm(first_stage_solver)
     root_node = BdRootNode(0, first_stage_alg)
     return root_node
@@ -39,7 +39,7 @@ q2 = {1: -28, 2: -32}
 p = {1: 0.4, 2: 0.6}
 
 
-def create_leaf_node(i):
+def create_leaf_node(i, solver="appsi_highs"):
     block = pyo.ConcreteModel()
     block.x1 = pyo.Var(within=pyo.Reals)
     block.x2 = pyo.Var(within=pyo.Reals)
@@ -57,13 +57,13 @@ def create_leaf_node(i):
     )
 
     coupling_up = [block.x1, block.x2]
-    second_stage_solver = PyomoSolver(block, "appsi_highs", coupling_up)
+    second_stage_solver = PyomoSolver(block, solver, coupling_up)
     second_stage_alg = BdAlgLeafPyomo(second_stage_solver)
     leaf_node = BdLeafNode(i, second_stage_alg, -30000, 0)
     return leaf_node
 
 
-if __name__ == "__main__":
+def main():
     root_node = create_root_node()
     leaf_node_1 = create_leaf_node(1)
     leaf_node_2 = create_leaf_node(2)
@@ -75,3 +75,7 @@ if __name__ == "__main__":
 
     bd_run = BdRun([root_node, leaf_node_1, leaf_node_2], Path("output/bd/optimality"))
     bd_run.run()
+
+
+if __name__ == "__main__":
+    main()

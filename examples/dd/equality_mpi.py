@@ -9,7 +9,7 @@ mpiexec -n 4 python equality_mpi.py
 """
 
 
-if __name__ == "__main__":
+def main():
 
     comm = MPI.COMM_WORLD
     rank = comm.Get_rank()
@@ -31,3 +31,7 @@ if __name__ == "__main__":
 
     dd_run = DdRunMpi([node], node_rank_map, Path("output/dd/equality_mpi"))
     dd_run.run()
+
+
+if __name__ == "__main__":
+    main()

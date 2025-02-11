@@ -54,7 +54,7 @@ def create_sub(i) -> DdLeafNode:
     return leaf_node
 
 
-if __name__ == "__main__":
+def main():
     master = create_master()
     sub_1 = create_sub(1)
     sub_2 = create_sub(2)
@@ -64,3 +64,7 @@ if __name__ == "__main__":
 
     dd_run = DdRun([master, sub_1, sub_2], Path("output/dd/ray"))
     dd_run.run()
+
+
+if __name__ == "__main__":
+    main()

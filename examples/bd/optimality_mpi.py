@@ -9,7 +9,8 @@ from pyodec.dec.bd.run_mpi import BdRunMpi
 mpiexec -n 3 python optimality_mpi.py
 """
 
-if __name__ == "__main__":
+
+def main():
 
     comm = MPI.COMM_WORLD
     rank = comm.Get_rank()
@@ -32,3 +33,7 @@ if __name__ == "__main__":
     bd_run.run()
 
     MPI.Finalize()
+
+
+if __name__ == "__main__":
+    main()

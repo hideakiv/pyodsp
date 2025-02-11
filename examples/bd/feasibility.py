@@ -10,6 +10,8 @@ from pyodec.dec.bd.node_leaf import BdLeafNode
 from pyodec.dec.bd.alg_leaf_pyomo import BdAlgLeafPyomo
 from pyodec.dec.bd.run import BdRun
 
+from parser import get_args
+
 
 def create_root_node(solver="appsi_highs"):
     model1 = pyo.ConcreteModel()
@@ -56,9 +58,11 @@ def create_leaf_node(i, solver="appsi_highs"):
 
 
 def main():
-    root_node = create_root_node()
-    leaf_node_1 = create_leaf_node(1)
-    leaf_node_2 = create_leaf_node(2)
+    args = get_args()
+
+    root_node = create_root_node(args.solver)
+    leaf_node_1 = create_leaf_node(1, args.solver)
+    leaf_node_2 = create_leaf_node(2, args.solver)
 
     root_node.add_child(1, multiplier=p[1])
     root_node.add_child(2, multiplier=p[2])

@@ -11,6 +11,8 @@ from pyodec.dec.dd.node_leaf import DdLeafNode
 from pyodec.dec.dd.alg_leaf_pyomo import DdAlgLeafPyomo
 from pyodec.dec.dd.run import DdRun
 
+from parser import get_args
+
 
 def create_master(solver="appsi_highs", pbm=False) -> DdRootNode:
     block = pyo.ConcreteModel()
@@ -46,10 +48,12 @@ def create_sub(i, solver="appsi_highs") -> DdLeafNode:
 
 
 def main():
-    master = create_master()
-    sub_1 = create_sub(1)
-    sub_2 = create_sub(2)
-    sub_3 = create_sub(3)
+    args = get_args()
+
+    master = create_master(args.solver)
+    sub_1 = create_sub(1, args.solver)
+    sub_2 = create_sub(2, args.solver)
+    sub_3 = create_sub(3, args.solver)
 
     master.add_child(1)
     master.add_child(2)

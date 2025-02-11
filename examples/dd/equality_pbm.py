@@ -2,15 +2,18 @@ from pathlib import Path
 
 from pyodec.dec.dd.run import DdRun
 
-from .equality import create_master, create_sub
+from equality import create_master, create_sub
+
+from parser import get_args
 
 
 def main():
+    args = get_args()
 
     master = create_master("ipopt", pbm=True)
-    sub_1 = create_sub(1)
-    sub_2 = create_sub(2)
-    sub_3 = create_sub(3)
+    sub_1 = create_sub(1, args.solver)
+    sub_2 = create_sub(2, args.solver)
+    sub_3 = create_sub(3, args.solver)
 
     master.add_child(1)
     master.add_child(2)

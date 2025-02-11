@@ -16,7 +16,7 @@ from pyomo.opt import TerminationCondition
 from .solver import Solver
 
 solver_dual_sign_convention = dict()
-solver_dual_sign_convention["ipopt"] = -1
+solver_dual_sign_convention["ipopt"] = 1
 solver_dual_sign_convention["gurobi"] = -1
 solver_dual_sign_convention["gurobi_direct"] = -1
 solver_dual_sign_convention["gurobi_persistent"] = -1
@@ -115,6 +115,8 @@ class PyomoSolver(Solver):
         path = dir / "sol.csv"
         solution = {}
         for v in self.model.component_objects(Var, active=True):
+            if str(v) == "_relaxed_minus" or str(v) == "_relaxed_plus":
+                continue
             varobject = getattr(self.model, str(v))
             for index in varobject:
                 if index is None:

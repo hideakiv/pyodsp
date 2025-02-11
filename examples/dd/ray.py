@@ -10,8 +10,10 @@ from pyodec.dec.dd.node_leaf import DdLeafNode
 from pyodec.dec.dd.alg_leaf_pyomo import DdAlgLeafPyomo
 from pyodec.dec.dd.run import DdRun
 
+from utils import get_args, assert_approximately_equal
 
-def create_master() -> DdRootNode:
+
+def create_master(solver="appsi_highs") -> DdRootNode:
     block = pyo.ConcreteModel()
     block.x1 = pyo.Var(within=pyo.Reals)
     block.x2 = pyo.Var(within=pyo.Reals)
@@ -23,7 +25,7 @@ def create_master() -> DdRootNode:
         expr=-1 * block.x1 + 5 * block.x2 + 7 * block.y1 - 6 * block.y2 == 1
     )
 
-    root_alg = DdAlgRootBm(block, True, "appsi_highs", vars_dn)
+    root_alg = DdAlgRootBm(block, True, solver, vars_dn)
     root_node = DdRootNode(0, root_alg)
     return root_node
 
@@ -31,7 +33,7 @@ def create_master() -> DdRootNode:
 cost = {1: [1, 2], 2: [3, 4]}
 
 
-def create_sub(i) -> DdLeafNode:
+def create_sub(i, solver="appsi_highs") -> DdLeafNode:
     block = pyo.ConcreteModel()
     block.x1 = pyo.Var(within=pyo.Reals)
     block.x2 = pyo.Var(within=pyo.Reals)
@@ -48,19 +50,27 @@ def create_sub(i) -> DdLeafNode:
         block.c1 = pyo.Constraint(expr=3 * block.x1 - block.x2 >= 2)
         block.c2 = pyo.Constraint(expr=block.x1 + 2 * block.x2 >= 3)
 
-    sub_solver = PyomoSolver(block, "appsi_highs", vars_up)
+    sub_solver = PyomoSolver(block, solver, vars_up)
     sub_alg = DdAlgLeafPyomo(sub_solver)
     leaf_node = DdLeafNode(i, sub_alg, 0)
     return leaf_node
 
 
-if __name__ == "__main__":
-    master = create_master()
-    sub_1 = create_sub(1)
-    sub_2 = create_sub(2)
+def main():
+    args = get_args()
+
+    master = create_master(args.solver)
+    sub_1 = create_sub(1, args.solver)
+    sub_2 = create_sub(2, args.solver)
 
     master.add_child(1)
     master.add_child(2)
 
     dd_run = DdRun([master, sub_1, sub_2], Path("output/dd/ray"))
     dd_run.run()
+
+    assert_approximately_equal(master.alg.bm.relax_bound[-1], 15.09090909090909)
+
+
+if __name__ == "__main__":
+    main()

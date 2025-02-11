@@ -10,7 +10,7 @@ from pyodec.dec.bd.node_leaf import BdLeafNode
 from pyodec.dec.bd.alg_leaf_pyomo import BdAlgLeafPyomo
 from pyodec.dec.bd.run import BdRun
 
-from parser import get_args
+from utils import get_args, assert_approximately_equal
 
 
 def create_root_node(solver="appsi_highs"):
@@ -71,6 +71,8 @@ def main():
 
     bd_run = BdRun([root_node, leaf_node_1, leaf_node_2], Path("output/bd/feasibility"))
     bd_run.run()
+
+    assert_approximately_equal(root_node.alg.bm.relax_bound[-1], 26.48)
 
 
 if __name__ == "__main__":

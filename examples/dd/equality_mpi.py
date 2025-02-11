@@ -4,7 +4,7 @@ from mpi4py import MPI
 from equality import create_master, create_sub
 from pyodec.dec.dd.run_mpi import DdRunMpi
 
-from parser import get_args
+from utils import get_args, assert_approximately_equal
 
 """
 mpiexec -n 4 python equality_mpi.py
@@ -34,6 +34,9 @@ def main():
 
     dd_run = DdRunMpi([node], node_rank_map, Path("output/dd/equality_mpi"))
     dd_run.run()
+
+    if rank == 0:
+        assert_approximately_equal(node.alg.bm.relax_bound[-1], -21.5)
 
 
 if __name__ == "__main__":

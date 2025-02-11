@@ -11,7 +11,7 @@ from pyodec.dec.dd.node_leaf import DdLeafNode
 from pyodec.dec.dd.alg_leaf_pyomo import DdAlgLeafPyomo
 from pyodec.dec.dd.run import DdRun
 
-from parser import get_args
+from utils import get_args, assert_approximately_equal
 
 
 def create_master(solver="appsi_highs", pbm=False) -> DdRootNode:
@@ -61,6 +61,8 @@ def main():
 
     dd_run = DdRun([master, sub_1, sub_2, sub_3], Path("output/dd/equality"))
     dd_run.run()
+
+    assert_approximately_equal(master.alg.bm.relax_bound[-1], -21.5)
 
 
 if __name__ == "__main__":

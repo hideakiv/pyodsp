@@ -4,7 +4,7 @@ from pyodec.dec.dd.run import DdRun
 
 from equality import create_master, create_sub
 
-from parser import get_args
+from utils import get_args, assert_approximately_equal
 
 
 def main():
@@ -21,6 +21,8 @@ def main():
 
     dd_run = DdRun([master, sub_1, sub_2, sub_3], Path("output/dd/equality_pbm"))
     dd_run.run()
+
+    assert_approximately_equal(master.alg.pbm.relax_bound[-1], -21.5)
 
 
 if __name__ == "__main__":

@@ -4,7 +4,7 @@ from mpi4py import MPI
 from optimality import create_root_node, create_leaf_node, p
 from pyodec.dec.bd.run_mpi import BdRunMpi
 
-from parser import get_args
+from utils import get_args, assert_approximately_equal
 
 """
 mpiexec -n 3 python optimality_mpi.py
@@ -33,6 +33,9 @@ def main():
 
     bd_run = BdRunMpi([node], node_rank_map, Path("output/bd/optimality_mpi"))
     bd_run.run()
+
+    if rank == 0:
+        assert_approximately_equal(node.alg.bm.relax_bound[-1], -855.83333333333)
 
     MPI.Finalize()
 

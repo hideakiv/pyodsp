@@ -62,7 +62,7 @@ def main():
     dd_run = DdRun([master, sub_1, sub_2, sub_3], Path("output/dd/equality"))
     dd_run.run()
 
-    assert_approximately_equal(master.alg.bm.relax_bound[-1], -21.5)
+    assert_approximately_equal(master.alg.bm.obj_bound[-1], -21.5)
 
 
 if __name__ == "__main__":

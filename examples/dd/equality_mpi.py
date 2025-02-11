@@ -36,7 +36,7 @@ def main():
     dd_run.run()
 
     if rank == 0:
-        assert_approximately_equal(node.alg.bm.relax_bound[-1], -21.5)
+        assert_approximately_equal(node.alg.bm.obj_bound[-1], -21.5)
 
 
 if __name__ == "__main__":

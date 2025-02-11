@@ -115,6 +115,8 @@ class PyomoSolver(Solver):
         path = dir / "sol.csv"
         solution = {}
         for v in self.model.component_objects(Var, active=True):
+            if str(v) == "_relaxed_minus" or str(v) == "_relaxed_plus":
+                continue
             varobject = getattr(self.model, str(v))
             for index in varobject:
                 if index is None:

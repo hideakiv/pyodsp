@@ -53,7 +53,7 @@ def create_leaf_node(i, solver="appsi_highs"):
     coupling_up = [block.x1, block.x2]
     second_stage_solver = PyomoSolver(block, solver, coupling_up)
     second_stage_alg = BdAlgLeafPyomo(second_stage_solver)
-    leaf_node = BdLeafNode(i, second_stage_alg, 0.0, 0)
+    leaf_node = BdLeafNode(i, second_stage_alg, -1000.0, 0)
     return leaf_node
 
 

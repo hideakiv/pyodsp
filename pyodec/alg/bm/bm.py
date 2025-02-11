@@ -25,8 +25,8 @@ class BundleMethod:
 
         self.current_solution: List[float] = []
 
-        self.relax_bound: List[float | None] = []
-        self.feas_bound: List[float | None] = []
+        self.obj_bound: List[float | None] = []
+        self.obj_val: List[float | None] = []
 
     def build(self, num_cuts: int, subobj_bounds: List[float] | None) -> None:
         self.num_cuts = num_cuts
@@ -44,33 +44,33 @@ class BundleMethod:
         if cuts_list is not None:
             nocuts = self._add_cuts(cuts_list)
             if nocuts:
-                if len(self.relax_bound) < len(self.feas_bound):
-                    self.relax_bound.append(self.relax_bound[-1])
+                if len(self.obj_bound) < len(self.obj_val):
+                    self.obj_bound.append(self.obj_bound[-1])
                 self.logger.log_status_optimal()
-                self.logger.log_completion(self.iteration, self.relax_bound[-1])
+                self.logger.log_completion(self.iteration, self.obj_bound[-1])
                 return
         else:
-            self.feas_bound.append(None)
+            self.obj_val.append(None)
 
         reached_max_iteration = self._increment()
         if reached_max_iteration:
             self.logger.log_status_max_iter()
-            self.logger.log_completion(self.iteration, self.relax_bound[-1])
+            self.logger.log_completion(self.iteration, self.obj_bound[-1])
             return
 
         self._solve()
 
         if self.solver.is_minimize():
-            lb = self.relax_bound[-1]
-            ub = self.feas_bound[-1]
+            lb = self.obj_bound[-1]
+            ub = self.obj_val[-1]
         else:
-            lb = self.feas_bound[-1]
-            ub = self.relax_bound[-1]
+            lb = self.obj_val[-1]
+            ub = self.obj_bound[-1]
         self.logger.log_master_problem(self.iteration, lb, ub, self.current_solution)
 
         if self._optimal():
             self.logger.log_status_optimal()
-            self.logger.log_completion(self.iteration, self.relax_bound[-1])
+            self.logger.log_completion(self.iteration, self.obj_bound[-1])
             return
 
         return self.current_solution
@@ -86,11 +86,11 @@ class BundleMethod:
             theta = self.solver.model._theta[idx]
             theta_val = theta.value
             current_obj += theta_val
-        self.relax_bound.append(current_obj)
+        self.obj_bound.append(current_obj)
 
     def save(self, dir: Path) -> None:
         path = dir / "bm.csv"
-        df = pd.DataFrame({"obj_bound": self.relax_bound, "obj_val": self.feas_bound})
+        df = pd.DataFrame({"obj_bound": self.obj_bound, "obj_val": self.obj_val})
         df.to_csv(path)
         self.solver.save(dir)
 
@@ -110,9 +110,9 @@ class BundleMethod:
                 found_cuts[idx] = found_cut or found_cuts[idx]
 
         if self.feasible:
-            self.feas_bound.append(obj_val)
+            self.obj_val.append(obj_val)
         else:
-            self.feas_bound.append(None)
+            self.obj_val.append(None)
 
         optimal = not any(found_cuts)
         return optimal
@@ -126,13 +126,13 @@ class BundleMethod:
 
     def _optimal(self) -> bool:
         if (
-            len(self.feas_bound) == 0
-            or self.feas_bound[-1] is None
-            or self.relax_bound[-1] is None
+            len(self.obj_val) == 0
+            or self.obj_val[-1] is None
+            or self.obj_bound[-1] is None
         ):
             return False
 
-        gap = abs(self.relax_bound[-1] - self.feas_bound[-1]) / abs(self.feas_bound[-1])
+        gap = abs(self.obj_bound[-1] - self.obj_val[-1]) / abs(self.obj_val[-1])
 
         return gap < BM_REL_TOLERANCE
 

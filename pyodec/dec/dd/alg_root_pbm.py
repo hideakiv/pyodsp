@@ -23,7 +23,7 @@ class DdAlgRootPbm(DdAlgRoot):
         super().__init__(coupling_model, is_minimize, solver_name, vars_dn, **kwargs)
 
         self.pbm = ProximalBundleMethod(self.solver, max_iteration)
-        self.pbm.relax_bound.append(None)
+        self.pbm.obj_bound.append(None)
 
     def build(self, num_cuts: int) -> None:
         self.pbm.set_init_solution([0.0 for _ in range(num_cuts)])

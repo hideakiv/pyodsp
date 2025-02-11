@@ -19,7 +19,6 @@ class BdAlgLeafPyomo(BdAlgLeaf):
     def __init__(self, solver: PyomoSolver):
         self.solver = solver
         self.solver.model.dual = Suffix(direction=Suffix.IMPORT)
-        self.sign_convention = solver.sign_convention
 
     def build(self) -> None:
         coupling_vars = self.solver.vars
@@ -51,10 +50,7 @@ class BdAlgLeafPyomo(BdAlgLeaf):
             raise ValueError("Unknown solver status")
 
     def _optimality_cut(self) -> OptimalityCut:
-        pi = [
-            self.sign_convention * self.solver.model.dual[constr]
-            for constr in self.coupling_constraints
-        ]
+        pi = [self.solver.model.dual[constr] for constr in self.coupling_constraints]
         objective = self.solver.get_objective_value()
         coeff = [0.0 for _ in range(len(self.solver.vars))]
         rhs = objective
@@ -78,8 +74,7 @@ class BdAlgLeafPyomo(BdAlgLeaf):
         self.solver.solve()
 
         sigma = [
-            self.sign_convention
-            * self.solver.model.dual[self.solver.model._relaxed_constrs[i]]
+            self.solver.model.dual[self.solver.model._relaxed_constrs[i]]
             for i in range(len(self.coupling_constraints))
         ]
         objective = self.solver.get_objective_value()

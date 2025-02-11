@@ -50,40 +50,40 @@ class ProximalBundleMethod(BundleMethod):
             no_cuts = self._add_cuts(cuts_list)
             if no_cuts or self._improved():
                 self._update_center(self.current_solution)
-                self.center_val.append(self.feas_bound[-1])
+                self.center_val.append(self.obj_val[-1])
             elif len(self.center_val) == 0:
-                self.center_val.append(self.feas_bound[-1])
+                self.center_val.append(self.obj_val[-1])
             else:
                 self.center_val.append(self.center_val[-1])
         else:
-            self.feas_bound.append(None)
+            self.obj_val.append(None)
             self.center_val.append(None)
 
         reached_max_iteration = self._increment()
         if reached_max_iteration:
             self.logger.log_status_max_iter()
-            self.logger.log_completion(self.iteration, self.relax_bound[-1])
+            self.logger.log_completion(self.iteration, self.obj_bound[-1])
             return
 
         self._solve()
 
         if self.solver.is_minimize():
-            lb = self.relax_bound[-1]
-            ub = self.feas_bound[-1]
+            lb = self.obj_bound[-1]
+            ub = self.obj_val[-1]
         else:
-            lb = self.feas_bound[-1]
-            ub = self.relax_bound[-1]
+            lb = self.obj_val[-1]
+            ub = self.obj_bound[-1]
         self.logger.log_master_problem(
             self.iteration, lb, self.center_val[-1], ub, self.current_solution
         )
 
         if self._optimal():
-            if len(self.relax_bound) > len(self.center_val):
+            if len(self.obj_bound) > len(self.center_val):
                 self.center_val.append(self.center_val[-1])
-            if len(self.relax_bound) > len(self.feas_bound):
-                self.feas_bound.append(self.feas_bound[-1])
+            if len(self.obj_bound) > len(self.obj_val):
+                self.obj_val.append(self.obj_val[-1])
             self.logger.log_status_optimal()
-            self.logger.log_completion(self.iteration, self.relax_bound[-1])
+            self.logger.log_completion(self.iteration, self.obj_bound[-1])
             return
 
         return self.current_solution
@@ -92,9 +92,9 @@ class ProximalBundleMethod(BundleMethod):
         path = dir / "pbm.csv"
         df = pd.DataFrame(
             {
-                "obj_bound": self.relax_bound,
+                "obj_bound": self.obj_bound,
                 "center_val": self.center_val,
-                "obj_val": self.feas_bound,
+                "obj_val": self.obj_val,
             }
         )
         df.to_csv(path)
@@ -106,16 +106,16 @@ class ProximalBundleMethod(BundleMethod):
 
         if self.solver.is_minimize():
             # Minimization
-            return self.feas_bound[-1] <= self.center_val[-1]
+            return self.obj_val[-1] <= self.center_val[-1]
         else:
             # Maximization
-            return self.feas_bound[-1] >= self.center_val[-1]
+            return self.obj_val[-1] >= self.center_val[-1]
 
     def _optimal(self) -> bool:
         if len(self.center_val) == 0 or self.center_val[-1] is None:
             return False
 
-        gap = abs(self.relax_bound[-1] - self.center_val[-1]) / abs(self.center_val[-1])
+        gap = abs(self.obj_bound[-1] - self.center_val[-1]) / abs(self.center_val[-1])
 
         return gap < BM_REL_TOLERANCE
 

@@ -15,21 +15,6 @@ from pyomo.opt import TerminationCondition
 
 from .solver import Solver
 
-solver_dual_sign_convention = dict()
-solver_dual_sign_convention["ipopt"] = 1
-solver_dual_sign_convention["gurobi"] = -1
-solver_dual_sign_convention["gurobi_direct"] = -1
-solver_dual_sign_convention["gurobi_persistent"] = -1
-solver_dual_sign_convention["cplex"] = -1
-solver_dual_sign_convention["cplex_direct"] = -1
-solver_dual_sign_convention["cplexdirect"] = -1
-solver_dual_sign_convention["cplex_persistent"] = -1
-solver_dual_sign_convention["glpk"] = -1
-solver_dual_sign_convention["cbc"] = -1
-solver_dual_sign_convention["xpress_direct"] = -1
-solver_dual_sign_convention["xpress_persistent"] = -1
-solver_dual_sign_convention["appsi_highs"] = 1
-
 
 class PyomoSolver(Solver):
     """Base class for solvers using Pyomo"""
@@ -50,7 +35,6 @@ class PyomoSolver(Solver):
         self._solver_kwargs = kwargs
 
         self.original_objective = self._get_objective()
-        self.sign_convention = solver_dual_sign_convention[solver]
 
         self._results = None
 

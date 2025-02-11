@@ -68,5 +68,16 @@ class DdAlgLeafPyomo(DdAlgLeaf):
 
         return ray, obj
 
+    def fix_variables_and_solve(self, values: List[float]) -> None:
+        """Fix the variables to a specified value and then solve
+
+        Args:
+            values: The values to be set.
+        """
+        self.coupling_values: List[float] = values
+        for i, var in enumerate(self.solver.vars):
+            var.fix(values[i])
+        self.solver.solve()
+
     def save(self, dir: Path) -> None:
         self.solver.save(dir)

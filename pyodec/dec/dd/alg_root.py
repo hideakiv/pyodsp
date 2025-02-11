@@ -18,6 +18,7 @@ from pyomo.core.base.var import VarData
 from pyodec.dec.utils import get_nonzero_coefficients_group
 from pyodec.solver.pyomo_solver import PyomoSolver
 from pyodec.alg.cuts import CutList
+from pyodec.alg.cuts_manager import CutInfo
 
 
 class DdAlgRoot:
@@ -30,6 +31,7 @@ class DdAlgRoot:
         vars_dn: Dict[int, List[VarData]],
         **kwargs
     ) -> None:
+        self.coupling_model = coupling_model
         self.solver = self._create_master(
             coupling_model, is_minimize, solver_name, vars_dn, **kwargs
         )
@@ -103,6 +105,10 @@ class DdAlgRoot:
 
     @abstractmethod
     def reset_iteration(self) -> None:
+        pass
+
+    @abstractmethod
+    def get_cuts(self) -> List[List[CutInfo]]:
         pass
 
     @abstractmethod

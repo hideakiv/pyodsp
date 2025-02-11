@@ -26,7 +26,7 @@ def create_master(solver="appsi_highs") -> DdRootNode:
     )
 
     root_alg = DdAlgRootBm(block, True, solver, vars_dn)
-    root_node = DdRootNode(0, root_alg)
+    root_node = DdRootNode(0, root_alg, solver)
     return root_node
 
 

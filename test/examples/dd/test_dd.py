@@ -49,3 +49,31 @@ def test_equality_mpi():
             text=True,
         )
         assert result.returncode == 0
+
+
+def test_equality_mip():
+    for solver in solvers:
+        result = subprocess.run(
+            ["python", "examples/dd/equality_mip.py", "--solver", solver],
+            capture_output=True,
+            text=True,
+        )
+        assert result.returncode == 0
+
+
+def test_equality_mip_mpi():
+    for solver in solvers:
+        result = subprocess.run(
+            [
+                "mpiexec",
+                "-n",
+                "4",
+                "python",
+                "examples/dd/equality_mip_mpi.py",
+                "--solver",
+                solver,
+            ],
+            capture_output=True,
+            text=True,
+        )
+        assert result.returncode == 0

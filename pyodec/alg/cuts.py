@@ -1,4 +1,4 @@
-from typing import List, TypeVar, Generic
+from typing import List, Dict, TypeVar, Generic
 from dataclasses import dataclass
 
 
@@ -8,6 +8,8 @@ class Cut:
 
     coeffs: List[float]
     rhs: float
+
+    info: Dict
 
 
 @dataclass

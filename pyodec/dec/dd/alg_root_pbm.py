@@ -7,6 +7,7 @@ from pyomo.core.base.var import VarData
 from .alg_root import DdAlgRoot
 from pyodec.alg.pbm.pbm import ProximalBundleMethod
 from pyodec.alg.cuts import CutList
+from pyodec.alg.cuts_manager import CutInfo
 
 
 class DdAlgRootPbm(DdAlgRoot):
@@ -34,6 +35,9 @@ class DdAlgRootPbm(DdAlgRoot):
 
     def reset_iteration(self) -> None:
         self.pbm.reset_iteration()
+
+    def get_cuts(self) -> List[List[CutInfo]]:
+        return self.pbm.cuts_manager.get_cuts()
 
     def save(self, dir: Path) -> None:
         self.pbm.save(dir)

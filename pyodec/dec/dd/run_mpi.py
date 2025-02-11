@@ -27,7 +27,7 @@ class DdRunMpi(DdRun):
             matrices: Dict[int, Dict[int, List[Dict[int, float]]]] = {}
             for child_id in root.get_children():
                 target = self.node_rank_map[child_id]
-                if not target in matrices:
+                if target not in matrices:
                     matrices[target] = {}
                 matrices[target][child_id] = root.alg.lagrangian_data.matrix[child_id]
 
@@ -79,6 +79,31 @@ class DdRunMpi(DdRun):
                     break
                 cuts_dn = self._run_leaf(solution)
                 all_cuts_dn = self.comm.gather(cuts_dn, root=0)
+
+        if self.rank == 0:
+            root = self.nodes[self.root_idx]
+            assert isinstance(root, DdRootNode)
+
+            solutions = root.solve_mip_heuristic()
+            solutions_dict: Dict[int, Dict[int, List[float]]] = {}
+            for child_id in root.get_children():
+                target = self.node_rank_map[child_id]
+                if target not in solutions_dict:
+                    solutions_dict[target] = {}
+                solutions_dict[target][child_id] = solutions[child_id]
+
+            for target, sols in solutions_dict.items():
+                self.comm.send(sols, dest=target, tag=1)
+
+            if 0 in solutions_dict:
+                for node in self.nodes.values():
+                    if isinstance(node, DdLeafNode):
+                        node.alg.fix_variables_and_solve(solutions[node.idx])
+        else:
+            solutions_info = self.comm.recv(source=0, tag=1)
+            for node in self.nodes.values():
+                if isinstance(node, DdLeafNode):
+                    node.alg.fix_variables_and_solve(solutions_info[node.idx])
 
         for node in self.nodes.values():
             node.save(self.filedir)

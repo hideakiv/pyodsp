@@ -104,6 +104,7 @@ class BdRootNode(BdNode):
                     coeffs=new_coef,
                     rhs=new_constant,
                     objective_value=new_objective,
+                    info={},
                 )
             ]
         )

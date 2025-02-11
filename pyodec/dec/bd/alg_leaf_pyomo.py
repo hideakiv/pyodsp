@@ -60,11 +60,7 @@ class BdAlgLeafPyomo(BdAlgLeaf):
                 temp = dual_var * coefficients
                 coeff[j] += temp
                 rhs += temp * self.coupling_values[j]
-        return OptimalityCut(
-            coeffs=coeff,
-            rhs=rhs,
-            objective_value=objective,
-        )
+        return OptimalityCut(coeffs=coeff, rhs=rhs, objective_value=objective, info={})
 
     def _feasibility_cut(self) -> FeasibilityCut:
         if self.solver.model.component("_relaxed_obj") is None:
@@ -89,10 +85,7 @@ class BdAlgLeafPyomo(BdAlgLeaf):
                 temp = dual_ray * coefficients
                 coeff[j] += temp
                 rhs += temp * self.coupling_values[j]
-        return FeasibilityCut(
-            coeffs=coeff,
-            rhs=rhs,
-        )
+        return FeasibilityCut(coeffs=coeff, rhs=rhs, info={})
 
     def save(self, dir: Path) -> None:
         self.solver.save(dir)

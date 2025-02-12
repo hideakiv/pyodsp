@@ -1,18 +1,13 @@
 from typing import List
 from pathlib import Path
 
-from pyomo.environ import Suffix
+from pyomo.environ import Suffix, value
 from pyomo.core.base.constraint import ConstraintData
 
 from .alg_leaf import BdAlgLeaf
 from ..utils import CouplingData, get_nonzero_coefficients_from_model
 from pyodec.alg.cuts import Cut, OptimalityCut, FeasibilityCut
 from pyodec.solver.pyomo_solver import PyomoSolver
-from pyodec.solver.pyomo_utils import (
-    create_relaxed_mode,
-    activate_relaxed_mode,
-    deactivate_relaxed_mode,
-)
 
 
 class BdAlgLeafPyomo(BdAlgLeaf):
@@ -50,7 +45,7 @@ class BdAlgLeafPyomo(BdAlgLeaf):
             raise ValueError("Unknown solver status")
 
     def _optimality_cut(self) -> OptimalityCut:
-        pi = [self.solver.model.dual[constr] for constr in self.coupling_constraints]
+        pi = self.solver.get_dual(self.coupling_constraints)
         objective = self.solver.get_objective_value()
         coeff = [0.0 for _ in range(len(self.solver.vars))]
         rhs = objective
@@ -63,19 +58,9 @@ class BdAlgLeafPyomo(BdAlgLeaf):
         return OptimalityCut(coeffs=coeff, rhs=rhs, objective_value=objective, info={})
 
     def _feasibility_cut(self) -> FeasibilityCut:
-        if self.solver.model.component("_relaxed_obj") is None:
-            create_relaxed_mode(self.solver, self.coupling_constraints)
+        sigma = self.solver.get_dual_ray(self.coupling_constraints)
 
-        activate_relaxed_mode(self.solver, self.coupling_constraints)
-        self.solver.solve()
-
-        sigma = [
-            self.solver.model.dual[self.solver.model._relaxed_constrs[i]]
-            for i in range(len(self.coupling_constraints))
-        ]
-        objective = self.solver.get_objective_value()
-
-        deactivate_relaxed_mode(self.solver, self.coupling_constraints)
+        objective = value(self.solver._infeasible_model._infeasible_obj)
 
         coeff = [0.0 for _ in range(len(self.solver.vars))]
         rhs = objective

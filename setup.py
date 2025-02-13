@@ -5,7 +5,7 @@ setup(
     version="0.1",
     description="Pyomo interface for Decomposition of Structured Programs",
     author="Hideaki Nakao",
-    author_email="1@gmail.com",
+    author_email="h.nakao1992blanca@gmail.com",
     packages=["pyodsp"],
     install_requires=[
         "numpy",

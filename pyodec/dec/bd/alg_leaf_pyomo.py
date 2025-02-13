@@ -1,7 +1,7 @@
 from typing import List
 from pathlib import Path
 
-from pyomo.environ import Suffix, value
+from pyomo.environ import Suffix
 from pyomo.core.base.constraint import ConstraintData
 
 from .alg_leaf import BdAlgLeaf
@@ -60,7 +60,7 @@ class BdAlgLeafPyomo(BdAlgLeaf):
     def _feasibility_cut(self) -> FeasibilityCut:
         sigma = self.solver.get_dual_ray(self.coupling_constraints)
 
-        objective = value(self.solver._infeasible_model._infeasible_obj)
+        objective = self.solver.get_infeasible_model_objective_value()
 
         coeff = [0.0 for _ in range(len(self.solver.vars))]
         rhs = objective

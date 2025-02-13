@@ -1,16 +1,7 @@
-from dataclasses import dataclass
-from typing import List, Tuple
+from typing import List
 
-from pyomo.environ import (
-    Var,
-    Constraint,
-    Objective,
-    RangeSet,
-    NonNegativeReals,
-    inequality,
-)
+from pyomo.environ import Var, Objective
 from pyomo.core.base.var import VarData
-from pyomo.core.base.constraint import ConstraintData
 
 from pyodec.solver.pyomo_solver import PyomoSolver
 
@@ -75,51 +66,3 @@ def add_quad_terms_to_objective(
     add_terms_to_objective(solver, linvars)
     solver.model._mod_obj.deactivate()
     update_quad_terms_in_objective(solver, quadvars, center, penalty)
-
-
-@dataclass
-class RestrictedInfo:
-    constrs: List[ConstraintData]
-    xlb: List[float | None]
-    xub: List[float | None]
-
-
-def create_restricted_mode(
-    solver: PyomoSolver, constrs: List[ConstraintData]
-) -> RestrictedInfo:
-    xlb: List[float | None] = []
-    xub: List[float | None] = []
-    for var in solver.vars:
-        xlb.append(var.lb)
-        xub.append(var.ub)
-
-    def constr_rule(m, i: int):
-        constr = constrs[i]
-        lower = None if constr.lower is None else 0
-        body = constr.body
-        upper = None if constr.upper is None else 0
-        return inequality(lower, body, upper)
-
-    solver.model._restricted_constrs = Constraint(
-        RangeSet(0, len(constrs) - 1), rule=constr_rule
-    )
-
-    return RestrictedInfo(constrs, xlb, xub)
-
-
-def activate_restricted_mode(solver: PyomoSolver, info: RestrictedInfo):
-    for constr in info.constrs:
-        constr.deactivate()
-    solver.model._restricted_constrs.activate()
-    for var in solver.vars:
-        var.setlb(-1)
-        var.setub(1)
-
-
-def deactivate_restricted_mode(solver: PyomoSolver, info: RestrictedInfo):
-    solver.model._restricted_constrs.deactivate()
-    for i, var in enumerate(solver.vars):
-        var.setlb(info.xlb[i])
-        var.setub(info.xub[i])
-    for constr in info.constrs:
-        constr.activate()

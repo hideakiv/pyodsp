@@ -5,6 +5,7 @@ import pandas as pd
 
 import pyomo.environ as pyo
 from pyomo.core.base.var import VarData
+from pyomo.repn.standard_repn import generate_standard_repn
 from pyomo.opt import TerminationCondition
 
 from .solver import Solver
@@ -105,16 +106,12 @@ class PyomoSolver(Solver):
             ray.append(self._infeasible_model.dual[infs_constr])
         return ray
 
-    def _create_infeasible_model(self):
+    def get_infeasible_model_objective_value(self) -> float:
+        return pyo.value(self._infeasible_model._infeasible_obj)
+
+    def _create_infeasible_model(self) -> None:
         self._infeasible_model = self.model.clone()
 
-        for vars in self._infeasible_model.component_objects(pyo.Var):
-            if vars.is_indexed():
-                indices = list(vars.keys())
-                for index in indices:
-                    self._change_domain_to_real(vars[index])
-            else:
-                self._change_domain_to_real(vars)
         new_obj = 0.0
         for constrs in self._infeasible_model.component_objects(pyo.Constraint):
             constr_name = constrs.name
@@ -172,7 +169,95 @@ class PyomoSolver(Solver):
 
     def get_unbd_ray(self) -> List[float]:
         """Get the unbd ray from the unbounded model."""
-        return []
+        if self._unbounded_model is None:
+            self._create_unbounded_model()
+
+        if self._unbounded_model.component("_mod_obj") is not None:
+            self._unbounded_model.del_component("_mod_obj")
+
+        # Get the _mod_obj from self.model
+        mod_obj = self.model.component("_mod_obj")
+        if mod_obj is None:
+            raise ValueError("Objective '_mod_obj' not found in the model")
+
+        var_coeff_pairs = self._get_variable_coefficient_pairs(mod_obj.expr)
+
+        obj = 0.0
+        for var, coeff in var_coeff_pairs:
+            unbd_var = self._unbounded_model.find_component(var.name)
+            obj += coeff * unbd_var
+
+        # Transfer _mod_obj to self._unbounded_model
+        self._unbounded_model._mod_obj = pyo.Objective(expr=obj, sense=mod_obj.sense)
+
+        self.solver.solve(
+            self._unbounded_model, load_solutions=True, **self._solver_kwargs
+        )
+        ray = []
+        for var in self.vars:
+            unbd_var = self._unbounded_model.find_component(var.name)
+            ray.append(unbd_var.value)
+        return ray
+
+    def get_unbounded_model_objective_value(self) -> float:
+        return pyo.value(self._unbounded_model._mod_obj)
+
+    def _create_unbounded_model(self) -> None:
+
+        self._unbounded_model = self.model.clone()
+
+        for vars in self._unbounded_model.component_objects(pyo.Var):
+            if vars.is_indexed():
+                indices = list(vars.keys())
+                for index in indices:
+                    self._change_domain_to_real(vars[index])
+                    if vars[index].lb is None:
+                        vars[index].setlb(-1)
+                    else:
+                        vars[index].setlb(0)
+                    if vars.ub is None:
+                        vars[index].setub(1)
+                    else:
+                        vars[index].setub(0)
+            else:
+                self._change_domain_to_real(vars)
+                if vars.lb is not None:
+                    vars.setlb(0)
+                else:
+                    vars.setlb(-1)
+                if vars.ub is not None:
+                    vars.setub(0)
+                else:
+                    vars.setub(1)
+
+        for constrs in self._unbounded_model.component_objects(pyo.Constraint):
+            if constrs.is_indexed():
+                indices = list(constrs.keys())
+                for index in indices:
+                    constr = constrs[index]
+                    lower = constr.lower
+                    upper = constr.upper
+                    if lower is not None and upper is not None:
+                        constr.set_value(0.0 <= constr.body <= 0.0)
+                    elif lower is not None:
+                        constr.set_value(0.0 <= constr.body)
+                    elif upper is not None:
+                        constr.set_value(constr.body <= 0.0)
+            else:
+                lower = constrs.lower
+                upper = constrs.upper
+                if lower is not None and upper is not None:
+                    constrs.set_value(0.0 <= constrs.body <= 0.0)
+                elif lower is not None:
+                    constrs.set_value(0.0 <= constrs.body)
+                elif upper is not None:
+                    constrs.set_value(constrs.body <= 0.0)
+
+    def _get_variable_coefficient_pairs(self, expr):
+        """Get variable-coefficient pairs from a Pyomo expression."""
+        repn = generate_standard_repn(expr)
+        var_coeff_pairs = list(zip(repn.linear_vars, repn.linear_coefs))
+        return var_coeff_pairs
 
     def save(self, dir: Path) -> None:
         """outputs solution to dir"""

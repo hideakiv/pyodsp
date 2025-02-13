@@ -2,8 +2,8 @@ from typing import List, Tuple
 from pathlib import Path
 
 from .alg_leaf import DdAlgLeaf
-from pyodec.solver.pyomo_solver import PyomoSolver
-from pyodec.solver.pyomo_utils import update_linear_terms_in_objective
+from pyodsp.solver.pyomo_solver import PyomoSolver
+from pyodsp.solver.pyomo_utils import update_linear_terms_in_objective
 
 
 class DdAlgLeafPyomo(DdAlgLeaf):

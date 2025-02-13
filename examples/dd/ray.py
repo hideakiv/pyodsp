@@ -2,13 +2,13 @@ from pathlib import Path
 
 import pyomo.environ as pyo
 
-from pyodec.solver.pyomo_solver import PyomoSolver
+from pyodsp.solver.pyomo_solver import PyomoSolver
 
-from pyodec.dec.dd.node_root import DdRootNode
-from pyodec.dec.dd.alg_root_bm import DdAlgRootBm
-from pyodec.dec.dd.node_leaf import DdLeafNode
-from pyodec.dec.dd.alg_leaf_pyomo import DdAlgLeafPyomo
-from pyodec.dec.dd.run import DdRun
+from pyodsp.dec.dd.node_root import DdRootNode
+from pyodsp.dec.dd.alg_root_bm import DdAlgRootBm
+from pyodsp.dec.dd.node_leaf import DdLeafNode
+from pyodsp.dec.dd.alg_leaf_pyomo import DdAlgLeafPyomo
+from pyodsp.dec.dd.run import DdRun
 
 from utils import get_args, assert_approximately_equal
 

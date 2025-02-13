@@ -1,12 +1,12 @@
 from setuptools import setup
 
 setup(
-    name="pyodec",
+    name="pyodsp",
     version="0.1",
-    description="Decomposition Algorithms for Block structured problems in Pyomo",
+    description="Pyomo interface for Decomposition of Structured Programs",
     author="Hideaki Nakao",
     author_email="1@gmail.com",
-    packages=["pyodec"],
+    packages=["pyodsp"],
     install_requires=[
         "numpy",
         "pandas",

@@ -1,9 +1,9 @@
 from pathlib import Path
 
-from pyodec.dec.node import Node
+from pyodsp.dec.node import Node
 
 
-class BdNode(Node):
+class DdNode(Node):
     def __init__(
         self,
         idx: int,

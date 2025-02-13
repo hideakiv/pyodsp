@@ -3,7 +3,7 @@ from typing import List
 from pyomo.environ import Var, Objective
 from pyomo.core.base.var import VarData
 
-from pyodec.solver.pyomo_solver import PyomoSolver
+from pyodsp.solver.pyomo_solver import PyomoSolver
 
 
 def add_linear_terms_to_objective(

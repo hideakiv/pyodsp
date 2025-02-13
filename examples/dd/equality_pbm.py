@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from pyodec.dec.dd.run import DdRun
+from pyodsp.dec.dd.run import DdRun
 
 from equality import create_master, create_sub
 

@@ -2,7 +2,7 @@ from pathlib import Path
 from mpi4py import MPI
 
 from equality import create_master, create_sub
-from pyodec.dec.dd.run_mpi import DdRunMpi
+from pyodsp.dec.dd.run_mpi import DdRunMpi
 
 from utils import get_args, assert_approximately_equal
 

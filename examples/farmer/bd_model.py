@@ -2,13 +2,13 @@ from pathlib import Path
 
 import pyomo.environ as pyo
 
-from pyodec.solver.pyomo_solver import PyomoSolver
+from pyodsp.solver.pyomo_solver import PyomoSolver
 
-from pyodec.dec.bd.node_root import BdRootNode
-from pyodec.dec.bd.alg_root_bm import BdAlgRootBm
-from pyodec.dec.bd.node_leaf import BdLeafNode
-from pyodec.dec.bd.alg_leaf_pyomo import BdAlgLeafPyomo
-from pyodec.dec.bd.run import BdRun
+from pyodsp.dec.bd.node_root import BdRootNode
+from pyodsp.dec.bd.alg_root_bm import BdAlgRootBm
+from pyodsp.dec.bd.node_leaf import BdLeafNode
+from pyodsp.dec.bd.alg_leaf_pyomo import BdAlgLeafPyomo
+from pyodsp.dec.bd.run import BdRun
 
 # Create a model
 model = pyo.ConcreteModel()

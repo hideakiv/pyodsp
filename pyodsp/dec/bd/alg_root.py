@@ -4,7 +4,7 @@ from pathlib import Path
 
 from pyomo.core.base.var import VarData
 
-from pyodec.alg.cuts import CutList
+from pyodsp.alg.cuts import CutList
 
 
 class BdAlgRoot(ABC):

@@ -6,8 +6,8 @@ from pyomo.core.base.constraint import ConstraintData
 
 from .alg_leaf import BdAlgLeaf
 from ..utils import CouplingData, get_nonzero_coefficients_from_model
-from pyodec.alg.cuts import Cut, OptimalityCut, FeasibilityCut
-from pyodec.solver.pyomo_solver import PyomoSolver
+from pyodsp.alg.cuts import Cut, OptimalityCut, FeasibilityCut
+from pyodsp.solver.pyomo_solver import PyomoSolver
 
 
 class BdAlgLeafPyomo(BdAlgLeaf):

@@ -15,10 +15,11 @@ Pyodsp offers distributed algorithms for programming models written in [Pyomo](h
 ## Prerequisites
 ### Solvers
 - [HiGHS](https://highs.dev/)
-Other solvers are not tested yet.
-Additionally, the following is requrired for some of the algorithm.
-- [Ipopt](https://github.com/coin-or/Ipopt)
+- Other solvers are not tested yet.
+
+Additionally, the following may be requrired for some of the algorithms.
+- [Ipopt](https://github.com/coin-or/Ipopt) (For `DdAlgRootPbm`)
 
 ### MPI
 - [MPICH](https://www.mpich.org/)
-OpenMPI is not tested.
+- OpenMPI is not tested.

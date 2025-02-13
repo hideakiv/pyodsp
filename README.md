@@ -1,2 +1,2 @@
-# pyodec
-Decomposition Algorithms for Block structured problems in Pyomo
+# pyodsp
+Pyomo interface for Decomposition of Structured Programs, inspired by [DSP](https://github.com/Argonne-National-Laboratory/DSP)

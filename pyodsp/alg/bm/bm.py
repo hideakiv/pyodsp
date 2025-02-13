@@ -5,8 +5,8 @@ import pandas as pd
 
 from pyomo.environ import Var, Constraint, Reals, RangeSet
 
-from pyodec.solver.pyomo_solver import PyomoSolver
-from pyodec.solver.pyomo_utils import add_terms_to_objective
+from pyodsp.solver.pyomo_solver import PyomoSolver
+from pyodsp.solver.pyomo_utils import add_terms_to_objective
 
 from ..cuts import CutList, OptimalityCut, FeasibilityCut
 from ..cuts_manager import CutsManager, CutInfo

@@ -12,8 +12,8 @@ from pyomo.environ import (
     value,
 )
 from .alg_root import DdAlgRoot
-from pyodec.solver.pyomo_solver import PyomoSolver
-from pyodec.alg.cuts import OptimalityCut
+from pyodsp.solver.pyomo_solver import PyomoSolver
+from pyodsp.alg.cuts import OptimalityCut
 
 
 class MipHeuristicRoot:

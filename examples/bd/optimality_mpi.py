@@ -2,7 +2,7 @@ from pathlib import Path
 from mpi4py import MPI
 
 from optimality import create_root_node, create_leaf_node, p
-from pyodec.dec.bd.run_mpi import BdRunMpi
+from pyodsp.dec.bd.run_mpi import BdRunMpi
 
 from utils import get_args, assert_approximately_equal
 

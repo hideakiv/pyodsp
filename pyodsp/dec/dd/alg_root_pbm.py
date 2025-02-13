@@ -5,12 +5,12 @@ from pyomo.environ import ConcreteModel
 from pyomo.core.base.var import VarData
 
 from .alg_root import DdAlgRoot
-from pyodec.alg.bm.bm import BundleMethod
-from pyodec.alg.cuts import CutList
-from pyodec.alg.cuts_manager import CutInfo
+from pyodsp.alg.pbm.pbm import ProximalBundleMethod
+from pyodsp.alg.cuts import CutList
+from pyodsp.alg.cuts_manager import CutInfo
 
 
-class DdAlgRootBm(DdAlgRoot):
+class DdAlgRootPbm(DdAlgRoot):
 
     def __init__(
         self,
@@ -23,25 +23,21 @@ class DdAlgRootBm(DdAlgRoot):
     ) -> None:
         super().__init__(coupling_model, is_minimize, solver_name, vars_dn, **kwargs)
 
-        self.bm = BundleMethod(self.solver, max_iteration)
-        self.bm.obj_bound.append(None)
+        self.pbm = ProximalBundleMethod(self.solver, max_iteration)
+        self.pbm.obj_bound.append(None)
 
     def build(self, num_cuts: int) -> None:
-        if self.is_minimize:
-            dummy_bounds = [1e9 for _ in range(num_cuts)]
-        else:
-            dummy_bounds = [-1e9 for _ in range(num_cuts)]
-
-        self.bm.build(num_cuts, dummy_bounds)
+        self.pbm.set_init_solution([0.0 for _ in range(num_cuts)])
+        self.pbm.build(num_cuts)
 
     def run_step(self, cuts_list: List[CutList] | None) -> List[float] | None:
-        return self.bm.run_step(cuts_list)
+        return self.pbm.run_step(cuts_list)
 
     def reset_iteration(self) -> None:
-        self.bm.reset_iteration()
+        self.pbm.reset_iteration()
 
     def get_cuts(self) -> List[List[CutInfo]]:
-        return self.bm.cuts_manager.get_cuts()
+        return self.pbm.cuts_manager.get_cuts()
 
     def save(self, dir: Path) -> None:
-        self.bm.save(dir)
+        self.pbm.save(dir)

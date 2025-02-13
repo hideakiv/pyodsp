@@ -1,7 +1,7 @@
 from typing import List
 from pathlib import Path
 
-from pyodec.alg.cuts import Cut
+from pyodsp.alg.cuts import Cut
 
 from .node import BdNode
 from .alg_leaf import BdAlgLeaf

@@ -4,13 +4,13 @@ from pathlib import Path
 import pandas as pd
 from pyomo.environ import Var, Reals, RangeSet
 
-from pyodec.alg.cuts import CutList
+from pyodsp.alg.cuts import CutList
 
 from .logger import PbmLogger
 from ..bm.bm import BundleMethod
 from ..const import BM_ABS_TOLERANCE, BM_REL_TOLERANCE
-from pyodec.solver.pyomo_solver import PyomoSolver
-from pyodec.solver.pyomo_utils import (
+from pyodsp.solver.pyomo_solver import PyomoSolver
+from pyodsp.solver.pyomo_utils import (
     add_quad_terms_to_objective,
     update_quad_terms_in_objective,
 )

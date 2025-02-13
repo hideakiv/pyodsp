@@ -4,9 +4,9 @@ from pathlib import Path
 from pyomo.core.base.var import VarData
 
 from .alg_root import BdAlgRoot
-from pyodec.solver.pyomo_solver import PyomoSolver
-from pyodec.alg.bm.bm import BundleMethod
-from pyodec.alg.cuts import CutList
+from pyodsp.solver.pyomo_solver import PyomoSolver
+from pyodsp.alg.bm.bm import BundleMethod
+from pyodsp.alg.cuts import CutList
 
 
 class BdAlgRootBm(BdAlgRoot):

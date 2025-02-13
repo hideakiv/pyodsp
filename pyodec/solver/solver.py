@@ -40,15 +40,29 @@ class Solver(ABC):
         """Returns whether the model is optimal."""
         return False
 
+    def get_dual(self, constrs) -> List[float]:
+        """Returns list of duals of constrs."""
+        return []
+
     @abstractmethod
     def is_infeasible(self) -> bool:
         """Returns whether the model is infeasible."""
         return False
 
     @abstractmethod
+    def get_dual_ray(self, constrs) -> List[float]:
+        """Get the dual ray of constrs from the infeasibile model."""
+        return []
+
+    @abstractmethod
     def is_unbounded(self) -> bool:
         """Returns whether the model is unbounded."""
         return False
+
+    @abstractmethod
+    def get_unbd_ray(self) -> List[float]:
+        """Get the unbd ray from the unbounded model."""
+        return []
 
     @abstractmethod
     def save(self, dir: Path) -> None:

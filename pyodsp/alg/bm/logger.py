@@ -6,7 +6,7 @@ class BmLogger:
     def __init__(self) -> None:
         # Create a logger object
         self.logger = logging.getLogger("Bundle Method")
-        self.logger.setLevel(logging.DEBUG)
+        self.logger.setLevel(logging.INFO)
 
         # Create a console handler and set its level to debug
         ch = logging.StreamHandler()

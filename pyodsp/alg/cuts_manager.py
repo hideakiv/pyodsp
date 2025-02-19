@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from pyomo.environ import Constraint
 
 from .cuts import Cut, FeasibilityCut, OptimalityCut
+from .const import BM_SLACK_TOLERANCE
 
 
 @dataclass
@@ -15,7 +16,7 @@ class CutInfo:
     idx: int
     iteration: int
     trial_point: List[float]
-    period: int
+    age: int
 
 
 class CutsManager:
@@ -48,7 +49,15 @@ class CutsManager:
         self._active_cuts[idx].append(cut_info)
 
     def increment(self) -> None:
-        pass
+        for cuts in self._active_cuts:
+            for cut in cuts:
+                try:
+                    lslack = cut.constraint.lslack()
+                    uslack = cut.constraint.uslack()
+                    if lslack > BM_SLACK_TOLERANCE and uslack > BM_SLACK_TOLERANCE:
+                        cut.age += 1
+                except Exception:
+                    pass
 
     def get_cuts(self) -> List[List[CutInfo]]:
         return self._active_cuts

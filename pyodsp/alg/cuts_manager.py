@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from pyomo.environ import Constraint
 
 from .cuts import Cut, FeasibilityCut, OptimalityCut
-from .const import BM_SLACK_TOLERANCE
+from .const import BM_SLACK_TOLERANCE, BM_MAX_CUT_AGE
 
 
 @dataclass
@@ -56,8 +56,20 @@ class CutsManager:
                     uslack = cut.constraint.uslack()
                     if lslack > BM_SLACK_TOLERANCE and uslack > BM_SLACK_TOLERANCE:
                         cut.age += 1
+                    else:
+                        cut.age = 0
                 except Exception:
                     pass
+    
+    def purge(self) -> None:
+        def below_max(cut: CutInfo) -> bool:
+            below = cut.age < BM_MAX_CUT_AGE
+            if not below:
+                cut.constraint.deactivate()
+            return below
+        
+        for cuts in self._active_cuts:
+            cuts[:] = [cut for cut in cuts if below_max(cut)]
 
     def get_cuts(self) -> List[List[CutInfo]]:
         return self._active_cuts

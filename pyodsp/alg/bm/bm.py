@@ -11,7 +11,7 @@ from pyodsp.solver.pyomo_utils import add_terms_to_objective
 from ..cuts import CutList, OptimalityCut, FeasibilityCut
 from ..cuts_manager import CutsManager, CutInfo
 from .logger import BmLogger
-from ..const import BM_ABS_TOLERANCE, BM_REL_TOLERANCE
+from ..const import BM_ABS_TOLERANCE, BM_REL_TOLERANCE, BM_PURGE_FREQ
 
 
 class BundleMethod:
@@ -120,6 +120,8 @@ class BundleMethod:
     def _increment(self) -> bool:
         self.iteration += 1
         self.cuts_manager.increment()
+        if self.iteration % BM_PURGE_FREQ == 0:
+            self.cuts_manager.purge()
 
         # reached max iteration
         return self.iteration > self.max_iteration

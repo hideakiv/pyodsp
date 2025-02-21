@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from pyomo.environ import Constraint
 
 from .cuts import Cut, FeasibilityCut, OptimalityCut
-from .const import BM_SLACK_TOLERANCE, BM_MAX_CUT_AGE
+from .const import BM_SLACK_TOLERANCE, BM_MAX_CUT_AGE, BM_CUT_SIM_TOLERANCE
 
 
 @dataclass
@@ -38,7 +38,7 @@ class CutsManager:
     def get_num_feasibility(self, idx: int) -> int:
         return self._num_feasibility[idx]
 
-    def append_cut(self, cut_info) -> None:
+    def append_cut(self, cut_info: CutInfo) -> None:
         idx = cut_info.idx
         if isinstance(cut_info.cut, OptimalityCut):
             self._num_optimality[idx] += 1
@@ -46,7 +46,19 @@ class CutsManager:
             self._num_feasibility[idx] += 1
         else:
             ValueError("Invalid cut type")
-        self._active_cuts[idx].append(cut_info)
+        if self._is_similar(cut_info):
+            cut_info.constraint.deactivate()
+        else:
+            self._active_cuts[idx].append(cut_info)
+
+    def _is_similar(self, cut_info: CutInfo) -> bool:
+        for cut in self._active_cuts[cut_info.idx]:
+            square = (cut_info.cut.rhs - cut.cut.rhs) ** 2
+            for x, y in zip(cut_info.cut.coeffs, cut.cut.coeffs):
+                square += (x - y) ** 2
+            if square < BM_CUT_SIM_TOLERANCE ** 2:
+                return True
+        return False
 
     def increment(self) -> None:
         for cuts in self._active_cuts:

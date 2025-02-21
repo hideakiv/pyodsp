@@ -28,6 +28,11 @@ class BundleMethod:
         self.obj_bound: List[float | None] = []
         self.obj_val: List[float | None] = []
 
+        self.status: int = 0
+        # 0: not finished
+        # 1: optimal
+        # 2: max iteration reached
+
     def build(self, num_cuts: int, subobj_bounds: List[float] | None) -> None:
         self.num_cuts = num_cuts
         assert subobj_bounds is not None
@@ -40,36 +45,15 @@ class BundleMethod:
         )
 
     def run_step(self, cuts_list: List[CutList] | None) -> List[float] | None:
-        nocuts = False
         if cuts_list is not None:
-            nocuts = self._add_cuts(cuts_list)
-            if nocuts:
-                if len(self.obj_bound) < len(self.obj_val):
-                    self.obj_bound.append(self.obj_bound[-1])
-                self.logger.log_status_optimal()
-                self.logger.log_completion(self.iteration, self.obj_bound[-1])
-                return
+            self._add_cuts(cuts_list)
         else:
             self.obj_val.append(None)
 
-        reached_max_iteration = self._increment()
-        if reached_max_iteration:
-            self.logger.log_status_max_iter()
-            self.logger.log_completion(self.iteration, self.obj_bound[-1])
-            return
-
+        self._increment()
         self._solve()
-
-        if self.solver.is_minimize():
-            lb = self.obj_bound[-1]
-            ub = self.obj_val[-1]
-        else:
-            lb = self.obj_val[-1]
-            ub = self.obj_bound[-1]
-        self.logger.log_master_problem(self.iteration, lb, ub, self.current_solution)
-
-        if self._optimal():
-            self.logger.log_status_optimal()
+        self._log()
+        if self._termination_check():
             self.logger.log_completion(self.iteration, self.obj_bound[-1])
             return
 
@@ -87,6 +71,37 @@ class BundleMethod:
             theta_val = theta.value
             current_obj += theta_val
         self.obj_bound.append(current_obj)
+    
+    def _log(self) -> None:
+        if self.solver.is_minimize():
+            lb = self.obj_bound[-1]
+            ub = self.obj_val[-1]
+        else:
+            lb = self.obj_val[-1]
+            ub = self.obj_bound[-1]
+        self.logger.log_master_problem(self.iteration, lb, ub, self.current_solution)
+
+    def _termination_check(self) -> bool:
+        if (
+            len(self.obj_val) == 0
+            or self.obj_val[-1] is None
+            or self.obj_bound[-1] is None
+        ):
+            return False
+
+        gap = abs(self.obj_bound[-1] - self.obj_val[-1]) / abs(self.obj_val[-1])
+
+        if gap < BM_REL_TOLERANCE:
+            self.status = 1
+            self.logger.log_status_optimal()
+            return True
+        
+        if self.iteration > self.max_iteration:
+            self.status = 2
+            self.logger.log_status_max_iter()
+            return True
+        
+        return False
 
     def save(self, dir: Path) -> None:
         path = dir / "bm.csv"
@@ -117,26 +132,11 @@ class BundleMethod:
         optimal = not any(found_cuts)
         return optimal
 
-    def _increment(self) -> bool:
+    def _increment(self) -> None:
         self.iteration += 1
         self.cuts_manager.increment()
         if self.iteration % BM_PURGE_FREQ == 0:
             self.cuts_manager.purge()
-
-        # reached max iteration
-        return self.iteration > self.max_iteration
-
-    def _optimal(self) -> bool:
-        if (
-            len(self.obj_val) == 0
-            or self.obj_val[-1] is None
-            or self.obj_bound[-1] is None
-        ):
-            return False
-
-        gap = abs(self.obj_bound[-1] - self.obj_val[-1]) / abs(self.obj_val[-1])
-
-        return gap < BM_REL_TOLERANCE
 
     def _update_objective(self, subobj_bounds: List[float]):
         def theta_bounds(model, i):

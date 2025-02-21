@@ -62,16 +62,14 @@ class CutsManager:
 
     def increment(self) -> None:
         for cuts in self._active_cuts:
-            for cut in cuts:
-                try:
+            if len(cuts) > 1:
+                for cut in cuts:
                     lslack = cut.constraint.lslack()
                     uslack = cut.constraint.uslack()
                     if lslack > BM_SLACK_TOLERANCE and uslack > BM_SLACK_TOLERANCE:
                         cut.age += 1
                     else:
                         cut.age = 0
-                except Exception:
-                    pass
     
     def purge(self) -> None:
         def below_max(cut: CutInfo) -> bool:

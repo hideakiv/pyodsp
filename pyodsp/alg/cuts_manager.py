@@ -56,7 +56,7 @@ class CutsManager:
             square = (cut_info.cut.rhs - cut.cut.rhs) ** 2
             for x, y in zip(cut_info.cut.coeffs, cut.cut.coeffs):
                 square += (x - y) ** 2
-            if square < BM_CUT_SIM_TOLERANCE ** 2:
+            if square < BM_CUT_SIM_TOLERANCE:
                 return True
         return False
 

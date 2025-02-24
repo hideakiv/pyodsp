@@ -116,10 +116,9 @@ class DdRunMpi(DdRun):
         
         final_obj = 0.0
         if 0 in solutions_dict:
-            for node in self.nodes.values():
-                if isinstance(node, DdLeafNode):
-                    node.alg.fix_variables_and_solve(solutions[node.idx])
-                final_obj += node.alg.get_objective_value()
+            for node_id, sols in solutions_dict[0].items():
+                sub_obj = self._finalize_leaf(node_id, sols)
+                final_obj += sub_obj
         all_objs = self.comm.gather(final_obj, root=0)
         total_obj = 0.0
         for objval in all_objs:
@@ -129,8 +128,7 @@ class DdRunMpi(DdRun):
     def _finalize_leaf_mpi(self):
         solutions_info = self.comm.recv(source=0, tag=1)
         final_obj = 0.0
-        for node in self.nodes.values():
-            if isinstance(node, DdLeafNode):
-                node.alg.fix_variables_and_solve(solutions_info[node.idx])
-                final_obj += node.alg.get_objective_value()
+        for node_id, sols in solutions_info.items():
+            sub_obj = self._finalize_leaf(node_id, sols)
+            final_obj += sub_obj
         all_objs = self.comm.gather(final_obj, root=0)

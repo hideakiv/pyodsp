@@ -83,8 +83,8 @@ class DdRun:
     def _finalize_root(self) -> None:
         solutions = self.root.solve_mip_heuristic()
         final_obj = 0.0
-        for child_id in self.root.get_children():
-            sub_obj = self._finalize_leaf(child_id, solutions[child_id])
+        for node_id, sols in solutions.items():
+            sub_obj = self._finalize_leaf(node_id, sols)
             final_obj += sub_obj
         self.logger.log_completion(final_obj)
 

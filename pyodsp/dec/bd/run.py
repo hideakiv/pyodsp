@@ -28,15 +28,22 @@ class BdRun:
     def run(self):
         if self.root is not None:
             self.logger.log_initialization()
+            self.root.set_depth(0)
+            self._run_check(self.root)
             self._run_node(self.root)
         for node in self.nodes.values():
             node.save(self.filedir)
 
+    def _run_check(self, node: BdNode) -> None:
+        for child_id in node.get_children():
+            child = self.nodes[child_id]
+            child.set_depth(node.get_depth() + 1)
+            if child.is_minimize() != node.is_minimize():
+                raise ValueError("Inconsistent optimization sense")
+            self._run_check(child)
+
     def _run_node(self, node: BdNode, sol_up: List[float] | None = None) -> Cut | None:
         if isinstance(node, BdRootNode):
-            for child_id in node.get_children():
-                if self.nodes[child_id].is_minimize() != node.is_minimize():
-                    raise ValueError("Inconsistent optimization sense")
 
             self._set_bounds(node)
             node.build()

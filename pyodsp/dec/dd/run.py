@@ -28,12 +28,14 @@ class DdRun:
     def run(self):
         if self.root is not None:
             # run root process
+            self.root.set_depth(0)
             self._init_root()
             for child_id in self.root.get_children():
                 self._init_leaf(
                     child_id, 
                     self.root.alg.lagrangian_data.matrix[child_id], 
-                    self.root.is_minimize
+                    self.root.is_minimize,
+                    self.root.get_depth() + 1
                 )
 
             self._run_root()
@@ -49,9 +51,13 @@ class DdRun:
         self.root.build()
 
     def _init_leaf(
-            self, node_id: int, matrix: SparseMatrix, is_minimize: bool
+            self, node_id: int, 
+            matrix: SparseMatrix, 
+            is_minimize: bool,
+            depth: int,
         ) -> None:
         node = self.nodes[node_id]
+        node.set_depth(depth)
         assert isinstance(node, DdLeafNode)
         if node.is_minimize != is_minimize:
             raise ValueError("Inconsistent optimization sense")

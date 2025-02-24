@@ -27,9 +27,11 @@ class DdRunMpi(DdRun):
 
     def run(self):
         if self.rank == 0:
+            self.root.set_depth(0)
             self._init_root()
             is_minimize = self.root.is_minimize
             self.comm.bcast(is_minimize, root=0)
+            self.comm.bcast(self.root.get_depth(), root=0)
 
             matrices = self._split_matrices()
 
@@ -39,19 +41,20 @@ class DdRunMpi(DdRun):
             if 0 in matrices:
                 matrix_info = matrices[0]
                 for node_id, matrix in matrix_info.items():
-                    self._init_leaf(node_id, matrix, is_minimize)
+                    self._init_leaf(node_id, matrix, is_minimize, self.root.get_depth() + 1)
 
             self._run_root()
-            self.logger.log_finaliziation()
 
             self._finalize_root()
         else:
             is_minimize = None
             is_minimize = self.comm.bcast(is_minimize, root=0)
+            depth = None
+            depth = self.comm.bcast(depth, root=0)
             matrix_info = self.comm.recv(source=0, tag=0)
 
             for node_id, matrix in matrix_info.items():
-                self._init_leaf(node_id, matrix, is_minimize)
+                self._init_leaf(node_id, matrix, is_minimize, depth + 1)
 
             self._run_leaf_mpi()
 
@@ -99,6 +102,8 @@ class DdRunMpi(DdRun):
             combined_cuts_dn = {}
             for d in all_cuts_dn:
                 combined_cuts_dn.update(d)
+        
+        self.logger.log_finaliziation()
 
     def _run_leaf_mpi(self) -> None:
         solution: List[float] = None

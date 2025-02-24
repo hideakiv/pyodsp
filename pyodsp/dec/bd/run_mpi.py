@@ -5,7 +5,6 @@ from mpi4py import MPI
 from .run import BdRun
 from .node import BdNode
 from .node_leaf import BdLeafNode
-from .node_root import BdRootNode
 
 
 class BdRunMpi(BdRun):
@@ -36,23 +35,30 @@ class BdRunMpi(BdRun):
 
         if self.rank == 0:
             is_minimize = self.root.is_minimize()
+            self.root.set_depth(0)
             self.comm.bcast(is_minimize, root=0)
+            depth = self.root.get_depth()
+            self.comm.bcast(depth, root=0)
             for node in self.nodes.values():
-                if isinstance(node, BdLeafNode):
-                    if node.is_minimize() != is_minimize:
-                        raise ValueError("Inconsistent optimization sense")
+                self._init_leaf(node, is_minimize, depth + 1)
             self._run_root(all_bounds)
         else:
             is_minimize = None
             is_minimize = self.comm.bcast(is_minimize, root=0)
+            depth = None
+            depth = self.comm.bcast(depth, root=0)
             for node in self.nodes.values():
-                if isinstance(node, BdLeafNode):
-                    if node.is_minimize() != is_minimize:
-                        raise ValueError("Inconsistent optimization sense")
+                self._init_leaf(node, is_minimize, depth + 1)
             self._run_leaf()
 
         for node in self.nodes.values():
             node.save(self.filedir)
+    
+    def _init_leaf(self, node: BdNode, is_minimize: bool, depth: int) -> None:
+        if isinstance(node, BdLeafNode):
+            if node.is_minimize() != is_minimize:
+                raise ValueError("Inconsistent optimization sense")
+            node.set_depth(depth)
 
     def _run_root(self, all_bounds) -> None:
         self.logger.log_initialization()

@@ -11,6 +11,7 @@ class Node:
         self.parent: int = parent
         self.children: List[int] = []
         self.children_multipliers: Dict[int, float] = {}
+        self.depth = None
 
     def add_child(self, idx: int, multiplier: float = 1.0):
         self.children.append(idx)
@@ -33,3 +34,9 @@ class Node:
 
     def set_parent(self, parent):
         self.parent = parent
+
+    def get_depth(self) -> int:
+        return self.depth
+
+    def set_depth(self, depth: int) -> None:
+        self.depth = depth

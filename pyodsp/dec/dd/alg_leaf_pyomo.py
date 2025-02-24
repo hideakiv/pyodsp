@@ -53,6 +53,7 @@ class DdAlgLeafPyomo(DdAlgLeaf):
         self.coupling_values: List[float] = values
         for i, var in enumerate(self.solver.vars):
             var.fix(values[i])
+        self.solver.activate_original_objective()
         self.solver.solve()
 
     def save(self, dir: Path) -> None:

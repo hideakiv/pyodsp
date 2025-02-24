@@ -81,6 +81,7 @@ class DdRunMpi(DdRun):
                 all_cuts_dn = self.comm.gather(cuts_dn, root=0)
 
         if self.rank == 0:
+            self.logger.log_finaliziation()
             root = self.nodes[self.root_idx]
             assert isinstance(root, DdRootNode)
 
@@ -94,16 +95,27 @@ class DdRunMpi(DdRun):
 
             for target, sols in solutions_dict.items():
                 self.comm.send(sols, dest=target, tag=1)
-
+            
+            final_obj = 0.0
             if 0 in solutions_dict:
                 for node in self.nodes.values():
                     if isinstance(node, DdLeafNode):
                         node.alg.fix_variables_and_solve(solutions[node.idx])
+                    final_obj += node.alg.get_objective_value()
+            all_objs = self.comm.gather(final_obj, root=0)
+            total_obj = 0.0
+            for objval in all_objs:
+                total_obj += objval
+            self.logger.log_completion(total_obj)
         else:
             solutions_info = self.comm.recv(source=0, tag=1)
+            final_obj = 0.0
             for node in self.nodes.values():
                 if isinstance(node, DdLeafNode):
                     node.alg.fix_variables_and_solve(solutions_info[node.idx])
+                    final_obj += node.alg.get_objective_value()
+            all_objs = self.comm.gather(final_obj, root=0)
+            
 
         for node in self.nodes.values():
             node.save(self.filedir)

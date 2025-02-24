@@ -43,10 +43,14 @@ class DdRun:
                 break
             cuts_dn = self._run_leaf(solution)
 
+        self.logger.log_finaliziation()
         solutions = root.solve_mip_heuristic()
+        final_obj = 0.0
         for node in self.nodes.values():
             if isinstance(node, DdLeafNode):
                 node.alg.fix_variables_and_solve(solutions[node.idx])
+                final_obj += node.alg.get_objective_value()
+        self.logger.log_completion(final_obj)
 
         for node in self.nodes.values():
             node.save(self.filedir)

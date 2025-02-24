@@ -9,12 +9,21 @@ from ..utils import SparseMatrix
 
 class DdRunMpi(DdRun):
     def __init__(
-        self, nodes: List[DdNode], node_rank_map: Dict[int, int], filedir: Path
+        self, nodes: List[DdNode], filedir: Path
     ):
         super().__init__(nodes, filedir)
-        self.node_rank_map = node_rank_map
         self.comm = MPI.COMM_WORLD
         self.rank = self.comm.Get_rank()
+
+        # gather node-rank info
+        id_list = [node.idx for node in nodes]
+        all_ids = self.comm.gather({self.rank: id_list}, root=0)
+        self.node_rank_map: Dict[int, int] = {}
+        if self.rank == 0:
+            for all_id in all_ids:
+                for target, ids in all_id.items():
+                    for idx in ids:
+                        self.node_rank_map[idx] = target
 
     def run(self):
         if self.rank == 0:

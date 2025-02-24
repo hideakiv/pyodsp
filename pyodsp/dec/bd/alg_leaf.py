@@ -27,3 +27,7 @@ class BdAlgLeaf(ABC):
     @abstractmethod
     def save(self, dir: Path) -> None:
         pass
+    
+    @abstractmethod
+    def is_minimize(self) -> bool:
+        pass

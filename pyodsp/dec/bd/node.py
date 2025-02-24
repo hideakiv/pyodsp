@@ -16,3 +16,6 @@ class BdNode(Node):
 
     def save(self, dir: Path):
         pass
+
+    def is_minimize(self) -> bool:
+        return True

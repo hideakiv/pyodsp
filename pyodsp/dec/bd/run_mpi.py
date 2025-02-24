@@ -35,8 +35,20 @@ class BdRunMpi(BdRun):
         all_bounds = self.comm.gather(bounds, root=0)
 
         if self.rank == 0:
+            is_minimize = self.root.is_minimize()
+            self.comm.bcast(is_minimize, root=0)
+            for node in self.nodes.values():
+                if isinstance(node, BdLeafNode):
+                    if node.is_minimize() != is_minimize:
+                        raise ValueError("Inconsistent optimization sense")
             self._run_root(all_bounds)
         else:
+            is_minimize = None
+            is_minimize = self.comm.bcast(is_minimize, root=0)
+            for node in self.nodes.values():
+                if isinstance(node, BdLeafNode):
+                    if node.is_minimize() != is_minimize:
+                        raise ValueError("Inconsistent optimization sense")
             self._run_leaf()
 
         for node in self.nodes.values():
@@ -47,16 +59,14 @@ class BdRunMpi(BdRun):
         combined_bounds = {}
         for d in all_bounds:
             combined_bounds.update(d)
-        root = self.nodes[self.root_idx]
-        assert isinstance(root, BdRootNode)
-        for child in root.children:
-            root.set_bound(child, combined_bounds[child])
-        root.build()
+        for child in self.root.get_children():
+            self.root.set_bound(child, combined_bounds[child])
+        self.root.build()
 
-        root.alg.reset_iteration()
+        self.root.alg.reset_iteration()
         combined_cuts_dn = None
         while True:
-            solution = root.run_step(combined_cuts_dn)
+            solution = self.root.run_step(combined_cuts_dn)
 
             if solution is None:
                 self.comm.bcast(-1, root=0)

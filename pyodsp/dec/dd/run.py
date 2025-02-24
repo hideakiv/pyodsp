@@ -30,7 +30,11 @@ class DdRun:
             # run root process
             self._init_root()
             for child_id in self.root.get_children():
-                self._init_leaf(child_id, self.root.alg.lagrangian_data.matrix[child_id])
+                self._init_leaf(
+                    child_id, 
+                    self.root.alg.lagrangian_data.matrix[child_id], 
+                    self.root.is_minimize
+                )
 
             self._run_root()
             self._finalize_root()
@@ -44,9 +48,13 @@ class DdRun:
         self.logger.log_initialization()
         self.root.build()
 
-    def _init_leaf(self, node_id: int, matrix: SparseMatrix) -> None:
+    def _init_leaf(
+            self, node_id: int, matrix: SparseMatrix, is_minimize: bool
+        ) -> None:
         node = self.nodes[node_id]
         assert isinstance(node, DdLeafNode)
+        if node.is_minimize != is_minimize:
+            raise ValueError("Inconsistent optimization sense")
         node.set_coupling_matrix(matrix)
 
     def _run_root(self) -> None:

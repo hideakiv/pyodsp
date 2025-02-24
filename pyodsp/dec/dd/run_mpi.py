@@ -28,6 +28,9 @@ class DdRunMpi(DdRun):
     def run(self):
         if self.rank == 0:
             self._init_root()
+            is_minimize = self.root.is_minimize
+            self.comm.bcast(is_minimize, root=0)
+
             matrices = self._split_matrices()
 
             for target, matrix in matrices.items():
@@ -36,17 +39,19 @@ class DdRunMpi(DdRun):
             if 0 in matrices:
                 matrix_info = matrices[0]
                 for node_id, matrix in matrix_info.items():
-                    self._init_leaf(node_id, matrix)
+                    self._init_leaf(node_id, matrix, is_minimize)
 
             self._run_root()
             self.logger.log_finaliziation()
 
             self._finalize_root()
         else:
+            is_minimize = None
+            is_minimize = self.comm.bcast(is_minimize, root=0)
             matrix_info = self.comm.recv(source=0, tag=0)
 
             for node_id, matrix in matrix_info.items():
-                self._init_leaf(node_id, matrix)
+                self._init_leaf(node_id, matrix, is_minimize)
 
             self._run_leaf_mpi()
 

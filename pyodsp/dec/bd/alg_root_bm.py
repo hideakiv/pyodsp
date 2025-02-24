@@ -30,3 +30,6 @@ class BdAlgRootBm(BdAlgRoot):
 
     def save(self, dir: Path) -> None:
         self.bm.save(dir)
+
+    def is_minimize(self) -> bool:
+        return self.bm.solver.is_minimize()

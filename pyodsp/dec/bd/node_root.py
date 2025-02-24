@@ -80,6 +80,9 @@ class BdRootNode(BdNode):
         create_directory(node_dir)
         self.alg.save(node_dir)
 
+    def is_minimize(self) -> bool:
+        return self.alg.is_minimize()
+
     def _aggregate_cuts(self, multipliers: List[float], cuts: List[Cut]) -> CutList:
         new_coef = [0.0 for _ in range(len(self.coupling_vars_dn))]
         new_constant = 0

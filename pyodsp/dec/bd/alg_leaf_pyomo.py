@@ -74,3 +74,6 @@ class BdAlgLeafPyomo(BdAlgLeaf):
 
     def save(self, dir: Path) -> None:
         self.solver.save(dir)
+
+    def is_minimize(self) -> bool:
+        return self.solver.is_minimize()

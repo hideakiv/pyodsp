@@ -39,3 +39,6 @@ class BdLeafNode(BdNode):
         node_dir = dir / f"node{self.idx}"
         create_directory(node_dir)
         self.alg.save(node_dir)
+
+    def is_minimize(self) -> bool:
+        return self.alg.is_minimize()

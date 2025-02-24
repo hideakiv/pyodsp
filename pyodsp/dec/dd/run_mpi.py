@@ -4,8 +4,6 @@ from mpi4py import MPI
 
 from .run import DdRun
 from .node import DdNode
-from .node_leaf import DdLeafNode
-from .node_root import DdRootNode
 from ..utils import SparseMatrix
 
 

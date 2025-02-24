@@ -24,7 +24,6 @@ class DdAlgRootBm(DdAlgRoot):
         super().__init__(coupling_model, is_minimize, solver_name, vars_dn, **kwargs)
 
         self.bm = BundleMethod(self.solver, max_iteration)
-        self.bm.obj_bound.append(None)
 
     def build(self, num_cuts: int) -> None:
         if self.is_minimize:

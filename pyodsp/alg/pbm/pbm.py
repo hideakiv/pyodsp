@@ -59,14 +59,18 @@ class ProximalBundleMethod(BundleMethod):
             self.obj_val.append(None)
             self.center_val.append(None)
 
-        reached_max_iteration = self._increment()
-        if reached_max_iteration:
-            self.logger.log_status_max_iter()
+        self._increment()
+
+        self._solve()
+        self._log()
+
+        if self._termination_check():
             self.logger.log_completion(self.iteration, self.obj_bound[-1])
             return
 
-        self._solve()
-
+        return self.current_solution
+    
+    def _log(self) -> None:
         if self.solver.is_minimize():
             lb = self.obj_bound[-1]
             ub = self.obj_val[-1]
@@ -76,17 +80,28 @@ class ProximalBundleMethod(BundleMethod):
         self.logger.log_master_problem(
             self.iteration, lb, self.center_val[-1], ub, self.current_solution
         )
+    
+    def _termination_check(self) -> bool:
+        if len(self.center_val) == 0 or self.center_val[-1] is None:
+            return False
 
-        if self._optimal():
+        gap = abs(self.obj_bound[-1] - self.center_val[-1]) / abs(self.center_val[-1])
+
+        if gap < BM_REL_TOLERANCE:
             if len(self.obj_bound) > len(self.center_val):
                 self.center_val.append(self.center_val[-1])
             if len(self.obj_bound) > len(self.obj_val):
                 self.obj_val.append(self.obj_val[-1])
+            self.status = 1
             self.logger.log_status_optimal()
-            self.logger.log_completion(self.iteration, self.obj_bound[-1])
-            return
-
-        return self.current_solution
+            return True
+        
+        if self.iteration > self.max_iteration:
+            self.status = 2
+            self.logger.log_status_max_iter()
+            return True
+        
+        return False
 
     def save(self, dir: Path) -> None:
         path = dir / "pbm.csv"
@@ -110,14 +125,6 @@ class ProximalBundleMethod(BundleMethod):
         else:
             # Maximization
             return self.obj_val[-1] >= self.center_val[-1]
-
-    def _optimal(self) -> bool:
-        if len(self.center_val) == 0 or self.center_val[-1] is None:
-            return False
-
-        gap = abs(self.obj_bound[-1] - self.center_val[-1]) / abs(self.center_val[-1])
-
-        return gap < BM_REL_TOLERANCE
 
     def _update_objective(self, subobj_bounds: List[float] | None):
         def theta_bounds(model, i):

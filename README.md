@@ -20,6 +20,7 @@ Pyodsp offers distributed algorithms for programming models written in [Pyomo](h
 Additionally, the following may be requrired for some of the algorithms.
 - [Ipopt](https://github.com/coin-or/Ipopt) (For `DdAlgRootPbm`)
 
-### MPI
+### MPI (Optional)
+- [mpi4py](https://mpi4py.readthedocs.io/en/stable/)
 - [MPICH](https://www.mpich.org/)
 - OpenMPI is not tested.

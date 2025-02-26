@@ -11,7 +11,6 @@ setup(
         "numpy",
         "pandas",
         "Pyomo",
-        "mpi4py",
         "pytest",
     ],
 )

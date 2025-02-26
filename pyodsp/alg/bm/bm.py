@@ -1,5 +1,6 @@
 from typing import List
 from pathlib import Path
+import time
 
 import pandas as pd
 
@@ -31,6 +32,7 @@ class BundleMethod:
         # 0: not finished
         # 1: optimal
         # 2: max iteration reached
+        self.start_time = time.time()
 
     def set_logger(self, node_id: int, depth: int) -> None:
         self.logger = BmLogger(node_id, depth)
@@ -81,7 +83,8 @@ class BundleMethod:
         else:
             lb = self.obj_val[-1]
             ub = self.obj_bound[-1]
-        self.logger.log_master_problem(self.iteration, lb, ub, self.current_solution)
+        elapsed = time.time() - self.start_time
+        self.logger.log_master_problem(self.iteration, lb, ub, self.current_solution, elapsed)
 
     def _termination_check(self) -> bool:
         if (

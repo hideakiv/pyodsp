@@ -1,5 +1,6 @@
 from typing import List
 from pathlib import Path
+import time
 
 import pandas as pd
 from pyomo.environ import Var, Reals, RangeSet
@@ -79,8 +80,9 @@ class ProximalBundleMethod(BundleMethod):
         else:
             lb = self.obj_val[-1]
             ub = self.obj_bound[-1]
+        elapsed = time.time() - self.start_time
         self.logger.log_master_problem(
-            self.iteration, lb, self.center_val[-1], ub, self.current_solution
+            self.iteration, lb, self.center_val[-1], ub, self.current_solution, elapsed
         )
     
     def _termination_check(self) -> bool:

@@ -48,14 +48,21 @@ class PbmLogger:
         cb: float | None,
         ub: float | None,
         x: List[float],
+        elapsed: float
     ) -> None:
         if lb is None:
             lb = "-"
+        else:
+            lb = f"{lb:.4f}"
         if cb is None:
             cb = "-"
+        else:
+            cb = f"{cb:.4f}"
         if ub is None:
             ub = "-"
-        self.logger.info(f"Iteration: {iteration}\tLB: {lb:.4f}, CB: {cb:.4f}, UB: {ub:.4f}")
+        else:
+            ub = f"{ub:.4f}"
+        self.logger.info(f"Iteration: {iteration}\tLB: {lb}, CB: {cb}, UB: {ub}, Elapsed: {elapsed:.2f}")
         self.logger.debug(f"\tsolution: {x}")
 
     def log_sub_problem(self, idx, cut_type: str, coefficients, constant) -> None:

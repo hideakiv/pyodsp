@@ -1,5 +1,7 @@
 from typing import List, Tuple
 from pathlib import Path
+import time
+import pandas as pd
 
 from .alg_leaf import DdAlgLeaf
 from pyodsp.solver.pyomo_solver import PyomoSolver
@@ -9,6 +11,7 @@ from pyodsp.solver.pyomo_utils import update_linear_terms_in_objective
 class DdAlgLeafPyomo(DdAlgLeaf):
     def __init__(self, solver: PyomoSolver):
         self.solver = solver
+        self.step_time: List[float] = []
 
     def build(self) -> None:
         self.solver.original_objective.deactivate()
@@ -17,13 +20,16 @@ class DdAlgLeafPyomo(DdAlgLeaf):
         update_linear_terms_in_objective(self.solver, coeffs, self.solver.vars)
 
     def get_solution_or_ray(self) -> Tuple[bool, List[float], float]:
+        start = time.time()
         self.solver.solve()
         if self.solver.is_optimal():
             solution = self.solver.get_solution()
             obj = self.solver.get_objective_value()
+            self.step_time.append(time.time() - start)
             return True, solution, obj
         elif self.solver.is_unbounded():
             ray, obj = self._get_ray()
+            self.step_time.append(time.time() - start)
             return False, ray, obj
         else:
             raise ValueError("Unknown solver status")
@@ -53,7 +59,11 @@ class DdAlgLeafPyomo(DdAlgLeaf):
         self.coupling_values: List[float] = values
         for i, var in enumerate(self.solver.vars):
             var.fix(values[i])
+        self.solver.activate_original_objective()
         self.solver.solve()
 
     def save(self, dir: Path) -> None:
         self.solver.save(dir)
+        path = dir / "step_time.csv"
+        df = pd.DataFrame(self.step_time, columns=["step_time"])
+        df.to_csv(path, index=False)

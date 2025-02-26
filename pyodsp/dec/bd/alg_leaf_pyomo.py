@@ -1,5 +1,7 @@
 from typing import List
 from pathlib import Path
+import time
+import pandas as pd
 
 from pyomo.environ import Suffix
 from pyomo.core.base.constraint import ConstraintData
@@ -14,6 +16,7 @@ class BdAlgLeafPyomo(BdAlgLeaf):
     def __init__(self, solver: PyomoSolver):
         self.solver = solver
         self.solver.model.dual = Suffix(direction=Suffix.IMPORT)
+        self.step_time: List[float] = []
 
     def build(self) -> None:
         coupling_vars = self.solver.vars
@@ -36,11 +39,16 @@ class BdAlgLeafPyomo(BdAlgLeaf):
             var.fix(values[i])
 
     def get_subgradient(self) -> Cut:
+        start = time.time()
         self.solver.solve()
         if self.solver.is_optimal():
-            return self._optimality_cut()
+            cut = self._optimality_cut()
+            self.step_time.append(time.time() - start)
+            return cut
         elif self.solver.is_infeasible():
-            return self._feasibility_cut()
+            cut = self._feasibility_cut()
+            self.step_time.append(time.time() - start)
+            return cut
         else:
             raise ValueError("Unknown solver status")
 
@@ -74,3 +82,9 @@ class BdAlgLeafPyomo(BdAlgLeaf):
 
     def save(self, dir: Path) -> None:
         self.solver.save(dir)
+        path = dir / "step_time.csv"
+        df = pd.DataFrame(self.step_time, columns=["step_time"])
+        df.to_csv(path, index=False)
+
+    def is_minimize(self) -> bool:
+        return self.solver.is_minimize()

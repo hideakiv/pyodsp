@@ -13,27 +13,39 @@ from ..utils import create_directory
 class BdRun:
     def __init__(self, nodes: List[BdNode], filedir: Path):
         self.nodes: Dict[int, BdNode] = {node.idx: node for node in nodes}
-        self.root_idx = self._get_root_idx()
+        self.root = self._get_root()
         self.logger = BdLogger()
 
         self.filedir = filedir
         create_directory(self.filedir)
 
-    def _get_root_idx(self) -> int | None:
-        for idx, node in self.nodes.items():
+    def _get_root(self) -> BdRootNode | None:
+        for node in self.nodes.values():
             if node.parent is None:
-                return idx
+                return node
         return None
 
     def run(self):
-        if self.root_idx is not None:
+        if self.root is not None:
             self.logger.log_initialization()
-            self._run_node(self.nodes[self.root_idx])
+            self.root.set_depth(0)
+            self.root.set_logger()
+            self._run_check(self.root)
+            self._run_node(self.root)
         for node in self.nodes.values():
             node.save(self.filedir)
 
+    def _run_check(self, node: BdNode) -> None:
+        for child_id in node.get_children():
+            child = self.nodes[child_id]
+            child.set_depth(node.get_depth() + 1)
+            if child.is_minimize() != node.is_minimize():
+                raise ValueError("Inconsistent optimization sense")
+            self._run_check(child)
+
     def _run_node(self, node: BdNode, sol_up: List[float] | None = None) -> Cut | None:
         if isinstance(node, BdRootNode):
+
             self._set_bounds(node)
             node.build()
 

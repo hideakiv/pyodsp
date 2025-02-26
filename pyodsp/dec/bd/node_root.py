@@ -31,6 +31,9 @@ class BdRootNode(BdNode):
 
     def set_groups(self, groups: List[List[int]]):
         self.groups = groups
+    
+    def set_logger(self):
+        self.alg.set_logger(self.idx, self.depth)
 
     def remove_child(self, idx):
         self.children_bounds.pop(idx)
@@ -79,6 +82,9 @@ class BdRootNode(BdNode):
         node_dir = dir / f"node{self.idx}"
         create_directory(node_dir)
         self.alg.save(node_dir)
+
+    def is_minimize(self) -> bool:
+        return self.alg.is_minimize()
 
     def _aggregate_cuts(self, multipliers: List[float], cuts: List[Cut]) -> CutList:
         new_coef = [0.0 for _ in range(len(self.coupling_vars_dn))]

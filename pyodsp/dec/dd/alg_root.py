@@ -13,7 +13,7 @@ from pyomo.environ import (
     NonNegativeReals,
     Reals,
 )
-from pyomo.core.base.var import VarData
+from pyomo.core.base.var import VarData, IndexedVar
 
 from pyodsp.dec.utils import get_nonzero_coefficients_group
 from pyodsp.solver.pyomo_solver import PyomoSolver
@@ -32,10 +32,11 @@ class DdAlgRoot:
         **kwargs
     ) -> None:
         self.coupling_model = coupling_model
+        self.vars_dn = vars_dn
+        self._init_check()
         self.solver = self._create_master(
             coupling_model, is_minimize, solver_name, vars_dn, **kwargs
         )
-        self.vars_dn = vars_dn
         self.is_minimize = is_minimize
 
     def _create_master(
@@ -95,6 +96,31 @@ class DdAlgRoot:
     def get_vars_dn(self) -> Dict[int, List[VarData]]:
         return self.vars_dn
 
+    def _init_check(self) -> None:
+        for obj in self.coupling_model.component_objects(Objective, active=True):
+            # There should not be any objective
+            raise ValueError("Objective should not be defined in coupling_model")
+        
+        # Check that vars_dn is properly specified
+        varname_list = []
+        for var in self.coupling_model.component_objects(ctype=Var):
+            if isinstance(var, VarData):
+                varname_list.append(var.name)
+            elif isinstance(var, IndexedVar):
+                for index in var:
+                    varname_list.append(var[index].name)
+
+        for varlist in self.vars_dn.values():
+            for var in varlist:
+                if var.name in varname_list:
+                    varname_list.pop(varname_list.index(var.name))
+                else:
+                    raise ValueError(f"Variable {var.name} does not exist in varname_list")
+        
+        if len(varname_list) > 0:
+            raise ValueError(f"Variables {varname_list} not coupled")
+
+
     @abstractmethod
     def build(self, num_cuts: int) -> None:
         pass
@@ -113,4 +139,8 @@ class DdAlgRoot:
 
     @abstractmethod
     def save(self, dir: Path) -> None:
+        pass
+
+    @abstractmethod
+    def set_logger(self, node_id: int, depth: int) -> None:
         pass

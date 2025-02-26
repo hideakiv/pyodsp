@@ -28,3 +28,11 @@ class BdAlgRoot(ABC):
     @abstractmethod
     def save(self, dir: Path) -> None:
         pass
+    
+    @abstractmethod
+    def is_minimize(self) -> bool:
+        pass
+
+    @abstractmethod
+    def set_logger(self, node_id: int, depth: int) -> None:
+        pass

@@ -29,9 +29,7 @@ def main():
     if rank == 2:
         node = create_leaf_node(2, args.solver)
 
-    node_rank_map = {0: 0, 1: 1, 2: 2}
-
-    bd_run = BdRunMpi([node], node_rank_map, Path("output/bd/optimality_mpi"))
+    bd_run = BdRunMpi([node], Path("output/bd/optimality_mpi"))
     bd_run.run()
 
     if rank == 0:

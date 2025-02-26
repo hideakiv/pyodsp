@@ -7,49 +7,73 @@ from .logger import DdLogger
 from .node import DdNode
 from .node_leaf import DdLeafNode
 from .node_root import DdRootNode
-from ..utils import create_directory
+from ..utils import create_directory, SparseMatrix
 
 
 class DdRun:
     def __init__(self, nodes: List[DdNode], filedir: Path):
         self.nodes: Dict[int, DdNode] = {node.idx: node for node in nodes}
-        self.root_idx = self._get_root_idx()
+        self.root = self._get_root()
         self.logger = DdLogger()
 
         self.filedir = filedir
         create_directory(self.filedir)
 
-    def _get_root_idx(self) -> int | None:
-        for idx, node in self.nodes.items():
+    def _get_root(self) -> DdRootNode | None:
+        for node in self.nodes.values():
             if node.parent is None:
-                return idx
+                return node
         return None
 
     def run(self):
-        self.logger.log_initialization()
-        root = self.nodes[self.root_idx]
-        assert isinstance(root, DdRootNode)
-        root.build()
-        for child_id in root.get_children():
-            child = self.nodes[child_id]
-            assert isinstance(child, DdLeafNode)
-            child.set_coupling_matrix(root.alg.lagrangian_data.matrix[child_id])
+        if self.root is not None:
+            # run root process
+            self.root.set_depth(0)
+            self.root.set_logger()
+            self._init_root()
+            for child_id in self.root.get_children():
+                self._init_leaf(
+                    child_id, 
+                    self.root.alg.lagrangian_data.matrix[child_id], 
+                    self.root.is_minimize,
+                    self.root.get_depth() + 1
+                )
 
-        root.alg.reset_iteration()
-        cuts_dn = self._run_leaf([0.0 for _ in range(root.num_constrs)])
+            self._run_root()
+            self._finalize_root()
+        else:
+            raise ValueError("root node not found")
+
+        for node in self.nodes.values():
+            node.save(self.filedir)
+    
+    def _init_root(self) -> None:
+        self.logger.log_initialization()
+        self.root.build()
+
+    def _init_leaf(
+            self, node_id: int, 
+            matrix: SparseMatrix, 
+            is_minimize: bool,
+            depth: int,
+        ) -> None:
+        node = self.nodes[node_id]
+        node.set_depth(depth)
+        assert isinstance(node, DdLeafNode)
+        if node.is_minimize != is_minimize:
+            raise ValueError("Inconsistent optimization sense")
+        node.set_coupling_matrix(matrix)
+
+    def _run_root(self) -> None:
+        self.root.alg.reset_iteration()
+        cuts_dn = self._run_leaf([0.0 for _ in range(self.root.num_constrs)])
         while True:
-            solution = root.run_step(cuts_dn)
+            solution = self.root.run_step(cuts_dn)
             if solution is None:
                 break
             cuts_dn = self._run_leaf(solution)
 
-        solutions = root.solve_mip_heuristic()
-        for node in self.nodes.values():
-            if isinstance(node, DdLeafNode):
-                node.alg.fix_variables_and_solve(solutions[node.idx])
-
-        for node in self.nodes.values():
-            node.save(self.filedir)
+        self.logger.log_finaliziation()
 
     def _run_leaf(self, solution: List[float]) -> Dict[int, Cut]:
         cuts_dn = {}
@@ -70,3 +94,18 @@ class DdRun:
         if isinstance(cut_dn, FeasibilityCut):
             self.logger.log_sub_problem(idx, "Feasibility", cut_dn.coeffs, cut_dn.rhs)
         return cut_dn
+    
+    def _finalize_root(self) -> None:
+        solutions = self.root.solve_mip_heuristic()
+        final_obj = 0.0
+        for node_id, sols in solutions.items():
+            sub_obj = self._finalize_leaf(node_id, sols)
+            final_obj += sub_obj
+        self.logger.log_completion(final_obj)
+
+    def _finalize_leaf(self, node_id, solution: List[float]) -> float:
+        node = self.nodes[node_id]
+        assert isinstance(node, DdLeafNode)
+        node.alg.fix_variables_and_solve(solution)
+        return node.alg.get_objective_value()
+

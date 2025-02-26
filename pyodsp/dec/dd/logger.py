@@ -30,7 +30,9 @@ class DdLogger:
     def log_sub_problem(self, idx, cut_type: str, coefficients, constant):
         self.logger.debug(f"\t{idx}\t{cut_type}\t{coefficients}\t{constant}")
 
-    def log_completion(self, iteration, objective_value):
+    def log_finaliziation(self):
+        self.logger.info("Finalizing Dual Decomposition")
+
+    def log_completion(self, objective_value):
         self.logger.info("Dual decomposition completed")
-        self.logger.info(f"Total iterations: {iteration}")
         self.logger.info(f"Final objective value: {objective_value}")

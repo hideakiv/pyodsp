@@ -74,13 +74,14 @@ def get_nonzero_coefficients_from_constraint(
             coefficients[i] = all_coefficients[var.name]
     return CouplingData(constraint, coefficients, vars)
 
+SparseMatrix = List[Dict[int, float]]
 
 @dataclass
 class LagrangianData:
     """Data for coupling constraints"""
 
     lbs: List[float | None]
-    matrix: Dict[int, List[Dict[int, float]]]
+    matrix: Dict[int, SparseMatrix]
     ubs: List[float | None]
     constraints: List[ConstraintData]
     vars_dict: Dict[int, List[VarData]]
@@ -89,7 +90,7 @@ class LagrangianData:
 def get_nonzero_coefficients_group(
     model: ConcreteModel, vars_dict: Dict[int, List[VarData]]
 ) -> LagrangianData:
-    matrix: Dict[int, List[Dict[int, float]]] = {}
+    matrix: Dict[int, SparseMatrix] = {}
     lbs: List[float | None] = []
     ubs: List[float | None] = []
     constraints: List[ConstraintData] = []

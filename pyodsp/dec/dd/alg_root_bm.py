@@ -1,5 +1,7 @@
 from typing import List, Dict
 from pathlib import Path
+import time
+import pandas as pd
 
 from pyomo.environ import ConcreteModel
 from pyomo.core.base.var import VarData
@@ -24,6 +26,7 @@ class DdAlgRootBm(DdAlgRoot):
         super().__init__(coupling_model, is_minimize, solver_name, vars_dn, **kwargs)
 
         self.bm = BundleMethod(self.solver, max_iteration)
+        self.step_time: List[float] = []
 
     def build(self, num_cuts: int) -> None:
         if self.is_minimize:
@@ -34,7 +37,10 @@ class DdAlgRootBm(DdAlgRoot):
         self.bm.build(num_cuts, dummy_bounds)
 
     def run_step(self, cuts_list: List[CutList] | None) -> List[float] | None:
-        return self.bm.run_step(cuts_list)
+        start = time.time()
+        solution = self.bm.run_step(cuts_list)
+        self.step_time.append(time.time() - start)
+        return solution
 
     def reset_iteration(self) -> None:
         self.bm.reset_iteration()
@@ -44,3 +50,9 @@ class DdAlgRootBm(DdAlgRoot):
 
     def save(self, dir: Path) -> None:
         self.bm.save(dir)
+        path = dir / "step_time.csv"
+        df = pd.DataFrame(self.step_time, columns=["step_time"])
+        df.to_csv(path, index=False)
+    
+    def set_logger(self, node_id: int, depth: int) -> None:
+        self.bm.set_logger(node_id, depth)

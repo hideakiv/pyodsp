@@ -1,5 +1,6 @@
 from typing import List
 from pathlib import Path
+import time
 
 import pandas as pd
 
@@ -11,7 +12,7 @@ from pyodsp.solver.pyomo_utils import add_terms_to_objective
 from ..cuts import CutList, OptimalityCut, FeasibilityCut
 from ..cuts_manager import CutsManager, CutInfo
 from .logger import BmLogger
-from ..const import BM_ABS_TOLERANCE, BM_REL_TOLERANCE, BM_PURGE_FREQ
+from ..const import BM_ABS_TOLERANCE, BM_REL_TOLERANCE, BM_PURGE_FREQ, BM_TIME_LIMIT
 
 
 class BundleMethod:
@@ -21,7 +22,6 @@ class BundleMethod:
 
         self.max_iteration = max_iteration
         self.iteration = 0
-        self.logger = BmLogger()
 
         self.current_solution: List[float] = []
 
@@ -32,6 +32,11 @@ class BundleMethod:
         # 0: not finished
         # 1: optimal
         # 2: max iteration reached
+        # 3: time limit reached
+        self.start_time = time.time()
+
+    def set_logger(self, node_id: int, depth: int) -> None:
+        self.logger = BmLogger(node_id, depth)
 
     def build(self, num_cuts: int, subobj_bounds: List[float] | None) -> None:
         self.num_cuts = num_cuts
@@ -61,6 +66,7 @@ class BundleMethod:
 
     def reset_iteration(self, i=0) -> None:
         self.iteration = i
+        self.start_time = time.time()
 
     def _solve(self) -> None:
         self.solver.solve()
@@ -79,7 +85,8 @@ class BundleMethod:
         else:
             lb = self.obj_val[-1]
             ub = self.obj_bound[-1]
-        self.logger.log_master_problem(self.iteration, lb, ub, self.current_solution)
+        elapsed = time.time() - self.start_time
+        self.logger.log_master_problem(self.iteration, lb, ub, self.current_solution, elapsed)
 
     def _termination_check(self) -> bool:
         if (
@@ -99,6 +106,11 @@ class BundleMethod:
         if self.iteration > self.max_iteration:
             self.status = 2
             self.logger.log_status_max_iter()
+            return True
+        
+        if time.time() - self.start_time > BM_TIME_LIMIT:
+            self.status = 3
+            self.logger.log_status_time_limit()
             return True
         
         return False

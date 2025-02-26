@@ -1,5 +1,6 @@
 from typing import List
 from pathlib import Path
+import time
 
 import pandas as pd
 from pyomo.environ import Var, Reals, RangeSet
@@ -8,7 +9,7 @@ from pyodsp.alg.cuts import CutList
 
 from .logger import PbmLogger
 from ..bm.bm import BundleMethod
-from ..const import BM_ABS_TOLERANCE, BM_REL_TOLERANCE
+from ..const import BM_ABS_TOLERANCE, BM_REL_TOLERANCE, BM_TIME_LIMIT
 from pyodsp.solver.pyomo_solver import PyomoSolver
 from pyodsp.solver.pyomo_utils import (
     add_quad_terms_to_objective,
@@ -29,7 +30,9 @@ class ProximalBundleMethod(BundleMethod):
         super().__init__(solver, max_iteration)
         self.penalty = penalty
         self.center_val = []
-        self.logger = PbmLogger()
+    
+    def set_logger(self, node_id: int, depth: int) -> None:
+        self.logger = PbmLogger(node_id, depth)
 
     def set_init_solution(self, solution: List[float]) -> None:
         self.center = solution
@@ -77,8 +80,9 @@ class ProximalBundleMethod(BundleMethod):
         else:
             lb = self.obj_val[-1]
             ub = self.obj_bound[-1]
+        elapsed = time.time() - self.start_time
         self.logger.log_master_problem(
-            self.iteration, lb, self.center_val[-1], ub, self.current_solution
+            self.iteration, lb, self.center_val[-1], ub, self.current_solution, elapsed
         )
     
     def _termination_check(self) -> bool:
@@ -99,6 +103,11 @@ class ProximalBundleMethod(BundleMethod):
         if self.iteration > self.max_iteration:
             self.status = 2
             self.logger.log_status_max_iter()
+            return True
+        
+        if time.time() - self.start_time > BM_TIME_LIMIT:
+            self.status = 3
+            self.logger.log_status_time_limit()
             return True
         
         return False

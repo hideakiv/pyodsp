@@ -62,7 +62,7 @@ class PbmLogger:
             ub = "-"
         else:
             ub = f"{ub:.4f}"
-        self.logger.info(f"Iteration: {iteration}\tLB: {lb}, CB: {cb}, UB: {ub}, Elapsed: {elapsed:.2f}")
+        self.logger.info(f"Iteration: {iteration}\tLB: {lb}\t CB: {cb}\t UB: {ub}\t Elapsed: {elapsed:.2f}")
         self.logger.debug(f"\tsolution: {x}")
 
     def log_sub_problem(self, idx, cut_type: str, coefficients, constant) -> None:

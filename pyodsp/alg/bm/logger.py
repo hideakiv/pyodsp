@@ -57,7 +57,7 @@ class BmLogger:
             ub = "-"
         else:
             ub = f"{ub:.4f}"
-        self.logger.info(f"Iteration: {iteration}\tLB: {lb}, UB: {ub}, Elapsed: {elapsed:.2f}")
+        self.logger.info(f"Iteration: {iteration}\tLB: {lb}\t UB: {ub}\t Elapsed: {elapsed:.2f}")
         self.logger.debug(f"\tsolution: {x}")
 
     def log_sub_problem(self, idx, cut_type: str, coefficients, constant) -> None:

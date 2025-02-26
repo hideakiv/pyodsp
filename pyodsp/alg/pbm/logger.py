@@ -55,7 +55,7 @@ class PbmLogger:
             cb = "-"
         if ub is None:
             ub = "-"
-        self.logger.info(f"Iteration: {iteration}\tLB: {lb}, CB: {cb}, UB: {ub}")
+        self.logger.info(f"Iteration: {iteration}\tLB: {lb:.4f}, CB: {cb:.4f}, UB: {ub:.4f}")
         self.logger.debug(f"\tsolution: {x}")
 
     def log_sub_problem(self, idx, cut_type: str, coefficients, constant) -> None:

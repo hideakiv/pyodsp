@@ -76,6 +76,9 @@ class PbmLogger:
             "Regularized Bundle method terminated by max iteration reached"
         )
 
+    def log_status_time_limit(self) -> None:
+        self.logger.info("Regularized Bundle method terminated by time limit")
+
     def log_completion(self, iteration: int, objective_value: float | None) -> None:
         self.logger.info("Regularized Bundle method completed")
         self.logger.info(f"Total iterations: {iteration}")

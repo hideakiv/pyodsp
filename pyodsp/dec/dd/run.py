@@ -29,6 +29,7 @@ class DdRun:
         if self.root is not None:
             # run root process
             self.root.set_depth(0)
+            self.root.set_logger()
             self._init_root()
             for child_id in self.root.get_children():
                 self._init_leaf(

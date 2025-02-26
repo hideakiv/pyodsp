@@ -40,3 +40,6 @@ class DdAlgRootPbm(DdAlgRoot):
 
     def save(self, dir: Path) -> None:
         self.pbm.save(dir)
+    
+    def set_logger(self, node_id: int, depth: int) -> None:
+        self.pbm.set_logger(node_id, depth)

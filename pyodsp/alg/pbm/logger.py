@@ -3,7 +3,20 @@ from typing import List
 
 
 class PbmLogger:
-    def __init__(self) -> None:
+    class ContextFilter(logging.Filter):
+        def __init__(self, node_id, depth):
+            super().__init__()
+            self.node_id = node_id
+            self.depth = depth
+
+        def filter(self, record):
+            record.node_id = self.node_id
+            record.depth = self.depth
+            return True
+
+    def __init__(self, node_id: int, depth: int) -> None:
+        self.node_id = node_id
+        self.depth = depth
         # Create a logger object
         self.logger = logging.getLogger("Regularized Bundle Method")
         self.logger.setLevel(logging.INFO)
@@ -13,11 +26,15 @@ class PbmLogger:
         ch.setLevel(logging.DEBUG)
 
         # Create a formatter and set the format
-        formatter = logging.Formatter("%(levelname)s - %(message)s")
+        formatter = logging.Formatter("%(levelname)s - Node: %(node_id)s - %(message)s")
         ch.setFormatter(formatter)
 
         # Add the handler to the logger
         self.logger.addHandler(ch)
+
+        # Add context filter to the logger
+        context_filter = self.ContextFilter(node_id, depth)
+        self.logger.addFilter(context_filter)
 
     def log_initialization(self, **kwargs) -> None:
         self.logger.info("Starting Regularized Bundle method")
@@ -38,7 +55,7 @@ class PbmLogger:
             cb = "-"
         if ub is None:
             ub = "-"
-        self.logger.info(f"Iteration {iteration}:\tLB: {lb}, CB: {cb}, UB: {ub}")
+        self.logger.info(f"Iteration: {iteration}\tLB: {lb}, CB: {cb}, UB: {ub}")
         self.logger.debug(f"\tsolution: {x}")
 
     def log_sub_problem(self, idx, cut_type: str, coefficients, constant) -> None:

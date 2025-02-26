@@ -28,6 +28,7 @@ class DdRunMpi(DdRun):
     def run(self):
         if self.rank == 0:
             self.root.set_depth(0)
+            self.root.set_logger()
             self._init_root()
             is_minimize = self.root.is_minimize
             self.comm.bcast(is_minimize, root=0)

@@ -33,3 +33,6 @@ class BdAlgRootBm(BdAlgRoot):
 
     def is_minimize(self) -> bool:
         return self.bm.solver.is_minimize()
+    
+    def set_logger(self, node_id: int, depth: int) -> None:
+        self.bm.set_logger(node_id, depth)

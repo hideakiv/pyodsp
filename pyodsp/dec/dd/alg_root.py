@@ -140,3 +140,7 @@ class DdAlgRoot:
     @abstractmethod
     def save(self, dir: Path) -> None:
         pass
+
+    @abstractmethod
+    def set_logger(self, node_id: int, depth: int) -> None:
+        pass

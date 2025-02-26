@@ -29,6 +29,7 @@ class BdRun:
         if self.root is not None:
             self.logger.log_initialization()
             self.root.set_depth(0)
+            self.root.set_logger()
             self._run_check(self.root)
             self._run_node(self.root)
         for node in self.nodes.values():

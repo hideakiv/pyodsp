@@ -31,6 +31,9 @@ class BdRootNode(BdNode):
 
     def set_groups(self, groups: List[List[int]]):
         self.groups = groups
+    
+    def set_logger(self):
+        self.alg.set_logger(self.idx, self.depth)
 
     def remove_child(self, idx):
         self.children_bounds.pop(idx)

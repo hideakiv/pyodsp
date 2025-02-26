@@ -34,6 +34,9 @@ class DdRootNode(DdNode):
         if multiplier != 1.0:
             raise ValueError("No support for multipliers in dd")
         super().add_child(idx, multiplier)
+    
+    def set_logger(self):
+        self.alg.set_logger(self.idx, self.depth)
 
     def build(self) -> None:
         if self.built:

@@ -36,6 +36,7 @@ class BdRunMpi(BdRun):
         if self.rank == 0:
             is_minimize = self.root.is_minimize()
             self.root.set_depth(0)
+            self.root.set_logger()
             self.comm.bcast(is_minimize, root=0)
             depth = self.root.get_depth()
             self.comm.bcast(depth, root=0)

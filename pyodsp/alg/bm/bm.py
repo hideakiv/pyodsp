@@ -21,7 +21,6 @@ class BundleMethod:
 
         self.max_iteration = max_iteration
         self.iteration = 0
-        self.logger = BmLogger()
 
         self.current_solution: List[float] = []
 
@@ -32,6 +31,9 @@ class BundleMethod:
         # 0: not finished
         # 1: optimal
         # 2: max iteration reached
+
+    def set_logger(self, node_id: int, depth: int) -> None:
+        self.logger = BmLogger(node_id, depth)
 
     def build(self, num_cuts: int, subobj_bounds: List[float] | None) -> None:
         self.num_cuts = num_cuts

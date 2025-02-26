@@ -29,7 +29,9 @@ class ProximalBundleMethod(BundleMethod):
         super().__init__(solver, max_iteration)
         self.penalty = penalty
         self.center_val = []
-        self.logger = PbmLogger()
+    
+    def set_logger(self, node_id: int, depth: int) -> None:
+        self.logger = PbmLogger(node_id, depth)
 
     def set_init_solution(self, solution: List[float]) -> None:
         self.center = solution

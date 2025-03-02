@@ -10,6 +10,7 @@ from .alg_root import DdAlgRoot
 from pyodsp.alg.bm.bm import BundleMethod
 from pyodsp.alg.cuts import CutList
 from pyodsp.alg.cuts_manager import CutInfo
+from pyodsp.alg.const import BM_DUMMY_BOUND
 
 
 class DdAlgRootBm(DdAlgRoot):
@@ -30,9 +31,9 @@ class DdAlgRootBm(DdAlgRoot):
 
     def build(self, num_cuts: int) -> None:
         if self.is_minimize:
-            dummy_bounds = [1e9 for _ in range(num_cuts)]
+            dummy_bounds = [BM_DUMMY_BOUND for _ in range(num_cuts)]
         else:
-            dummy_bounds = [-1e9 for _ in range(num_cuts)]
+            dummy_bounds = [-BM_DUMMY_BOUND for _ in range(num_cuts)]
 
         self.bm.build(num_cuts, dummy_bounds)
 

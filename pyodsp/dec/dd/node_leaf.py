@@ -24,6 +24,7 @@ class DdLeafNode(DdNode):
 
     def set_coupling_matrix(self, coupling_matrix: List[Dict[int, float]]) -> None:
         self.row_major: List[Dict[int, float]] = coupling_matrix
+        self.len_constrs = len(coupling_matrix)
         self.col_major: List[Dict[int, float]] = self._convert_to_col_major(
             coupling_matrix
         )
@@ -85,7 +86,7 @@ class DdLeafNode(DdNode):
 
     def _matrix_times_primal(self, primal_values: List[float]) -> List[float]:
         # multiply coupling_matrix and primal
-        coeffs = [0.0] * self.len_vars
+        coeffs = [0.0] * self.len_constrs
         for i, row in enumerate(self.row_major):
             coeff = 0.0
             for j, val in row.items():

@@ -72,6 +72,8 @@ class BundleMethod:
         self.solver.solve()
         self.current_solution = self.solver.get_solution()
         current_obj = self.solver.get_original_objective_value()
+        if not self.solver.is_optimal():
+            raise ValueError("invalid solver status")
         for idx in range(self.num_cuts):
             theta = self.solver.model._theta[idx]
             theta_val = theta.value

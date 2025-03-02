@@ -184,7 +184,7 @@ class BundleMethod:
                 return False
 
             constraint = Constraint(
-                expr=sum(cut.coeffs[j] * vars[j] for j in range(len(vars))) + theta
+                expr=sum(coeff * vars[j] for j, coeff in cut.coeffs.items()) + theta
                 >= cut.rhs
             )
         else:
@@ -197,7 +197,7 @@ class BundleMethod:
                 return False
 
             constraint = Constraint(
-                expr=sum(cut.coeffs[j] * vars[j] for j in range(len(vars))) + theta
+                expr=sum(coeff * vars[j] for j, coeff in cut.coeffs.items()) + theta
                 <= cut.rhs
             )
 
@@ -217,12 +217,12 @@ class BundleMethod:
         if self.solver.is_minimize():
             # Minimization
             constraint = Constraint(
-                expr=sum(cut.coeffs[j] * vars[j] for j in range(len(vars))) >= cut.rhs
+                expr=sum(coeff * vars[j] for j, coeff in cut.coeffs.items()) >= cut.rhs
             )
         else:
             # Maximization
             constraint = Constraint(
-                expr=sum(cut.coeffs[j] * vars[j] for j in range(len(vars))) <= cut.rhs
+                expr=sum(coeff * vars[j] for j, coeff in cut.coeffs.items()) <= cut.rhs
             )
         self.solver.model.add_component(f"_feasibility_cut_{idx}_{cut_num}", constraint)
 

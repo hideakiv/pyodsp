@@ -10,6 +10,7 @@ from .alg_leaf import BdAlgLeaf
 from ..utils import CouplingData, get_nonzero_coefficients_from_model
 from pyodsp.alg.cuts import Cut, OptimalityCut, FeasibilityCut
 from pyodsp.solver.pyomo_solver import PyomoSolver
+from pyodsp.alg.const import DEC_CUT_ABS_TOL
 
 
 class BdAlgLeafPyomo(BdAlgLeaf):
@@ -63,7 +64,8 @@ class BdAlgLeafPyomo(BdAlgLeaf):
                 temp = dual_var * coefficients
                 coeff[j] += temp
                 rhs += temp * self.coupling_values[j]
-        return OptimalityCut(coeffs=coeff, rhs=rhs, objective_value=objective, info={})
+        sparse_coeff = {j: val for j, val in enumerate(coeff) if abs(val) > DEC_CUT_ABS_TOL}
+        return OptimalityCut(coeffs=sparse_coeff, rhs=rhs, objective_value=objective, info={})
 
     def _feasibility_cut(self) -> FeasibilityCut:
         sigma = self.solver.get_dual_ray(self.coupling_constraints)
@@ -78,7 +80,8 @@ class BdAlgLeafPyomo(BdAlgLeaf):
                 temp = dual_ray * coefficients
                 coeff[j] += temp
                 rhs += temp * self.coupling_values[j]
-        return FeasibilityCut(coeffs=coeff, rhs=rhs, info={})
+        sparse_coeff = {j: val for j, val in enumerate(coeff) if abs(val) > DEC_CUT_ABS_TOL}
+        return FeasibilityCut(coeffs=sparse_coeff, rhs=rhs, info={})
 
     def save(self, dir: Path) -> None:
         self.solver.save(dir)

@@ -53,9 +53,15 @@ class CutsManager:
 
     def _is_similar(self, cut_info: CutInfo) -> bool:
         for cut in self._active_cuts[cut_info.idx]:
+            diff = cut_info.cut.coeffs.copy()
+            for j, val in cut.cut.coeffs.items():
+                if j in diff.keys():
+                    diff[j] -= val
+                else:
+                    diff[j] = -val
             square = (cut_info.cut.rhs - cut.cut.rhs) ** 2
-            for x, y in zip(cut_info.cut.coeffs, cut.cut.coeffs):
-                square += (x - y) ** 2
+            for val in diff.values():
+                square += val ** 2
             if square < BM_CUT_SIM_TOLERANCE:
                 return True
         return False

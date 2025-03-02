@@ -4,6 +4,7 @@ from pathlib import Path
 from pyomo.core.base.var import VarData
 
 from pyodsp.alg.cuts import Cut, OptimalityCut, FeasibilityCut, CutList
+from pyodsp.alg.const import DEC_CUT_ABS_TOL
 
 from .node import BdNode
 from .alg_root import BdAlgRoot
@@ -94,20 +95,19 @@ class BdRootNode(BdNode):
         for multiplier, cut in zip(multipliers, cuts):
             if isinstance(cut, OptimalityCut):
                 if len(feasibility_cuts) == 0:
-                    new_coef = [
-                        new_coef[i] + multiplier * cut.coeffs[i]
-                        for i in range(len(self.coupling_vars_dn))
-                    ]
+                    for i, coeff in cut.coeffs.items():
+                        new_coef[i] += multiplier * coeff
                     new_constant += multiplier * cut.rhs
                     new_objective += multiplier * cut.objective_value
             elif isinstance(cut, FeasibilityCut):
                 feasibility_cuts.append(cut)
         if len(feasibility_cuts) > 0:
             return CutList(feasibility_cuts)
+        sparse_coeff = {j: val for j, val in enumerate(new_coef) if abs(val) > DEC_CUT_ABS_TOL}
         return CutList(
             [
                 OptimalityCut(
-                    coeffs=new_coef,
+                    coeffs=sparse_coeff,
                     rhs=new_constant,
                     objective_value=new_objective,
                     info={},

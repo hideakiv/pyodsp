@@ -6,7 +6,7 @@ from dataclasses import dataclass
 class Cut:
     """Base class for cuts."""
 
-    coeffs: List[float]
+    coeffs: Dict[int, float]
     rhs: float
 
     info: Dict

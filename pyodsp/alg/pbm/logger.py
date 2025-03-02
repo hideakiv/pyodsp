@@ -48,6 +48,7 @@ class PbmLogger:
         cb: float | None,
         ub: float | None,
         x: List[float],
+        numcuts: int,
         elapsed: float
     ) -> None:
         if lb is None:
@@ -62,7 +63,7 @@ class PbmLogger:
             ub = "-"
         else:
             ub = f"{ub:.4f}"
-        self.logger.info(f"Iteration: {iteration}\tLB: {lb}\t CB: {cb}\t UB: {ub}\t Elapsed: {elapsed:.2f}")
+        self.logger.info(f"Iteration: {iteration}\tLB: {lb}\t CB: {cb}\t UB: {ub}\t NumCuts: {numcuts}\t Elapsed: {elapsed:.2f}")
         self.logger.debug(f"\tsolution: {x}")
 
     def log_sub_problem(self, idx, cut_type: str, coefficients, constant) -> None:

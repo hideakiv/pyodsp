@@ -270,15 +270,12 @@ class PyomoSolver(Solver):
         path = dir / "sol.csv"
         solution = {}
         for v in self.model.component_objects(pyo.Var, active=True):
-            if str(v) == "_relaxed_minus" or str(v) == "_relaxed_plus":
-                continue
-            varobject = getattr(self.model, str(v))
-            for index in varobject:
+            for index in v:
                 if index is None:
                     varname = str(v)
                 else:
                     varname = f"{v}_{index}"
-                solution[varname] = varobject[index].value
+                solution[varname] = v[index].value
 
         # Convert the solution to a DataFrame
         sol = pd.DataFrame(list(solution.items()), columns=["var", "val"])

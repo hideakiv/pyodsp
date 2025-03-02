@@ -2,6 +2,7 @@ from typing import List, Dict
 from pathlib import Path
 
 from pyodsp.alg.cuts import Cut, OptimalityCut, FeasibilityCut
+from pyodsp.alg.const import DEC_CUT_ABS_TOL
 
 from .node import DdNode
 from .alg_leaf import DdAlgLeaf
@@ -43,8 +44,9 @@ class DdLeafNode(DdNode):
             dual_coeffs = self._matrix_times_primal(solution)
             product = self._inner_product(primal_coeffs, solution)
             rhs = obj - product
+            sparse_coeff = {j: val for j, val in enumerate(dual_coeffs) if abs(val) > DEC_CUT_ABS_TOL}
             return OptimalityCut(
-                coeffs=dual_coeffs,
+                coeffs=sparse_coeff,
                 rhs=rhs,
                 objective_value=obj,
                 info={"solution": solution},
@@ -53,8 +55,9 @@ class DdLeafNode(DdNode):
             dual_coeffs = self._matrix_times_primal(solution)
             product = self._inner_product(primal_coeffs, solution)
             rhs = obj - product
+            sparse_coeff = {j: val for j, val in enumerate(dual_coeffs) if abs(val) > DEC_CUT_ABS_TOL}
             return FeasibilityCut(
-                coeffs=dual_coeffs, rhs=rhs, info={"solution": solution}
+                coeffs=sparse_coeff, rhs=rhs, info={"solution": solution}
             )
 
     def save(self, dir: Path):

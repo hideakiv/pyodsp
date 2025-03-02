@@ -80,9 +80,10 @@ class ProximalBundleMethod(BundleMethod):
         else:
             lb = self.obj_val[-1]
             ub = self.obj_bound[-1]
+        numcuts = self.cuts_manager.get_num_cuts()
         elapsed = time.time() - self.start_time
         self.logger.log_master_problem(
-            self.iteration, lb, self.center_val[-1], ub, self.current_solution, elapsed
+            self.iteration, lb, self.center_val[-1], ub, self.current_solution, numcuts, elapsed
         )
     
     def _termination_check(self) -> bool:

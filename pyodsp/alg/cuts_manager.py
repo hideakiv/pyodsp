@@ -1,7 +1,7 @@
 from typing import List
 from dataclasses import dataclass
 
-from pyomo.environ import Constraint
+from pyomo.environ import ConcreteModel, Constraint
 
 from .cuts import Cut, FeasibilityCut, OptimalityCut
 from .const import BM_SLACK_TOLERANCE, BM_MAX_CUT_AGE, BM_CUT_SIM_TOLERANCE
@@ -53,9 +53,15 @@ class CutsManager:
 
     def _is_similar(self, cut_info: CutInfo) -> bool:
         for cut in self._active_cuts[cut_info.idx]:
+            diff = cut_info.cut.coeffs.copy()
+            for j, val in cut.cut.coeffs.items():
+                if j in diff.keys():
+                    diff[j] -= val
+                else:
+                    diff[j] = -val
             square = (cut_info.cut.rhs - cut.cut.rhs) ** 2
-            for x, y in zip(cut_info.cut.coeffs, cut.cut.coeffs):
-                square += (x - y) ** 2
+            for val in diff.values():
+                square += val ** 2
             if square < BM_CUT_SIM_TOLERANCE:
                 return True
         return False
@@ -71,11 +77,12 @@ class CutsManager:
                     else:
                         cut.age = 0
     
-    def purge(self) -> None:
+    def purge(self, model: ConcreteModel) -> None:
         def below_max(cut: CutInfo) -> bool:
             below = cut.age < BM_MAX_CUT_AGE
             if not below:
                 cut.constraint.deactivate()
+                model.del_component(cut.constraint.name)
             return below
         
         for cuts in self._active_cuts:
@@ -83,3 +90,6 @@ class CutsManager:
 
     def get_cuts(self) -> List[List[CutInfo]]:
         return self._active_cuts
+    
+    def get_num_cuts(self) -> int:
+        return sum(len(cut_list) for cut_list in self._active_cuts)

@@ -87,8 +87,9 @@ class BundleMethod:
         else:
             lb = self.obj_val[-1]
             ub = self.obj_bound[-1]
+        numcuts = self.cuts_manager.get_num_cuts()
         elapsed = time.time() - self.start_time
-        self.logger.log_master_problem(self.iteration, lb, ub, self.current_solution, elapsed)
+        self.logger.log_master_problem(self.iteration, lb, ub, self.current_solution, numcuts, elapsed)
 
     def _termination_check(self) -> bool:
         if (
@@ -150,7 +151,7 @@ class BundleMethod:
         self.iteration += 1
         self.cuts_manager.increment()
         if self.iteration % BM_PURGE_FREQ == 0:
-            self.cuts_manager.purge()
+            self.cuts_manager.purge(self.solver.model)
 
     def _update_objective(self, subobj_bounds: List[float]):
         def theta_bounds(model, i):
@@ -184,7 +185,7 @@ class BundleMethod:
                 return False
 
             constraint = Constraint(
-                expr=sum(cut.coeffs[j] * vars[j] for j in range(len(vars))) + theta
+                expr=sum(coeff * vars[j] for j, coeff in cut.coeffs.items()) + theta
                 >= cut.rhs
             )
         else:
@@ -197,7 +198,7 @@ class BundleMethod:
                 return False
 
             constraint = Constraint(
-                expr=sum(cut.coeffs[j] * vars[j] for j in range(len(vars))) + theta
+                expr=sum(coeff * vars[j] for j, coeff in cut.coeffs.items()) + theta
                 <= cut.rhs
             )
 
@@ -217,12 +218,12 @@ class BundleMethod:
         if self.solver.is_minimize():
             # Minimization
             constraint = Constraint(
-                expr=sum(cut.coeffs[j] * vars[j] for j in range(len(vars))) >= cut.rhs
+                expr=sum(coeff * vars[j] for j, coeff in cut.coeffs.items()) >= cut.rhs
             )
         else:
             # Maximization
             constraint = Constraint(
-                expr=sum(cut.coeffs[j] * vars[j] for j in range(len(vars))) <= cut.rhs
+                expr=sum(coeff * vars[j] for j, coeff in cut.coeffs.items()) <= cut.rhs
             )
         self.solver.model.add_component(f"_feasibility_cut_{idx}_{cut_num}", constraint)
 

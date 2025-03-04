@@ -42,16 +42,20 @@ class BdAlgLeafPyomo(BdAlgLeaf):
     def get_subgradient(self) -> Cut:
         start = time.time()
         self.solver.solve()
+        cut = self.get_subgradient_without_solve()
+        self.step_time.append(time.time() - start)
+        return cut
+    
+    def get_subgradient_without_solve(self) -> Cut:
         if self.solver.is_optimal():
             cut = self._optimality_cut()
-            self.step_time.append(time.time() - start)
             return cut
         elif self.solver.is_infeasible():
             cut = self._feasibility_cut()
-            self.step_time.append(time.time() - start)
             return cut
         else:
             raise ValueError("Unknown solver status")
+        
 
     def _optimality_cut(self) -> OptimalityCut:
         pi = self.solver.get_dual(self.coupling_constraints)

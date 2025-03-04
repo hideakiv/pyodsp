@@ -25,6 +25,10 @@ class BdAlgLeaf(ABC):
         pass
 
     @abstractmethod
+    def get_subgradient_without_solve(self) -> Cut:
+        pass
+
+    @abstractmethod
     def save(self, dir: Path) -> None:
         pass
     

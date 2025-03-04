@@ -42,11 +42,11 @@ class BdAlgLeafPyomo(BdAlgLeaf):
     def get_subgradient(self) -> Cut:
         start = time.time()
         self.solver.solve()
-        cut = self.get_subgradient_without_solve()
+        cut = self._get_subgradient_inner()
         self.step_time.append(time.time() - start)
         return cut
     
-    def get_subgradient_without_solve(self) -> Cut:
+    def _get_subgradient_inner(self) -> Cut:
         if self.solver.is_optimal():
             cut = self._optimality_cut()
             return cut

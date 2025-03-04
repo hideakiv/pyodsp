@@ -29,7 +29,7 @@ class BdInnerNode(BdRootNode):
         self.alg_leaf.fix_variables(coupling_values)
 
     def get_subgradient(self) -> Cut:
-        return self.alg_leaf.get_subgradient_without_solve()
+        return self.alg_leaf.get_subgradient()
 
     def get_bound(self) -> float:
         return self.bound

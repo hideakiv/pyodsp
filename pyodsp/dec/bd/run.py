@@ -7,6 +7,7 @@ from .logger import BdLogger
 from .node import BdNode
 from .node_leaf import BdLeafNode
 from .node_root import BdRootNode
+from .node_inner import BdInnerNode
 from ..utils import create_directory
 
 
@@ -29,13 +30,14 @@ class BdRun:
         if self.root is not None:
             self.logger.log_initialization()
             self.root.set_depth(0)
-            self.root.set_logger()
             self._run_check(self.root)
             self._run_node(self.root)
         for node in self.nodes.values():
             node.save(self.filedir)
 
     def _run_check(self, node: BdNode) -> None:
+        if isinstance(node, BdRootNode) or isinstance(node, BdInnerNode):
+            node.set_logger()
         for child_id in node.get_children():
             child = self.nodes[child_id]
             child.set_depth(node.get_depth() + 1)
@@ -48,6 +50,8 @@ class BdRun:
 
             self._set_bounds(node)
             node.build()
+            if isinstance(node, BdInnerNode):
+                node.fix_variables(sol_up)
 
             node.alg.reset_iteration()
             cuts_dn = None
@@ -55,7 +59,10 @@ class BdRun:
                 solution = node.run_step(cuts_dn)
 
                 if solution is None:
-                    return
+                    if isinstance(node, BdInnerNode):
+                        return node.get_subgradient()
+                    else:
+                        return
 
                 cuts_dn = self._get_cuts(node, solution)
         if isinstance(node, BdLeafNode):
@@ -81,5 +88,5 @@ class BdRun:
     def _set_bounds(self, node: BdRootNode) -> None:
         for child in node.children:
             child_node = self.nodes[child]
-            assert isinstance(child_node, BdLeafNode)
+            assert isinstance(child_node, BdLeafNode) or isinstance(child_node, BdInnerNode)
             node.set_bound(child, child_node.get_bound())

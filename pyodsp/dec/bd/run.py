@@ -58,7 +58,7 @@ class BdRun:
             while True:
                 status, solution = node.run_step(cuts_dn)
 
-                if status == 1:
+                if status != 0:
                     if isinstance(node, BdInnerNode):
                         return node.get_subgradient()
                     else:

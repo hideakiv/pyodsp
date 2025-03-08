@@ -75,7 +75,7 @@ class BdRunMpi(BdRun):
         while True:
             status, solution = self.root.run_step(combined_cuts_dn)
 
-            if status == 1:
+            if status != 0:
                 self.comm.bcast(-1, root=0)
                 return
 

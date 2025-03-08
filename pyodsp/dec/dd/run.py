@@ -69,7 +69,7 @@ class DdRun:
         cuts_dn = self._run_leaf([0.0 for _ in range(self.root.num_constrs)])
         while True:
             status, solution = self.root.run_step(cuts_dn)
-            if status == 1:
+            if status != 0:
                 break
             cuts_dn = self._run_leaf(solution)
 

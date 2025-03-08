@@ -100,7 +100,7 @@ class ProximalBundleMethod(BundleMethod):
             self.logger.log_status_optimal()
             return True
         
-        if self.iteration > self.max_iteration:
+        if self.iteration >= self.max_iteration:
             self.status = 2
             self.logger.log_status_max_iter()
             return True

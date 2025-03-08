@@ -2,6 +2,7 @@ from pathlib import Path
 import pyomo.environ as pyo
 
 from aircon import first_stage, mid_stage, last_stage
+from utils import assert_approximately_equal
 
 from pyodsp.dec.bd.node_root import BdRootNode
 from pyodsp.dec.bd.alg_root_bm import BdAlgRootBm
@@ -25,6 +26,7 @@ def main(solver="appsi_highs", agg=False):
 
     bd_run = BdRun(nodes, Path("output/aircon/bd"))
     bd_run.run()
+    assert_approximately_equal(nodes[0].alg.bm.obj_bound[-1], 6.25)
 
 def create_root(idx, demand, solver_name, agg=False):
     model = pyo.ConcreteModel()
@@ -71,4 +73,4 @@ def create_leaf(idx, demand, solver_name):
     return node
 
 if __name__ == "__main__":
-    main(agg=False)
+    main(agg=True)

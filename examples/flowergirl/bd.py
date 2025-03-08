@@ -45,7 +45,7 @@ def create_inner(idx, demand, solver_name):
     coupling_up = [model.prev_inventory]
     coupling_dn = [model.next_inventory]
     solver_root = PyomoSolver(model, solver_name, coupling_dn)
-    alg_root = BdAlgRootBm(solver_root, max_iteration=2)
+    alg_root = BdAlgRootBm(solver_root, max_iteration=1)
     solver_leaf = PyomoSolver(model, solver_name, coupling_up)
     alg_leaf = BdAlgLeafPyomo(solver_leaf)
     parent = (idx - 1) // 2

@@ -50,7 +50,12 @@ class ProximalBundleMethod(BundleMethod):
 
     def run_step(self, cuts_list: List[CutList] | None) -> Tuple[int, List[float]]:
         if cuts_list is not None:
-            no_cuts = self._add_cuts(cuts_list)
+            no_cuts, obj_val = self.add_cuts(cuts_list)
+            if self.feasible:
+                self.obj_val.append(obj_val)
+            else:
+                self.obj_val.append(None)
+                
             if no_cuts or self._improved():
                 self._update_center(self.current_solution)
                 self.center_val.append(self.obj_val[-1])

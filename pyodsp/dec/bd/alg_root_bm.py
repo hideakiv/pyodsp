@@ -31,6 +31,9 @@ class BdAlgRootBm(BdAlgRoot):
         self.step_time.append(time.time() - start)
         return status, solution
 
+    def add_cuts(self, cuts_list: List[CutList]) -> None:
+        self.bm.add_cuts(cuts_list)
+
     def reset_iteration(self) -> None:
         self.bm.reset_iteration()
 

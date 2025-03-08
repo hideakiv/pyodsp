@@ -66,6 +66,22 @@ class BdRootNode(BdNode):
     def run_step(self, cuts: Dict[int, Cut] | None) -> Tuple[int, List[float]]:
         if cuts is None:
             return self.alg.run_step(None)
+        aggregate_cuts = self._get_aggregate_cuts(cuts)
+        return self.alg.run_step(aggregate_cuts)
+    
+    def add_cuts(self, cuts: Dict[int, Cut]) -> None:
+        aggregate_cuts = self._get_aggregate_cuts(cuts)
+        self.alg.add_cuts(aggregate_cuts)
+
+    def save(self, dir: Path):
+        node_dir = dir / f"node{self.idx}"
+        create_directory(node_dir)
+        self.alg.save(node_dir)
+
+    def is_minimize(self) -> bool:
+        return self.alg.is_minimize()
+
+    def _get_aggregate_cuts(self, cuts: Dict[int, Cut]) -> List[CutList]:
         aggregate_cuts = []
         assert self.groups is not None
         for group in self.groups:
@@ -77,15 +93,7 @@ class BdRootNode(BdNode):
             aggregate_cut = self._aggregate_cuts(group_multipliers, group_cut)
 
             aggregate_cuts.append(aggregate_cut)
-        return self.alg.run_step(aggregate_cuts)
-
-    def save(self, dir: Path):
-        node_dir = dir / f"node{self.idx}"
-        create_directory(node_dir)
-        self.alg.save(node_dir)
-
-    def is_minimize(self) -> bool:
-        return self.alg.is_minimize()
+        return aggregate_cuts
 
     def _aggregate_cuts(self, multipliers: List[float], cuts: List[Cut]) -> CutList:
         new_coef = [0.0 for _ in range(len(self.coupling_vars_dn))]

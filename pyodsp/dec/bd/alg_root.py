@@ -22,6 +22,10 @@ class BdAlgRoot(ABC):
         pass
 
     @abstractmethod
+    def add_cuts(self, cuts_list: List[CutList]) -> None:
+        pass
+
+    @abstractmethod
     def reset_iteration(self) -> None:
         pass
 

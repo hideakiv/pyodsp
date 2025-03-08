@@ -60,6 +60,9 @@ class BdRun:
 
                 if status != 0:
                     if isinstance(node, BdInnerNode):
+                        if status == 2 or status == 3:
+                            cuts_dn = self._get_cuts(node, solution)
+                            node.add_cuts(cuts_dn)
                         return node.get_subgradient()
                     else:
                         return

@@ -51,7 +51,11 @@ class BundleMethod:
 
     def run_step(self, cuts_list: List[CutList] | None) -> Tuple[int, List[float]]:
         if cuts_list is not None:
-            self._add_cuts(cuts_list)
+            no_cuts, obj_val = self.add_cuts(cuts_list)
+            if self.feasible:
+                self.obj_val.append(obj_val)
+            else:
+                self.obj_val.append(None)
         else:
             self.obj_val.append(None)
 
@@ -125,7 +129,7 @@ class BundleMethod:
         df.to_csv(path)
         self.solver.save(dir)
 
-    def _add_cuts(self, cuts_list: List[CutList]) -> bool:
+    def add_cuts(self, cuts_list: List[CutList]) -> Tuple[bool, float]:
         found_cuts = [False for _ in range(self.num_cuts)]
         self.feasible = True
         obj_val = self.solver.get_original_objective_value()
@@ -140,13 +144,8 @@ class BundleMethod:
                     self.feasible = False
                 found_cuts[idx] = found_cut or found_cuts[idx]
 
-        if self.feasible:
-            self.obj_val.append(obj_val)
-        else:
-            self.obj_val.append(None)
-
         optimal = not any(found_cuts)
-        return optimal
+        return optimal, obj_val
 
     def _increment(self) -> None:
         self.iteration += 1

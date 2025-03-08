@@ -86,6 +86,17 @@ class ProximalBundleMethod(BundleMethod):
         )
     
     def _termination_check(self) -> bool:
+        
+        if self.iteration >= self.max_iteration:
+            self.status = 2
+            self.logger.log_status_max_iter()
+            return True
+        
+        if time.time() - self.start_time > BM_TIME_LIMIT:
+            self.status = 3
+            self.logger.log_status_time_limit()
+            return True
+        
         if len(self.center_val) == 0 or self.center_val[-1] is None:
             return False
 
@@ -98,16 +109,6 @@ class ProximalBundleMethod(BundleMethod):
                 self.obj_val.append(self.obj_val[-1])
             self.status = 1
             self.logger.log_status_optimal()
-            return True
-        
-        if self.iteration >= self.max_iteration:
-            self.status = 2
-            self.logger.log_status_max_iter()
-            return True
-        
-        if time.time() - self.start_time > BM_TIME_LIMIT:
-            self.status = 3
-            self.logger.log_status_time_limit()
             return True
         
         return False

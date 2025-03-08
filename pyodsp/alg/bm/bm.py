@@ -92,6 +92,17 @@ class BundleMethod:
         self.logger.log_master_problem(self.iteration, lb, ub, self.current_solution, numcuts, elapsed)
 
     def _termination_check(self) -> bool:
+        
+        if self.iteration >= self.max_iteration:
+            self.status = 2
+            self.logger.log_status_max_iter()
+            return True
+        
+        if time.time() - self.start_time > BM_TIME_LIMIT:
+            self.status = 3
+            self.logger.log_status_time_limit()
+            return True
+        
         if (
             len(self.obj_val) == 0
             or self.obj_val[-1] is None
@@ -104,16 +115,6 @@ class BundleMethod:
         if gap < BM_REL_TOLERANCE:
             self.status = 1
             self.logger.log_status_optimal()
-            return True
-        
-        if self.iteration >= self.max_iteration:
-            self.status = 2
-            self.logger.log_status_max_iter()
-            return True
-        
-        if time.time() - self.start_time > BM_TIME_LIMIT:
-            self.status = 3
-            self.logger.log_status_time_limit()
             return True
         
         return False

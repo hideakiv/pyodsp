@@ -56,9 +56,9 @@ class BdRun:
             node.alg.reset_iteration()
             cuts_dn = None
             while True:
-                solution = node.run_step(cuts_dn)
+                status, solution = node.run_step(cuts_dn)
 
-                if solution is None:
+                if status == 1:
                     if isinstance(node, BdInnerNode):
                         return node.get_subgradient()
                     else:

@@ -68,8 +68,8 @@ class DdRun:
         self.root.alg.reset_iteration()
         cuts_dn = self._run_leaf([0.0 for _ in range(self.root.num_constrs)])
         while True:
-            solution = self.root.run_step(cuts_dn)
-            if solution is None:
+            status, solution = self.root.run_step(cuts_dn)
+            if status == 1:
                 break
             cuts_dn = self._run_leaf(solution)
 

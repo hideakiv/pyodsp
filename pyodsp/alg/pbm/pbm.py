@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Tuple
 from pathlib import Path
 import time
 
@@ -48,7 +48,7 @@ class ProximalBundleMethod(BundleMethod):
             tolerance=BM_ABS_TOLERANCE, max_iteration=self.max_iteration
         )
 
-    def run_step(self, cuts_list: List[CutList] | None) -> List[float] | None:
+    def run_step(self, cuts_list: List[CutList] | None) -> Tuple[int, List[float]]:
         if cuts_list is not None:
             no_cuts = self._add_cuts(cuts_list)
             if no_cuts or self._improved():
@@ -69,9 +69,8 @@ class ProximalBundleMethod(BundleMethod):
 
         if self._termination_check():
             self.logger.log_completion(self.iteration, self.obj_bound[-1])
-            return
 
-        return self.current_solution
+        return self.status, self.current_solution
     
     def _log(self) -> None:
         if self.solver.is_minimize():

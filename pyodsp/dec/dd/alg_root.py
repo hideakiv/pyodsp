@@ -1,5 +1,5 @@
 from abc import abstractmethod
-from typing import List, Dict
+from typing import List, Dict, Tuple
 from pathlib import Path
 
 from pyomo.environ import (
@@ -127,7 +127,7 @@ class DdAlgRoot:
         pass
 
     @abstractmethod
-    def run_step(self, cuts_list: List[CutList] | None) -> List[float] | None:
+    def run_step(self, cuts_list: List[CutList] | None) -> Tuple[int, List[float]]:
         pass
 
     @abstractmethod

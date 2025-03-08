@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Tuple
 from pathlib import Path
 import time
 
@@ -49,7 +49,7 @@ class BundleMethod:
             tolerance=BM_ABS_TOLERANCE, max_iteration=self.max_iteration
         )
 
-    def run_step(self, cuts_list: List[CutList] | None) -> List[float] | None:
+    def run_step(self, cuts_list: List[CutList] | None) -> Tuple[int, List[float]]:
         if cuts_list is not None:
             self._add_cuts(cuts_list)
         else:
@@ -60,12 +60,12 @@ class BundleMethod:
         self._log()
         if self._termination_check():
             self.logger.log_completion(self.iteration, self.obj_bound[-1])
-            return
 
-        return self.current_solution
+        return self.status, self.current_solution
 
     def reset_iteration(self, i=0) -> None:
         self.iteration = i
+        self.status = 0
         self.start_time = time.time()
 
     def _solve(self) -> None:

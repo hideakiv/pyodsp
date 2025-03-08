@@ -1,4 +1,4 @@
-from typing import List, Dict
+from typing import List, Dict, Tuple
 from pathlib import Path
 
 from pyomo.core.base.var import VarData
@@ -63,7 +63,7 @@ class BdRootNode(BdNode):
         self.alg.build(subobj_bounds)
         self.built = True
 
-    def run_step(self, cuts: Dict[int, Cut] | None) -> List[float] | None:
+    def run_step(self, cuts: Dict[int, Cut] | None) -> Tuple[int, List[float]]:
         if cuts is None:
             return self.alg.run_step(None)
         aggregate_cuts = []

@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Tuple
 from pathlib import Path
 import time
 import pandas as pd
@@ -25,11 +25,11 @@ class BdAlgRootBm(BdAlgRoot):
         num_cuts = len(subobj_bounds)
         self.bm.build(num_cuts, subobj_bounds)
 
-    def run_step(self, cuts_list: List[CutList] | None) -> List[float] | None:
+    def run_step(self, cuts_list: List[CutList] | None) -> Tuple[int, List[float]]:
         start = time.time()
-        solution = self.bm.run_step(cuts_list)
+        status, solution = self.bm.run_step(cuts_list)
         self.step_time.append(time.time() - start)
-        return solution
+        return status, solution
 
     def reset_iteration(self) -> None:
         self.bm.reset_iteration()

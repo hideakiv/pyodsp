@@ -73,9 +73,9 @@ class BdRunMpi(BdRun):
         self.root.alg.reset_iteration()
         combined_cuts_dn = None
         while True:
-            solution = self.root.run_step(combined_cuts_dn)
+            status, solution = self.root.run_step(combined_cuts_dn)
 
-            if solution is None:
+            if status == 1:
                 self.comm.bcast(-1, root=0)
                 return
 

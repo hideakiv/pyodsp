@@ -73,6 +73,9 @@ class BdRootNode(BdNode):
         aggregate_cuts = self._get_aggregate_cuts(cuts)
         self.alg.add_cuts(aggregate_cuts)
 
+    def get_solution_dn(self) -> List[float]:
+        return [var.value for var in self.coupling_vars_dn]
+
     def save(self, dir: Path):
         node_dir = dir / f"node{self.idx}"
         create_directory(node_dir)

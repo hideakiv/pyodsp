@@ -32,6 +32,7 @@ class BdRun:
             self.root.set_depth(0)
             self._run_check(self.root)
             self._run_node(self.root)
+            self._run_finalize(self.root)
         for node in self.nodes.values():
             node.save(self.filedir)
 
@@ -71,6 +72,18 @@ class BdRun:
         if isinstance(node, BdLeafNode):
             node.build()
             return node.solve(sol_up)
+        
+    def _run_finalize(self, node: BdNode) -> None:
+        if isinstance(node, BdRootNode) or isinstance(node, BdInnerNode):
+            solution = node.get_solution_dn()
+            for child_id in node.get_children():
+                child = self.nodes[child_id]
+                if isinstance(child, BdLeafNode):
+                    child.solve(solution)
+                elif isinstance(child, BdInnerNode):
+                    child.fix_variables(solution)
+                    child.get_subgradient()
+                self._run_finalize(child)
 
     def _get_cuts(self, node: BdNode, solution: List[float]) -> Dict[int, Cut]:
         cuts_dn = {}

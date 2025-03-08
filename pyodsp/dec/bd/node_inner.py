@@ -19,11 +19,15 @@ class BdInnerNode(BdRootNode):
         self.alg_leaf = alg_leaf
         self.bound = bound
         self.parent = parent
+        self.built_leaf = False
     
     def build(self) -> None:
         super().build()
+        if self.built_leaf:
+            return
         
         self.alg_leaf.build()
+        self.built_leaf = True
 
     def fix_variables(self, coupling_values: List[float]) -> None:
         self.alg_leaf.fix_variables(coupling_values)

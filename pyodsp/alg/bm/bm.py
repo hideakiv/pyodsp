@@ -58,6 +58,9 @@ class BundleMethod:
 
         self._increment()
         self._solve()
+        if self.status == STATUS_INFEASIBLE:
+            self.logger.log_infeasible()
+            return self.status, None
         self._log()
         if self._termination_check():
             self.logger.log_completion(self.iteration, self.obj_bound[-1])
@@ -71,6 +74,8 @@ class BundleMethod:
 
     def _solve(self) -> None:
         self.solver.solve()
+        if self.solver.is_infeasible():
+            self.status = STATUS_INFEASIBLE
         self.current_solution = self.solver.get_solution()
         current_obj = self.solver.get_original_objective_value()
         if not self.solver.is_optimal():

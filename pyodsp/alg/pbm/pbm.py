@@ -71,6 +71,9 @@ class ProximalBundleMethod(BundleMethod):
         self._increment()
 
         self._solve()
+        if self.status == STATUS_INFEASIBLE:
+            self.logger.log_infeasible()
+            return self.status, None
         self._log()
 
         if self._termination_check():

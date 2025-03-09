@@ -57,6 +57,9 @@ class BmLogger:
     def log_status_time_limit(self) -> None:
         self.logger.info(f"Node: {self.node_id} - Bundle method terminated by time limit")
 
+    def log_infeasible(self) -> None:
+        self.logger.info(f"Node: {self.node_id} - Bundle method terminated by infeasibility")
+
     def log_completion(self, iteration: int, objective_value: float | None) -> None:
         self.logger.info(f"Node: {self.node_id} - Bundle method completed")
         self.logger.info(f"Node: {self.node_id} - Total iterations: {iteration}")

@@ -1,4 +1,4 @@
-from typing import List, Dict
+from typing import List, Dict, Tuple
 from pathlib import Path
 import time
 import pandas as pd
@@ -10,7 +10,7 @@ from .alg_root import DdAlgRoot
 from pyodsp.alg.bm.bm import BundleMethod
 from pyodsp.alg.cuts import CutList
 from pyodsp.alg.cuts_manager import CutInfo
-from pyodsp.alg.const import BM_DUMMY_BOUND
+from pyodsp.alg.params import BM_DUMMY_BOUND
 
 
 class DdAlgRootBm(DdAlgRoot):
@@ -37,11 +37,11 @@ class DdAlgRootBm(DdAlgRoot):
 
         self.bm.build(num_cuts, dummy_bounds)
 
-    def run_step(self, cuts_list: List[CutList] | None) -> List[float] | None:
+    def run_step(self, cuts_list: List[CutList] | None) -> Tuple[int, List[float]]:
         start = time.time()
-        solution = self.bm.run_step(cuts_list)
+        status, solution = self.bm.run_step(cuts_list)
         self.step_time.append(time.time() - start)
-        return solution
+        return status, solution
 
     def reset_iteration(self) -> None:
         self.bm.reset_iteration()

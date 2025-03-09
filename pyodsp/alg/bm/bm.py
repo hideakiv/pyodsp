@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Tuple
 from pathlib import Path
 import time
 
@@ -12,7 +12,8 @@ from pyodsp.solver.pyomo_utils import add_terms_to_objective
 from ..cuts import CutList, OptimalityCut, FeasibilityCut
 from ..cuts_manager import CutsManager, CutInfo
 from .logger import BmLogger
-from ..const import BM_ABS_TOLERANCE, BM_REL_TOLERANCE, BM_PURGE_FREQ, BM_TIME_LIMIT
+from ..params import BM_ABS_TOLERANCE, BM_REL_TOLERANCE, BM_PURGE_FREQ, BM_TIME_LIMIT
+from ..const import *
 
 
 class BundleMethod:
@@ -28,11 +29,7 @@ class BundleMethod:
         self.obj_bound: List[float | None] = []
         self.obj_val: List[float | None] = []
 
-        self.status: int = 0
-        # 0: not finished
-        # 1: optimal
-        # 2: max iteration reached
-        # 3: time limit reached
+        self.status: int = STATUS_NOT_FINISHED
         self.start_time = time.time()
 
     def set_logger(self, node_id: int, depth: int) -> None:
@@ -49,27 +46,36 @@ class BundleMethod:
             tolerance=BM_ABS_TOLERANCE, max_iteration=self.max_iteration
         )
 
-    def run_step(self, cuts_list: List[CutList] | None) -> List[float] | None:
+    def run_step(self, cuts_list: List[CutList] | None) -> Tuple[int, List[float]]:
         if cuts_list is not None:
-            self._add_cuts(cuts_list)
+            no_cuts, obj_val = self.add_cuts(cuts_list)
+            if self.feasible:
+                self.obj_val.append(obj_val)
+            else:
+                self.obj_val.append(None)
         else:
             self.obj_val.append(None)
 
         self._increment()
         self._solve()
+        if self.status == STATUS_INFEASIBLE:
+            self.logger.log_infeasible()
+            return self.status, None
         self._log()
         if self._termination_check():
             self.logger.log_completion(self.iteration, self.obj_bound[-1])
-            return
 
-        return self.current_solution
+        return self.status, self.current_solution
 
     def reset_iteration(self, i=0) -> None:
         self.iteration = i
+        self.status = STATUS_NOT_FINISHED
         self.start_time = time.time()
 
     def _solve(self) -> None:
         self.solver.solve()
+        if self.solver.is_infeasible():
+            self.status = STATUS_INFEASIBLE
         self.current_solution = self.solver.get_solution()
         current_obj = self.solver.get_original_objective_value()
         if not self.solver.is_optimal():
@@ -92,6 +98,17 @@ class BundleMethod:
         self.logger.log_master_problem(self.iteration, lb, ub, self.current_solution, numcuts, elapsed)
 
     def _termination_check(self) -> bool:
+        
+        if self.iteration >= self.max_iteration:
+            self.status = STATUS_MAX_ITERATION
+            self.logger.log_status_max_iter()
+            return True
+        
+        if time.time() - self.start_time > BM_TIME_LIMIT:
+            self.status = STATUS_TIME_LIMIT
+            self.logger.log_status_time_limit()
+            return True
+        
         if (
             len(self.obj_val) == 0
             or self.obj_val[-1] is None
@@ -102,18 +119,8 @@ class BundleMethod:
         gap = abs(self.obj_bound[-1] - self.obj_val[-1]) / abs(self.obj_val[-1])
 
         if gap < BM_REL_TOLERANCE:
-            self.status = 1
+            self.status = STATUS_OPTIMAL
             self.logger.log_status_optimal()
-            return True
-        
-        if self.iteration > self.max_iteration:
-            self.status = 2
-            self.logger.log_status_max_iter()
-            return True
-        
-        if time.time() - self.start_time > BM_TIME_LIMIT:
-            self.status = 3
-            self.logger.log_status_time_limit()
             return True
         
         return False
@@ -124,7 +131,7 @@ class BundleMethod:
         df.to_csv(path)
         self.solver.save(dir)
 
-    def _add_cuts(self, cuts_list: List[CutList]) -> bool:
+    def add_cuts(self, cuts_list: List[CutList]) -> Tuple[bool, float]:
         found_cuts = [False for _ in range(self.num_cuts)]
         self.feasible = True
         obj_val = self.solver.get_original_objective_value()
@@ -139,13 +146,8 @@ class BundleMethod:
                     self.feasible = False
                 found_cuts[idx] = found_cut or found_cuts[idx]
 
-        if self.feasible:
-            self.obj_val.append(obj_val)
-        else:
-            self.obj_val.append(None)
-
         optimal = not any(found_cuts)
-        return optimal
+        return optimal, obj_val
 
     def _increment(self) -> None:
         self.iteration += 1

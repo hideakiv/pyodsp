@@ -2,9 +2,12 @@ from typing import List, Dict
 from pathlib import Path
 from mpi4py import MPI
 
+from pyodsp.alg.const import *
+
 from .run import BdRun
 from .node import BdNode
 from .node_leaf import BdLeafNode
+from .node_inner import BdInnerNode
 
 
 class BdRunMpi(BdRun):
@@ -14,6 +17,10 @@ class BdRunMpi(BdRun):
         super().__init__(nodes, filedir)
         self.comm = MPI.COMM_WORLD
         self.rank = self.comm.Get_rank()
+
+        for node in nodes:
+            if isinstance(node, BdInnerNode):
+                raise ValueError("Nested Benders not supported in BdRunMpi")
 
         # gather node-rank info
         id_list = [node.idx for node in nodes]
@@ -73,9 +80,9 @@ class BdRunMpi(BdRun):
         self.root.alg.reset_iteration()
         combined_cuts_dn = None
         while True:
-            solution = self.root.run_step(combined_cuts_dn)
+            status, solution = self.root.run_step(combined_cuts_dn)
 
-            if solution is None:
+            if status != STATUS_NOT_FINISHED:
                 self.comm.bcast(-1, root=0)
                 return
 

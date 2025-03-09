@@ -39,3 +39,13 @@ def test_optimality_mpi():
             text=True,
         )
         assert result.returncode == 0
+
+
+def test_aircon():
+    for solver in solvers:
+        result = subprocess.run(
+            ["python", "examples/aircon/bd.py", "--solver", solver],
+            capture_output=True,
+            text=True,
+        )
+        assert result.returncode == 0

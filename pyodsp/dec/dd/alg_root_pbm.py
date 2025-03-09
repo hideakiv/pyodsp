@@ -1,4 +1,4 @@
-from typing import List, Dict
+from typing import List, Dict, Tuple
 from pathlib import Path
 import time
 import pandas as pd
@@ -32,11 +32,11 @@ class DdAlgRootPbm(DdAlgRoot):
         self.pbm.set_init_solution([0.0 for _ in range(num_cuts)])
         self.pbm.build(num_cuts)
 
-    def run_step(self, cuts_list: List[CutList] | None) -> List[float] | None:
+    def run_step(self, cuts_list: List[CutList] | None) -> Tuple[int, List[float]]:
         start = time.time()
-        solution = self.pbm.run_step(cuts_list)
+        status, solution = self.pbm.run_step(cuts_list)
         self.step_time.append(time.time() - start)
-        return solution
+        return status, solution
 
     def reset_iteration(self) -> None:
         self.pbm.reset_iteration()

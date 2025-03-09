@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Tuple
 from pathlib import Path
 import time
 
@@ -9,7 +9,8 @@ from pyodsp.alg.cuts import CutList
 
 from .logger import PbmLogger
 from ..bm.bm import BundleMethod
-from ..const import BM_ABS_TOLERANCE, BM_REL_TOLERANCE, BM_TIME_LIMIT
+from ..params import BM_ABS_TOLERANCE, BM_REL_TOLERANCE, BM_TIME_LIMIT
+from ..const import *
 from pyodsp.solver.pyomo_solver import PyomoSolver
 from pyodsp.solver.pyomo_utils import (
     add_quad_terms_to_objective,
@@ -48,9 +49,14 @@ class ProximalBundleMethod(BundleMethod):
             tolerance=BM_ABS_TOLERANCE, max_iteration=self.max_iteration
         )
 
-    def run_step(self, cuts_list: List[CutList] | None) -> List[float] | None:
+    def run_step(self, cuts_list: List[CutList] | None) -> Tuple[int, List[float]]:
         if cuts_list is not None:
-            no_cuts = self._add_cuts(cuts_list)
+            no_cuts, obj_val = self.add_cuts(cuts_list)
+            if self.feasible:
+                self.obj_val.append(obj_val)
+            else:
+                self.obj_val.append(None)
+                
             if no_cuts or self._improved():
                 self._update_center(self.current_solution)
                 self.center_val.append(self.obj_val[-1])
@@ -65,13 +71,15 @@ class ProximalBundleMethod(BundleMethod):
         self._increment()
 
         self._solve()
+        if self.status == STATUS_INFEASIBLE:
+            self.logger.log_infeasible()
+            return self.status, None
         self._log()
 
         if self._termination_check():
             self.logger.log_completion(self.iteration, self.obj_bound[-1])
-            return
 
-        return self.current_solution
+        return self.status, self.current_solution
     
     def _log(self) -> None:
         if self.solver.is_minimize():
@@ -87,6 +95,17 @@ class ProximalBundleMethod(BundleMethod):
         )
     
     def _termination_check(self) -> bool:
+        
+        if self.iteration >= self.max_iteration:
+            self.status = STATUS_MAX_ITERATION
+            self.logger.log_status_max_iter()
+            return True
+        
+        if time.time() - self.start_time > BM_TIME_LIMIT:
+            self.status = STATUS_TIME_LIMIT
+            self.logger.log_status_time_limit()
+            return True
+        
         if len(self.center_val) == 0 or self.center_val[-1] is None:
             return False
 
@@ -97,18 +116,8 @@ class ProximalBundleMethod(BundleMethod):
                 self.center_val.append(self.center_val[-1])
             if len(self.obj_bound) > len(self.obj_val):
                 self.obj_val.append(self.obj_val[-1])
-            self.status = 1
+            self.status = STATUS_OPTIMAL
             self.logger.log_status_optimal()
-            return True
-        
-        if self.iteration > self.max_iteration:
-            self.status = 2
-            self.logger.log_status_max_iter()
-            return True
-        
-        if time.time() - self.start_time > BM_TIME_LIMIT:
-            self.status = 3
-            self.logger.log_status_time_limit()
             return True
         
         return False

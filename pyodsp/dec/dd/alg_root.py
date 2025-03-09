@@ -1,5 +1,5 @@
 from abc import abstractmethod
-from typing import List, Dict
+from typing import List, Dict, Tuple
 from pathlib import Path
 
 from pyomo.environ import (
@@ -19,7 +19,7 @@ from pyodsp.dec.utils import get_nonzero_coefficients_group
 from pyodsp.solver.pyomo_solver import PyomoSolver
 from pyodsp.alg.cuts import CutList
 from pyodsp.alg.cuts_manager import CutInfo
-from pyodsp.alg.const import DEC_CUT_ABS_TOL
+from pyodsp.alg.params import DEC_CUT_ABS_TOL
 
 
 class DdAlgRoot:
@@ -127,7 +127,7 @@ class DdAlgRoot:
         pass
 
     @abstractmethod
-    def run_step(self, cuts_list: List[CutList] | None) -> List[float] | None:
+    def run_step(self, cuts_list: List[CutList] | None) -> Tuple[int, List[float]]:
         pass
 
     @abstractmethod

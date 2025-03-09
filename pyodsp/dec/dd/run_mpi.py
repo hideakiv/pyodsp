@@ -2,6 +2,8 @@ from typing import List, Dict
 from pathlib import Path
 from mpi4py import MPI
 
+from pyodsp.alg.const import *
+
 from .run import DdRun
 from .node import DdNode
 from ..utils import SparseMatrix
@@ -89,8 +91,8 @@ class DdRunMpi(DdRun):
             combined_cuts_dn.update(d)
 
         while True:
-            solution = self.root.run_step(combined_cuts_dn)
-            if solution is None:
+            status, solution = self.root.run_step(combined_cuts_dn)
+            if status != STATUS_NOT_FINISHED:
                 self.comm.bcast(-1, root=0)
                 break
             # broadcast solution

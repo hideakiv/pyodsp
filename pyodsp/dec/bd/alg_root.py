@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import List
+from typing import List, Tuple
 from pathlib import Path
 
 from pyomo.core.base.var import VarData
@@ -18,7 +18,11 @@ class BdAlgRoot(ABC):
         pass
 
     @abstractmethod
-    def run_step(self, cuts_list: List[CutList] | None) -> List[float] | None:
+    def run_step(self, cuts_list: List[CutList] | None) -> Tuple[int, List[float]]:
+        pass
+
+    @abstractmethod
+    def add_cuts(self, cuts_list: List[CutList]) -> None:
         pass
 
     @abstractmethod

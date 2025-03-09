@@ -2,6 +2,7 @@ from typing import List, Dict
 from pathlib import Path
 
 from pyodsp.alg.cuts import Cut, OptimalityCut, FeasibilityCut
+from pyodsp.alg.const import *
 
 from .logger import DdLogger
 from .node import DdNode
@@ -68,8 +69,8 @@ class DdRun:
         self.root.alg.reset_iteration()
         cuts_dn = self._run_leaf([0.0 for _ in range(self.root.num_constrs)])
         while True:
-            solution = self.root.run_step(cuts_dn)
-            if solution is None:
+            status, solution = self.root.run_step(cuts_dn)
+            if status != STATUS_NOT_FINISHED:
                 break
             cuts_dn = self._run_leaf(solution)
 

@@ -2,6 +2,7 @@ from typing import List, Dict
 from pathlib import Path
 
 from pyodsp.alg.cuts import Cut, OptimalityCut, FeasibilityCut
+from pyodsp.alg.const import *
 
 from .logger import BdLogger
 from .node import BdNode
@@ -59,9 +60,9 @@ class BdRun:
             while True:
                 status, solution = node.run_step(cuts_dn)
 
-                if status != 0:
+                if status != STATUS_NOT_FINISHED:
                     if isinstance(node, BdInnerNode):
-                        if status == 2 or status == 3:
+                        if status == STATUS_MAX_ITERATION or status == STATUS_TIME_LIMIT:
                             cuts_dn = self._get_cuts(node, solution)
                             node.add_cuts(cuts_dn)
                         return node.get_subgradient()

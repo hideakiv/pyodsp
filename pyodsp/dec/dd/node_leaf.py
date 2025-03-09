@@ -2,7 +2,7 @@ from typing import List, Dict
 from pathlib import Path
 
 from pyodsp.alg.cuts import Cut, OptimalityCut, FeasibilityCut
-from pyodsp.alg.const import DEC_CUT_ABS_TOL
+from pyodsp.alg.params import DEC_CUT_ABS_TOL
 
 from .node import DdNode
 from .alg_leaf import DdAlgLeaf

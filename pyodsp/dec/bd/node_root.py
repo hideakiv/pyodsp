@@ -4,7 +4,7 @@ from pathlib import Path
 from pyomo.core.base.var import VarData
 
 from pyodsp.alg.cuts import Cut, OptimalityCut, FeasibilityCut, CutList
-from pyodsp.alg.const import DEC_CUT_ABS_TOL
+from pyodsp.alg.params import DEC_CUT_ABS_TOL
 
 from .node import BdNode
 from .alg_root import BdAlgRoot

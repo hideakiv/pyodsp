@@ -10,7 +10,7 @@ from .alg_root import DdAlgRoot
 from pyodsp.alg.bm.bm import BundleMethod
 from pyodsp.alg.cuts import CutList
 from pyodsp.alg.cuts_manager import CutInfo
-from pyodsp.alg.const import BM_DUMMY_BOUND
+from pyodsp.alg.params import BM_DUMMY_BOUND
 
 
 class DdAlgRootBm(DdAlgRoot):

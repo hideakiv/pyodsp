@@ -12,7 +12,8 @@ from pyodsp.solver.pyomo_utils import add_terms_to_objective
 from ..cuts import CutList, OptimalityCut, FeasibilityCut
 from ..cuts_manager import CutsManager, CutInfo
 from .logger import BmLogger
-from ..const import BM_ABS_TOLERANCE, BM_REL_TOLERANCE, BM_PURGE_FREQ, BM_TIME_LIMIT
+from ..params import BM_ABS_TOLERANCE, BM_REL_TOLERANCE, BM_PURGE_FREQ, BM_TIME_LIMIT
+from ..const import *
 
 
 class BundleMethod:
@@ -28,11 +29,7 @@ class BundleMethod:
         self.obj_bound: List[float | None] = []
         self.obj_val: List[float | None] = []
 
-        self.status: int = 0
-        # 0: not finished
-        # 1: optimal
-        # 2: max iteration reached
-        # 3: time limit reached
+        self.status: int = STATUS_NOT_FINISHED
         self.start_time = time.time()
 
     def set_logger(self, node_id: int, depth: int) -> None:
@@ -69,7 +66,7 @@ class BundleMethod:
 
     def reset_iteration(self, i=0) -> None:
         self.iteration = i
-        self.status = 0
+        self.status = STATUS_NOT_FINISHED
         self.start_time = time.time()
 
     def _solve(self) -> None:
@@ -98,12 +95,12 @@ class BundleMethod:
     def _termination_check(self) -> bool:
         
         if self.iteration >= self.max_iteration:
-            self.status = 2
+            self.status = STATUS_MAX_ITERATION
             self.logger.log_status_max_iter()
             return True
         
         if time.time() - self.start_time > BM_TIME_LIMIT:
-            self.status = 3
+            self.status = STATUS_TIME_LIMIT
             self.logger.log_status_time_limit()
             return True
         
@@ -117,7 +114,7 @@ class BundleMethod:
         gap = abs(self.obj_bound[-1] - self.obj_val[-1]) / abs(self.obj_val[-1])
 
         if gap < BM_REL_TOLERANCE:
-            self.status = 1
+            self.status = STATUS_OPTIMAL
             self.logger.log_status_optimal()
             return True
         

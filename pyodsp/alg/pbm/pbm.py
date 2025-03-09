@@ -9,7 +9,8 @@ from pyodsp.alg.cuts import CutList
 
 from .logger import PbmLogger
 from ..bm.bm import BundleMethod
-from ..const import BM_ABS_TOLERANCE, BM_REL_TOLERANCE, BM_TIME_LIMIT
+from ..params import BM_ABS_TOLERANCE, BM_REL_TOLERANCE, BM_TIME_LIMIT
+from ..const import *
 from pyodsp.solver.pyomo_solver import PyomoSolver
 from pyodsp.solver.pyomo_utils import (
     add_quad_terms_to_objective,
@@ -93,12 +94,12 @@ class ProximalBundleMethod(BundleMethod):
     def _termination_check(self) -> bool:
         
         if self.iteration >= self.max_iteration:
-            self.status = 2
+            self.status = STATUS_MAX_ITERATION
             self.logger.log_status_max_iter()
             return True
         
         if time.time() - self.start_time > BM_TIME_LIMIT:
-            self.status = 3
+            self.status = STATUS_TIME_LIMIT
             self.logger.log_status_time_limit()
             return True
         
@@ -112,7 +113,7 @@ class ProximalBundleMethod(BundleMethod):
                 self.center_val.append(self.center_val[-1])
             if len(self.obj_bound) > len(self.obj_val):
                 self.obj_val.append(self.obj_val[-1])
-            self.status = 1
+            self.status = STATUS_OPTIMAL
             self.logger.log_status_optimal()
             return True
         

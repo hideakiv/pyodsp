@@ -2,6 +2,8 @@ from typing import List, Dict
 from pathlib import Path
 from mpi4py import MPI
 
+from pyodsp.alg.const import *
+
 from .run import BdRun
 from .node import BdNode
 from .node_leaf import BdLeafNode
@@ -75,7 +77,7 @@ class BdRunMpi(BdRun):
         while True:
             status, solution = self.root.run_step(combined_cuts_dn)
 
-            if status != 0:
+            if status != STATUS_NOT_FINISHED:
                 self.comm.bcast(-1, root=0)
                 return
 

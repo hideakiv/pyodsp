@@ -1,4 +1,4 @@
-from setuptools import setup
+from setuptools import setup, find_packages
 
 setup(
     name="pyodsp",
@@ -6,7 +6,7 @@ setup(
     description="Pyomo interface for Decomposition of Structured Programs",
     author="Hideaki Nakao",
     author_email="h.nakao1992blanca@gmail.com",
-    packages=["pyodsp"],
+    packages=find_packages(),
     install_requires=[
         "numpy",
         "pandas",

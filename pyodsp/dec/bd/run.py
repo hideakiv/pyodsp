@@ -5,16 +5,16 @@ from pyodsp.alg.cuts import Cut, OptimalityCut, FeasibilityCut
 from pyodsp.alg.const import *
 
 from .logger import BdLogger
-from .node import BdNode
 from .node_leaf import BdLeafNode
 from .node_root import BdRootNode
 from .node_inner import BdInnerNode
 from ..utils import create_directory
+from ..node.dec_node import DecNode
 
 
 class BdRun:
-    def __init__(self, nodes: List[BdNode], filedir: Path):
-        self.nodes: Dict[int, BdNode] = {node.idx: node for node in nodes}
+    def __init__(self, nodes: List[DecNode], filedir: Path):
+        self.nodes: Dict[int, DecNode] = {node.idx: node for node in nodes}
         self.root = self._get_root()
         self.logger = BdLogger()
 
@@ -23,7 +23,7 @@ class BdRun:
 
     def _get_root(self) -> BdRootNode | None:
         for node in self.nodes.values():
-            if node.parent is None:
+            if type(node) is BdRootNode:
                 return node
         return None
 
@@ -37,7 +37,7 @@ class BdRun:
         for node in self.nodes.values():
             node.save(self.filedir)
 
-    def _run_check(self, node: BdNode) -> None:
+    def _run_check(self, node: DecNode) -> None:
         if isinstance(node, BdRootNode) or isinstance(node, BdInnerNode):
             node.set_logger()
         for child_id in node.get_children():
@@ -47,7 +47,7 @@ class BdRun:
                 raise ValueError("Inconsistent optimization sense")
             self._run_check(child)
 
-    def _run_node(self, node: BdNode, sol_up: List[float] | None = None) -> Cut | None:
+    def _run_node(self, node: DecNode, sol_up: List[float] | None = None) -> Cut | None:
         if isinstance(node, BdRootNode):
 
             self._set_bounds(node)
@@ -74,7 +74,7 @@ class BdRun:
             node.build()
             return node.solve(sol_up)
         
-    def _run_finalize(self, node: BdNode) -> None:
+    def _run_finalize(self, node: DecNode) -> None:
         if isinstance(node, BdRootNode) or isinstance(node, BdInnerNode):
             solution = node.get_solution_dn()
             for child_id in node.get_children():
@@ -86,7 +86,7 @@ class BdRun:
                     child.get_subgradient()
                 self._run_finalize(child)
 
-    def _get_cuts(self, node: BdNode, solution: List[float]) -> Dict[int, Cut]:
+    def _get_cuts(self, node: DecNode, solution: List[float]) -> Dict[int, Cut]:
         cuts_dn = {}
         for child in node.children:
             cut_dn = self._get_cut(child, solution)

@@ -4,21 +4,22 @@ from pathlib import Path
 from pyodsp.alg.cuts import Cut, OptimalityCut, FeasibilityCut
 from pyodsp.alg.params import DEC_CUT_ABS_TOL
 
-from .node import DdNode
+from ..node.dec_node import DecNodeLeaf
 from .alg_leaf import DdAlgLeaf
 from ..utils import create_directory
 
 
-class DdLeafNode(DdNode):
+class DdLeafNode(DecNodeLeaf):
     def __init__(
         self,
         idx: int,
         alg: DdAlgLeaf,
         parent: int,
     ) -> None:
-        super().__init__(idx, parent=parent)
+        super().__init__(idx)
+        self.add_parent(parent)
         self.alg = alg
-        self.is_minimize = self.alg.is_minimize()
+        self._is_minimize = self.alg.is_minimize()
         self.len_vars = self.alg.get_len_vars()
 
         self.built = False
@@ -81,7 +82,7 @@ class DdLeafNode(DdNode):
             coeff = 0.0
             for i, val in col.items():
                 coeff += dual_values[i] * val
-            if self.is_minimize:
+            if self.is_minimize():
                 coeffs[j] = coeff
             else:
                 coeffs[j] = -coeff
@@ -94,7 +95,7 @@ class DdLeafNode(DdNode):
             coeff = 0.0
             for j, val in row.items():
                 coeff += val * primal_values[j]
-            if self.is_minimize:
+            if self.is_minimize():
                 coeffs[i] = -coeff
             else:
                 coeffs[i] = coeff
@@ -106,3 +107,6 @@ class DdLeafNode(DdNode):
             product += xval * yval
 
         return product
+    
+    def is_minimize(self) -> bool:
+        return self._is_minimize

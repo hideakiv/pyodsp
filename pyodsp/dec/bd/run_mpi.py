@@ -5,14 +5,14 @@ from mpi4py import MPI
 from pyodsp.alg.const import *
 
 from .run import BdRun
-from .node import BdNode
+from ..node.dec_node import DecNode
 from .node_leaf import BdLeafNode
 from .node_inner import BdInnerNode
 
 
 class BdRunMpi(BdRun):
     def __init__(
-        self, nodes: List[BdNode], filedir: Path
+        self, nodes: List[DecNode], filedir: Path
     ):
         super().__init__(nodes, filedir)
         self.comm = MPI.COMM_WORLD
@@ -62,7 +62,7 @@ class BdRunMpi(BdRun):
         for node in self.nodes.values():
             node.save(self.filedir)
     
-    def _init_leaf(self, node: BdNode, is_minimize: bool, depth: int) -> None:
+    def _init_leaf(self, node: DecNode, is_minimize: bool, depth: int) -> None:
         if isinstance(node, BdLeafNode):
             if node.is_minimize() != is_minimize:
                 raise ValueError("Inconsistent optimization sense")

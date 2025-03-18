@@ -5,19 +5,18 @@ from pyomo.core.base.var import VarData
 
 from pyodsp.alg.cuts import Cut, CutList
 
-from .node import DdNode
+from ..node.dec_node import DecNodeRoot
 from .alg_root import DdAlgRoot
 from .mip_heuristic_root import MipHeuristicRoot
 from ..utils import create_directory
 
 
-class DdRootNode(DdNode):
+class DdRootNode(DecNodeRoot):
 
     def __init__(self, idx: int, alg: DdAlgRoot, rootsolver: str, **kwargs) -> None:
-        super().__init__(idx, parent=None)
+        super().__init__(idx)
         self.alg = alg
         self.coupling_vars_dn: Dict[int, List[VarData]] = alg.get_vars_dn()
-        self.is_minimize = alg.is_minimize
         self.num_constrs = alg.num_constrs
 
         self.groups = None
@@ -70,3 +69,6 @@ class DdRootNode(DdNode):
         node_dir = dir / f"node{self.idx}"
         create_directory(node_dir)
         self.alg.save(node_dir)
+
+    def is_minimize(self) -> bool:
+        return self.alg.is_minimize

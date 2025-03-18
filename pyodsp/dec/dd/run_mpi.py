@@ -5,13 +5,13 @@ from mpi4py import MPI
 from pyodsp.alg.const import *
 
 from .run import DdRun
-from .node import DdNode
+from ..node.dec_node import DecNode
 from ..utils import SparseMatrix
 
 
 class DdRunMpi(DdRun):
     def __init__(
-        self, nodes: List[DdNode], filedir: Path
+        self, nodes: List[DecNode], filedir: Path
     ):
         super().__init__(nodes, filedir)
         self.comm = MPI.COMM_WORLD
@@ -32,7 +32,7 @@ class DdRunMpi(DdRun):
             self.root.set_depth(0)
             self.root.set_logger()
             self._init_root()
-            is_minimize = self.root.is_minimize
+            is_minimize = self.root.is_minimize()
             self.comm.bcast(is_minimize, root=0)
             self.comm.bcast(self.root.get_depth(), root=0)
 

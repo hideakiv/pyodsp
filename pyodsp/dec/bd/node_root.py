@@ -6,19 +6,19 @@ from pyomo.core.base.var import VarData
 from pyodsp.alg.cuts import Cut, OptimalityCut, FeasibilityCut, CutList
 from pyodsp.alg.params import DEC_CUT_ABS_TOL
 
-from .node import BdNode
+from ..node.dec_node import DecNodeRoot
 from .alg_root import BdAlgRoot
 from ..utils import create_directory
 
 
-class BdRootNode(BdNode):
+class BdRootNode(DecNodeRoot):
 
     def __init__(
         self,
         idx: int,
         alg: BdAlgRoot,
     ) -> None:
-        super().__init__(idx, parent=None)
+        super().__init__(idx)
         self.alg = alg
         self.coupling_vars_dn: List[VarData] = alg.get_vars()
 
@@ -35,14 +35,6 @@ class BdRootNode(BdNode):
     
     def set_logger(self):
         self.alg.set_logger(self.idx, self.depth)
-
-    def remove_child(self, idx):
-        self.children_bounds.pop(idx)
-        return super().remove_child(idx)
-
-    def remove_children(self):
-        self.children_bounds = {}
-        return super().remove_children()
 
     def build(self) -> None:
         if self.built:

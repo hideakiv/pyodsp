@@ -3,12 +3,12 @@ from pathlib import Path
 
 from pyodsp.alg.cuts import Cut
 
-from .node import BdNode
+from ..node.dec_node import DecNodeLeaf
 from .alg_leaf import BdAlgLeaf
 from ..utils import create_directory
 
 
-class BdLeafNode(BdNode):
+class BdLeafNode(DecNodeLeaf):
     def __init__(
         self,
         idx: int,
@@ -16,7 +16,8 @@ class BdLeafNode(BdNode):
         bound: float,
         parent: int,
     ) -> None:
-        super().__init__(idx, parent=parent)
+        super().__init__(idx)
+        self.add_parent(parent)
         self.alg = alg
         self.bound = bound
 

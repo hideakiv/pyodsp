@@ -5,15 +5,15 @@ from pyodsp.alg.cuts import Cut, OptimalityCut, FeasibilityCut
 from pyodsp.alg.const import *
 
 from .logger import DdLogger
-from .node import DdNode
 from .node_leaf import DdLeafNode
 from .node_root import DdRootNode
 from ..utils import create_directory, SparseMatrix
+from ..node.dec_node import DecNode
 
 
 class DdRun:
-    def __init__(self, nodes: List[DdNode], filedir: Path):
-        self.nodes: Dict[int, DdNode] = {node.idx: node for node in nodes}
+    def __init__(self, nodes: List[DecNode], filedir: Path):
+        self.nodes: Dict[int, DecNode] = {node.idx: node for node in nodes}
         self.root = self._get_root()
         self.logger = DdLogger()
 
@@ -22,7 +22,7 @@ class DdRun:
 
     def _get_root(self) -> DdRootNode | None:
         for node in self.nodes.values():
-            if node.parent is None:
+            if type(node) is DdRootNode:
                 return node
         return None
 
@@ -36,7 +36,7 @@ class DdRun:
                 self._init_leaf(
                     child_id, 
                     self.root.alg.lagrangian_data.matrix[child_id], 
-                    self.root.is_minimize,
+                    self.root.is_minimize(),
                     self.root.get_depth() + 1
                 )
 
@@ -61,7 +61,7 @@ class DdRun:
         node = self.nodes[node_id]
         node.set_depth(depth)
         assert isinstance(node, DdLeafNode)
-        if node.is_minimize != is_minimize:
+        if node.is_minimize() != is_minimize:
             raise ValueError("Inconsistent optimization sense")
         node.set_coupling_matrix(matrix)
 

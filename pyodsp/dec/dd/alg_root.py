@@ -124,9 +124,5 @@ class DdAlgRoot(IAlgRoot, ABC):
         return self._is_minimize
 
     @abstractmethod
-    def reset_iteration(self) -> None:
-        pass
-
-    @abstractmethod
     def get_cuts(self) -> List[List[CutInfo]]:
         pass

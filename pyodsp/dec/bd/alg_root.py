@@ -11,7 +11,3 @@ class BdAlgRoot(IAlgRoot, ABC):
     @abstractmethod
     def get_vars(self) -> List[VarData]:
         pass
-
-    @abstractmethod
-    def reset_iteration(self) -> None:
-        pass

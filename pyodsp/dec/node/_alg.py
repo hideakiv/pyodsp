@@ -32,6 +32,10 @@ class IAlgRoot(IAlg, ABC):
     def add_cuts(self, cuts_list: List[CutList]) -> None:
         pass
 
+    @abstractmethod
+    def reset_iteration(self) -> None:
+        pass
+
 class IAlgLeaf(IAlg, ABC):
     @abstractmethod
     def build(self) -> None:

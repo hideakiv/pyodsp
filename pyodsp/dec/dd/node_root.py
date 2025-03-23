@@ -11,11 +11,12 @@ class DdRootNode(DecNodeRoot):
 
     def __init__(self, idx: int, alg_root: DdAlgRoot, rootsolver: str, **kwargs) -> None:
         super().__init__(idx, alg_root)
-        self.coupling_vars_dn: Dict[int, List[VarData]] = alg_root.get_vars_dn()
-        self.num_constrs = alg_root.num_constrs
 
         self.rootsolver = rootsolver
         self.kwargs = kwargs
+
+    def get_num_constrs(self) -> int:
+        return self.alg_root.num_constrs
 
     def solve_mip_heuristic(self) -> Dict[int, List[float]]:
         self.mip_heuristic = MipHeuristicRoot(

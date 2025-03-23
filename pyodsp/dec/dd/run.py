@@ -67,7 +67,7 @@ class DdRun:
 
     def _run_root(self) -> None:
         self.root.alg_root.reset_iteration()
-        cuts_dn = self._run_leaf([0.0 for _ in range(self.root.num_constrs)])
+        cuts_dn = self._run_leaf([0.0 for _ in range(self.root.get_num_constrs())])
         while True:
             status, solution = self.root.run_step(cuts_dn)
             if status != STATUS_NOT_FINISHED:

@@ -72,7 +72,7 @@ def main():
     bd_run = BdRun([root_node, leaf_node_1, leaf_node_2], Path("output/bd/feasibility"))
     bd_run.run()
 
-    assert_approximately_equal(root_node.alg.bm.obj_bound[-1], 26.48)
+    assert_approximately_equal(root_node.alg_root.bm.obj_bound[-1], 26.48)
 
 
 if __name__ == "__main__":

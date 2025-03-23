@@ -22,7 +22,7 @@ def main():
     dd_run = DdRun([master, sub_1, sub_2, sub_3], Path("output/dd/equality_pbm"))
     dd_run.run()
 
-    assert_approximately_equal(master.alg.pbm.obj_bound[-1], -21.5)
+    assert_approximately_equal(master.alg_root.pbm.obj_bound[-1], -21.5)
 
 
 if __name__ == "__main__":

@@ -34,13 +34,13 @@ def main():
     dd_run.run()
 
     if rank == 0:
-        assert_approximately_equal(node.alg.bm.obj_bound[-1], -19.666666666666664)
+        assert_approximately_equal(node.alg_root.bm.obj_bound[-1], -19.666666666666664)
     if rank == 1:
-        assert_approximately_equal(node.alg.solver.get_solution()[0], 1.0)
+        assert_approximately_equal(node.alg_leaf.solver.get_solution()[0], 1.0)
     if rank == 2:
-        assert_approximately_equal(node.alg.solver.get_solution()[0], 2.0)
+        assert_approximately_equal(node.alg_leaf.solver.get_solution()[0], 2.0)
     if rank == 3:
-        assert_approximately_equal(node.alg.solver.get_solution()[0], 2.0)
+        assert_approximately_equal(node.alg_leaf.solver.get_solution()[0], 2.0)
 
 
 if __name__ == "__main__":

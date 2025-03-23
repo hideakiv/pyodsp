@@ -62,10 +62,10 @@ def main():
     dd_run = DdRun([master, sub_1, sub_2, sub_3], Path("output/dd/equality_mip"))
     dd_run.run()
 
-    assert_approximately_equal(master.alg.pbm.obj_bound[-1], -19.666666666)
-    assert_approximately_equal(sub_1.alg.solver.get_solution()[0], 1.0)
-    assert_approximately_equal(sub_2.alg.solver.get_solution()[0], 2.0)
-    assert_approximately_equal(sub_3.alg.solver.get_solution()[0], 2.0)
+    assert_approximately_equal(master.alg_root.pbm.obj_bound[-1], -19.666666666)
+    assert_approximately_equal(sub_1.alg_leaf.solver.get_solution()[0], 1.0)
+    assert_approximately_equal(sub_2.alg_leaf.solver.get_solution()[0], 2.0)
+    assert_approximately_equal(sub_3.alg_leaf.solver.get_solution()[0], 2.0)
 
 
 if __name__ == "__main__":

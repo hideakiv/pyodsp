@@ -12,6 +12,7 @@ class DdAlgLeafPyomo(DdAlgLeaf):
     def __init__(self, solver: PyomoSolver):
         self.solver = solver
         self.step_time: List[float] = []
+        self._is_minimize = self.solver.is_minimize()
 
     def build(self) -> None:
         self.solver.original_objective.deactivate()
@@ -35,7 +36,7 @@ class DdAlgLeafPyomo(DdAlgLeaf):
             raise ValueError("Unknown solver status")
 
     def is_minimize(self) -> bool:
-        return self.solver.is_minimize()
+        return self._is_minimize
 
     def get_len_vars(self) -> int:
         return len(self.solver.vars)

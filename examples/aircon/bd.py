@@ -26,7 +26,7 @@ def main(solver="appsi_highs", agg=False):
 
     bd_run = BdRun(nodes, Path("output/aircon/bd"))
     bd_run.run()
-    assert_approximately_equal(nodes[0].alg.bm.obj_bound[-1], 6.25)
+    assert_approximately_equal(nodes[0].alg_root.bm.obj_bound[-1], 6.25)
 
 def create_root(idx, demand, solver_name, agg=False):
     model = pyo.ConcreteModel()

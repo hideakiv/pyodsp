@@ -35,7 +35,7 @@ class DdRun:
             for child_id in self.root.get_children():
                 self._init_leaf(
                     child_id, 
-                    self.root.alg.lagrangian_data.matrix[child_id], 
+                    self.root.alg_root.lagrangian_data.matrix[child_id], 
                     self.root.is_minimize(),
                     self.root.get_depth() + 1
                 )
@@ -66,7 +66,7 @@ class DdRun:
         node.set_coupling_matrix(matrix)
 
     def _run_root(self) -> None:
-        self.root.alg.reset_iteration()
+        self.root.alg_root.reset_iteration()
         cuts_dn = self._run_leaf([0.0 for _ in range(self.root.num_constrs)])
         while True:
             status, solution = self.root.run_step(cuts_dn)
@@ -107,6 +107,6 @@ class DdRun:
     def _finalize_leaf(self, node_id, solution: List[float]) -> float:
         node = self.nodes[node_id]
         assert isinstance(node, DdLeafNode)
-        node.alg.fix_variables_and_solve(solution)
-        return node.alg.get_objective_value()
+        node.alg_leaf.fix_variables_and_solve(solution)
+        return node.alg_leaf.get_objective_value()
 

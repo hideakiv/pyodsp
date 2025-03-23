@@ -5,9 +5,10 @@ from pathlib import Path
 from pyomo.core.base.var import VarData
 
 from pyodsp.alg.cuts import CutList
+from ..node._alg import IAlgRoot
 
 
-class BdAlgRoot(ABC):
+class BdAlgRoot(IAlgRoot, ABC):
 
     @abstractmethod
     def get_vars(self) -> List[VarData]:
@@ -27,14 +28,6 @@ class BdAlgRoot(ABC):
 
     @abstractmethod
     def reset_iteration(self) -> None:
-        pass
-
-    @abstractmethod
-    def save(self, dir: Path) -> None:
-        pass
-    
-    @abstractmethod
-    def is_minimize(self) -> bool:
         pass
 
     @abstractmethod

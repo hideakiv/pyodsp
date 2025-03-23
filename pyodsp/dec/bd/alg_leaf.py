@@ -4,8 +4,10 @@ from pathlib import Path
 
 from pyodsp.alg.cuts import Cut
 
+from ..node._alg import IAlgLeaf
 
-class BdAlgLeaf(ABC):
+
+class BdAlgLeaf(IAlgLeaf, ABC):
 
     @abstractmethod
     def build(self) -> None:
@@ -24,10 +26,3 @@ class BdAlgLeaf(ABC):
     def get_subgradient(self) -> Cut:
         pass
 
-    @abstractmethod
-    def save(self, dir: Path) -> None:
-        pass
-    
-    @abstractmethod
-    def is_minimize(self) -> bool:
-        pass

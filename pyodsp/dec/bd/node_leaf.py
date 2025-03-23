@@ -12,13 +12,12 @@ class BdLeafNode(DecNodeLeaf):
     def __init__(
         self,
         idx: int,
-        alg: BdAlgLeaf,
+        alg_leaf: BdAlgLeaf,
         bound: float,
         parent: int,
     ) -> None:
-        super().__init__(idx)
+        super().__init__(idx, alg_leaf)
         self.add_parent(parent)
-        self.alg = alg
         self.bound = bound
 
         self.built = False
@@ -26,20 +25,12 @@ class BdLeafNode(DecNodeLeaf):
     def build(self) -> None:
         if self.built:
             return
-        self.alg.build()
+        self.alg_leaf.build()
         self.built = True
 
     def solve(self, coupling_values: List[float]) -> Cut:
-        self.alg.fix_variables(coupling_values)
-        return self.alg.get_subgradient()
+        self.alg_leaf.fix_variables(coupling_values)
+        return self.alg_leaf.get_subgradient()
 
     def get_bound(self) -> float:
         return self.bound
-
-    def save(self, dir: Path):
-        node_dir = dir / f"node{self.idx}"
-        create_directory(node_dir)
-        self.alg.save(node_dir)
-
-    def is_minimize(self) -> bool:
-        return self.alg.is_minimize()

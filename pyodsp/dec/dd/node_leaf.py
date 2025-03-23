@@ -13,14 +13,13 @@ class DdLeafNode(DecNodeLeaf):
     def __init__(
         self,
         idx: int,
-        alg: DdAlgLeaf,
+        alg_leaf: DdAlgLeaf,
         parent: int,
     ) -> None:
-        super().__init__(idx)
+        super().__init__(idx, alg_leaf)
         self.add_parent(parent)
-        self.alg = alg
-        self._is_minimize = self.alg.is_minimize()
-        self.len_vars = self.alg.get_len_vars()
+        self._is_minimize = alg_leaf.is_minimize()
+        self.len_vars = alg_leaf.get_len_vars()
 
         self.built = False
 
@@ -34,13 +33,13 @@ class DdLeafNode(DecNodeLeaf):
     def build(self) -> None:
         if self.built:
             return
-        self.alg.build()
+        self.alg_leaf.build()
         self.built = True
 
     def solve(self, dual_values: List[float]) -> Cut:
         primal_coeffs = self._dual_times_matrix(dual_values)
-        self.alg.update_objective(primal_coeffs)
-        is_optimal, solution, obj = self.alg.get_solution_or_ray()
+        self.alg_leaf.update_objective(primal_coeffs)
+        is_optimal, solution, obj = self.alg_leaf.get_solution_or_ray()
         if is_optimal:
             dual_coeffs = self._matrix_times_primal(solution)
             product = self._inner_product(primal_coeffs, solution)
@@ -60,11 +59,6 @@ class DdLeafNode(DecNodeLeaf):
             return FeasibilityCut(
                 coeffs=sparse_coeff, rhs=rhs, info={"solution": solution}
             )
-
-    def save(self, dir: Path):
-        node_dir = dir / f"node{self.idx}"
-        create_directory(node_dir)
-        self.alg.save(node_dir)
 
     def _convert_to_col_major(
         self, row_major: List[Dict[int, float]]
@@ -107,6 +101,3 @@ class DdLeafNode(DecNodeLeaf):
             product += xval * yval
 
         return product
-    
-    def is_minimize(self) -> bool:
-        return self._is_minimize

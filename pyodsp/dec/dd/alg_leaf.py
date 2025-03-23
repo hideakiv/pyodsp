@@ -1,9 +1,9 @@
 from abc import ABC, abstractmethod
 from typing import List, Tuple
-from pathlib import Path
 
+from ..node._alg import IAlgLeaf
 
-class DdAlgLeaf(ABC):
+class DdAlgLeaf(IAlgLeaf, ABC):
 
     @abstractmethod
     def build(self) -> None:
@@ -18,10 +18,6 @@ class DdAlgLeaf(ABC):
         pass
 
     @abstractmethod
-    def is_minimize(self) -> bool:
-        pass
-
-    @abstractmethod
     def get_len_vars(self) -> int:
         pass
 
@@ -31,8 +27,4 @@ class DdAlgLeaf(ABC):
 
     @abstractmethod
     def fix_variables_and_solve(self, values: List[float]) -> None:
-        pass
-
-    @abstractmethod
-    def save(self, dir: Path) -> None:
         pass

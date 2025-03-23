@@ -72,11 +72,11 @@ class DdRunMpi(DdRun):
             target = self.node_rank_map[child_id]
             if target not in matrices:
                 matrices[target] = {}
-            matrices[target][child_id] = self.root.alg.lagrangian_data.matrix[child_id]
+            matrices[target][child_id] = self.root.alg_root.lagrangian_data.matrix[child_id]
         return matrices
     
     def _run_root(self) -> None:
-        self.root.alg.reset_iteration()
+        self.root.alg_root.reset_iteration()
         solution = [0.0 for _ in range(self.root.num_constrs)]
         
         # broadcast solution

@@ -69,7 +69,7 @@ def main():
     dd_run = DdRun([master, sub_1, sub_2], Path("output/dd/ray"))
     dd_run.run()
 
-    assert_approximately_equal(master.alg.bm.obj_bound[-1], 15.09090909090909)
+    assert_approximately_equal(master.alg_root.bm.obj_bound[-1], 15.09090909090909)
 
 
 if __name__ == "__main__":

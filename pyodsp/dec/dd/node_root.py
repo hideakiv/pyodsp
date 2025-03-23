@@ -14,11 +14,10 @@ from ..utils import create_directory
 
 class DdRootNode(DecNodeRoot):
 
-    def __init__(self, idx: int, alg: DdAlgRoot, rootsolver: str, **kwargs) -> None:
-        super().__init__(idx)
-        self.alg = alg
-        self.coupling_vars_dn: Dict[int, List[VarData]] = alg.get_vars_dn()
-        self.num_constrs = alg.num_constrs
+    def __init__(self, idx: int, alg_root: DdAlgRoot, rootsolver: str, **kwargs) -> None:
+        super().__init__(idx, alg_root)
+        self.coupling_vars_dn: Dict[int, List[VarData]] = alg_root.get_vars_dn()
+        self.num_constrs = alg_root.num_constrs
 
         self.built = False
 
@@ -26,7 +25,7 @@ class DdRootNode(DecNodeRoot):
         self.kwargs = kwargs
 
     def set_logger(self):
-        self.alg.set_logger(self.idx, self.depth)
+        self.alg_root.set_logger(self.idx, self.depth)
 
     def build(self) -> None:
         if self.built:
@@ -36,26 +35,18 @@ class DdRootNode(DecNodeRoot):
         self.cut_aggregator = CutAggregator(self.groups, self.children_multipliers)
         self.num_cuts = len(self.groups)
 
-        self.alg.build(self.num_cuts)
+        self.alg_root.build(self.num_cuts)
         self.built = True
 
     def solve_mip_heuristic(self) -> Dict[int, List[float]]:
         self.mip_heuristic = MipHeuristicRoot(
-            self.rootsolver, self.groups, self.alg, **self.kwargs
+            self.rootsolver, self.groups, self.alg_root, **self.kwargs
         )
         self.mip_heuristic.build()
         return self.mip_heuristic.run()
 
     def run_step(self, cuts: Dict[int, Cut] | None) -> Tuple[int, List[float]]:
         if cuts is None:
-            return self.alg.run_step(None)
+            return self.alg_root.run_step(None)
         aggregate_cuts = self.cut_aggregator.get_aggregate_cuts(cuts)
-        return self.alg.run_step(aggregate_cuts)
-
-    def save(self, dir: Path):
-        node_dir = dir / f"node{self.idx}"
-        create_directory(node_dir)
-        self.alg.save(node_dir)
-
-    def is_minimize(self) -> bool:
-        return self.alg.is_minimize
+        return self.alg_root.run_step(aggregate_cuts)

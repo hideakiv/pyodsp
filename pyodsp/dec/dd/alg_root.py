@@ -1,6 +1,5 @@
-from abc import abstractmethod
+from abc import ABC, abstractmethod
 from typing import List, Dict, Tuple
-from pathlib import Path
 
 from pyomo.environ import (
     ConcreteModel,
@@ -21,8 +20,9 @@ from pyodsp.alg.cuts import CutList
 from pyodsp.alg.cuts_manager import CutInfo
 from pyodsp.alg.params import DEC_CUT_ABS_TOL
 
+from ..node._alg import IAlgRoot
 
-class DdAlgRoot:
+class DdAlgRoot(IAlgRoot, ABC):
 
     def __init__(
         self,
@@ -38,7 +38,7 @@ class DdAlgRoot:
         self.solver = self._create_master(
             coupling_model, is_minimize, solver_name, vars_dn, **kwargs
         )
-        self.is_minimize = is_minimize
+        self._is_minimize = is_minimize
 
     def _create_master(
         self,
@@ -120,7 +120,9 @@ class DdAlgRoot:
         
         if len(varname_list) > 0:
             raise ValueError(f"Variables {varname_list} not coupled")
-
+        
+    def is_minimize(self) -> bool:
+        return self._is_minimize
 
     @abstractmethod
     def build(self, num_cuts: int) -> None:
@@ -136,10 +138,6 @@ class DdAlgRoot:
 
     @abstractmethod
     def get_cuts(self) -> List[List[CutInfo]]:
-        pass
-
-    @abstractmethod
-    def save(self, dir: Path) -> None:
         pass
 
     @abstractmethod

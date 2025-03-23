@@ -80,7 +80,7 @@ def main():
     bd_run = BdRun([root_node, leaf_node_1, leaf_node_2], Path("output/bd/optimality"))
     bd_run.run()
 
-    assert_approximately_equal(root_node.alg.bm.obj_bound[-1], -855.83333333333)
+    assert_approximately_equal(root_node.alg_root.bm.obj_bound[-1], -855.83333333333)
 
 
 if __name__ == "__main__":

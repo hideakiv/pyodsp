@@ -1,12 +1,10 @@
 from typing import List, Dict
-from pathlib import Path
 
 from pyodsp.alg.cuts import Cut, OptimalityCut, FeasibilityCut
 from pyodsp.alg.params import DEC_CUT_ABS_TOL
 
 from ..node.dec_node import DecNodeLeaf
 from .alg_leaf import DdAlgLeaf
-from ..utils import create_directory
 
 
 class DdLeafNode(DecNodeLeaf):
@@ -21,20 +19,12 @@ class DdLeafNode(DecNodeLeaf):
         self._is_minimize = alg_leaf.is_minimize()
         self.len_vars = alg_leaf.get_len_vars()
 
-        self.built = False
-
     def set_coupling_matrix(self, coupling_matrix: List[Dict[int, float]]) -> None:
         self.row_major: List[Dict[int, float]] = coupling_matrix
         self.len_constrs = len(coupling_matrix)
         self.col_major: List[Dict[int, float]] = self._convert_to_col_major(
             coupling_matrix
         )
-
-    def build(self) -> None:
-        if self.built:
-            return
-        self.alg_leaf.build()
-        self.built = True
 
     def solve(self, dual_values: List[float]) -> Cut:
         primal_coeffs = self._dual_times_matrix(dual_values)

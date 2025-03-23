@@ -1,15 +1,20 @@
 from abc import ABC, abstractmethod
-from typing import Dict, List
+from typing import Dict, List, Tuple
 from pathlib import Path
+
+from pyodsp.alg.cuts import Cut
 
 from ._node import NodeIdx, INode, INodeParent, INodeChild, INodeInner
 from ._alg import IAlgRoot, IAlgLeaf
+from .cut_aggregator import CutAggregator
 from ..utils import create_directory
 
 class DecNode(INode, ABC):
     def __init__(self, idx: NodeIdx) -> None:
         self.idx: NodeIdx = idx
         self.depth: int | None = None
+        
+        self.built = False
 
     def get_idx(self) -> NodeIdx:
         return self.idx
@@ -22,12 +27,23 @@ class DecNode(INode, ABC):
     def set_depth(self, depth: int) -> None:
         self.depth = depth
 
+    def build(self) -> None:
+        if self.built:
+            return
+        self.build_inner()
+        self.built = True
+
+    @abstractmethod
+    def build_inner(self) -> None:
+        pass
+
 class DecNodeParent(INodeParent, DecNode, ABC):
     def __init__(self, idx: NodeIdx, alg_root: IAlgRoot) -> None:
         super().__init__(idx)
         self.alg_root = alg_root
         self.children: List[NodeIdx] = []
         self.children_multipliers: Dict[NodeIdx, float] = {}
+        self.children_bounds: Dict[int, float] = {}
         self.groups = []
 
     def add_child(self, idx: NodeIdx, multiplier: float = 1.0) -> None:
@@ -54,6 +70,12 @@ class DecNodeParent(INodeParent, DecNode, ABC):
 
     def get_multiplier(self, idx: NodeIdx) -> float:
         return self.children_multipliers[idx]
+
+    def set_bound(self, idx: NodeIdx, bound: float) -> None:
+        self.children_bounds[idx] = bound
+
+    def get_bound(self, idx: NodeIdx) -> float:
+        return self.children_bounds[idx]
     
     def get_parents(self) -> List[NodeIdx]:
         return []
@@ -61,9 +83,35 @@ class DecNodeParent(INodeParent, DecNode, ABC):
     def get_children(self) -> List[NodeIdx]:
         return self.children
 
+    def build_inner(self) -> None:
+        if len(self.groups) == 0:
+            self.groups = [[child] for child in self.children]
+        self.cut_aggregator = CutAggregator(self.groups, self.children_multipliers)
+        self.num_cuts = len(self.groups)
+
+        subobj_bounds: List[float | None] = []
+        for group in self.groups:
+            bound = 0.0
+            for member in group:
+                if member not in self.children_bounds:
+                    bound = None
+                    break
+                bound += (
+                    self.children_multipliers[member] * self.children_bounds[member]
+                )
+            subobj_bounds.append(bound)
+        
+        self.alg_root.build(subobj_bounds)
+
     def set_logger(self) -> None:
         assert self.depth is not None
         self.alg_root.set_logger(self.idx, self.depth)
+
+    def run_step(self, cuts: Dict[int, Cut] | None) -> Tuple[int, List[float]]:
+        if cuts is None:
+            return self.alg_root.run_step(None)
+        aggregate_cuts = self.cut_aggregator.get_aggregate_cuts(cuts)
+        return self.alg_root.run_step(aggregate_cuts)
     
     def save(self, dir: Path) -> None:
         node_dir = dir / f"node{self.idx}"
@@ -92,6 +140,9 @@ class DecNodeChild(INodeChild, DecNode, ABC):
     def get_children(self) -> List[NodeIdx]:
         return []
     
+    def build_inner(self) -> None:
+        self.alg_leaf.build()
+    
     def save(self, dir: Path) -> None:
         node_dir = dir / f"node{self.idx}"
         create_directory(node_dir)
@@ -114,6 +165,10 @@ class DecNodeInner(INodeInner, DecNodeParent, DecNodeChild, ABC):
     def get_children(self) -> List[NodeIdx]:
         return DecNodeParent.get_children(self)
     
+    def build_inner(self) -> None:
+        DecNodeParent.build_inner(self)
+        DecNodeChild.build_inner(self)
+
     def save(self, dir: Path):
         DecNodeParent.save(self, dir)
 

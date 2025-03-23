@@ -29,7 +29,8 @@ class DdAlgRootBm(DdAlgRoot):
         self.bm = BundleMethod(self.solver, max_iteration)
         self.step_time: List[float] = []
 
-    def build(self, num_cuts: int) -> None:
+    def build(self, bounds: List[float | None]) -> None:
+        num_cuts = len(bounds)
         if self.is_minimize():
             dummy_bounds = [BM_DUMMY_BOUND for _ in range(num_cuts)]
         else:

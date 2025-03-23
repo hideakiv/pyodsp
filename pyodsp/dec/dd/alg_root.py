@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import List, Dict, Tuple
+from typing import List, Dict
 
 from pyomo.environ import (
     ConcreteModel,
@@ -16,7 +16,6 @@ from pyomo.core.base.var import VarData, IndexedVar
 
 from pyodsp.dec.utils import get_nonzero_coefficients_group
 from pyodsp.solver.pyomo_solver import PyomoSolver
-from pyodsp.alg.cuts import CutList
 from pyodsp.alg.cuts_manager import CutInfo
 from pyodsp.alg.params import DEC_CUT_ABS_TOL
 
@@ -123,14 +122,6 @@ class DdAlgRoot(IAlgRoot, ABC):
         
     def is_minimize(self) -> bool:
         return self._is_minimize
-
-    @abstractmethod
-    def build(self, num_cuts: int) -> None:
-        pass
-
-    @abstractmethod
-    def run_step(self, cuts_list: List[CutList] | None) -> Tuple[int, List[float]]:
-        pass
 
     @abstractmethod
     def reset_iteration(self) -> None:

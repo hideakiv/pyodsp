@@ -1,6 +1,8 @@
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Any, List
+from typing import Any, List, Dict, Tuple
+
+from pyodsp.alg.cuts import Cut
 
 NodeIdx = Any
 
@@ -55,7 +57,19 @@ class INodeParent(INode, ABC):
         pass
 
     @abstractmethod
+    def set_bound(self, idx: NodeIdx, bound: float) -> None:
+        pass
+
+    @abstractmethod
+    def get_bound(self, idx: NodeIdx) -> float:
+        pass
+
+    @abstractmethod
     def set_logger(self) -> None:
+        pass
+
+    @abstractmethod
+    def run_step(self, cuts: Dict[int, Cut] | None) -> Tuple[int, List[float]]:
         pass
 
 INodeRoot = INodeParent

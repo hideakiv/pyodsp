@@ -6,10 +6,6 @@ from ..node._alg import IAlgLeaf
 class DdAlgLeaf(IAlgLeaf, ABC):
 
     @abstractmethod
-    def build(self) -> None:
-        pass
-
-    @abstractmethod
     def update_objective(self, coeffs: List[float]) -> None:
         pass
 

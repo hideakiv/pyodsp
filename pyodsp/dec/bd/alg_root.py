@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import List, Tuple
+from typing import List
 
 from pyomo.core.base.var import VarData
 
@@ -11,14 +11,6 @@ class BdAlgRoot(IAlgRoot, ABC):
 
     @abstractmethod
     def get_vars(self) -> List[VarData]:
-        pass
-
-    @abstractmethod
-    def build(self, subobj_bounds: List[float]) -> None:
-        pass
-
-    @abstractmethod
-    def run_step(self, cuts_list: List[CutList] | None) -> Tuple[int, List[float]]:
         pass
 
     @abstractmethod

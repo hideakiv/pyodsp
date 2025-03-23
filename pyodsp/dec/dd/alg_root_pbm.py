@@ -28,7 +28,8 @@ class DdAlgRootPbm(DdAlgRoot):
         self.pbm = ProximalBundleMethod(self.solver, max_iteration)
         self.step_time: List[float] = []
 
-    def build(self, num_cuts: int) -> None:
+    def build(self, bounds: List[float | None]) -> None:
+        num_cuts = len(bounds)
         self.pbm.set_init_solution([0.0 for _ in range(num_cuts)])
         self.pbm.build(num_cuts)
 

@@ -112,6 +112,10 @@ class DecNodeParent(INodeParent, DecNode, ABC):
             return self.alg_root.run_step(None)
         aggregate_cuts = self.cut_aggregator.get_aggregate_cuts(cuts)
         return self.alg_root.run_step(aggregate_cuts)
+
+    def add_cuts(self, cuts: Dict[int, Cut]) -> None:
+        aggregate_cuts = self.cut_aggregator.get_aggregate_cuts(cuts)
+        self.alg_root.add_cuts(aggregate_cuts)
     
     def save(self, dir: Path) -> None:
         node_dir = dir / f"node{self.idx}"

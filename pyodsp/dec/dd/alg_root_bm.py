@@ -47,6 +47,9 @@ class DdAlgRootBm(DdAlgRoot):
     def reset_iteration(self) -> None:
         self.bm.reset_iteration()
 
+    def add_cuts(self, cuts_list: List[CutList]) -> None:
+        self.bm.add_cuts(cuts_list)
+
     def get_cuts(self) -> List[List[CutInfo]]:
         return self.bm.cuts_manager.get_cuts()
 

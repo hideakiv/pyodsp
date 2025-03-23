@@ -42,6 +42,9 @@ class DdAlgRootPbm(DdAlgRoot):
     def reset_iteration(self) -> None:
         self.pbm.reset_iteration()
 
+    def add_cuts(self, cuts_list: List[CutList]) -> None:
+        self.pbm.add_cuts(cuts_list)
+
     def get_cuts(self) -> List[List[CutInfo]]:
         return self.pbm.cuts_manager.get_cuts()
 

@@ -72,6 +72,10 @@ class INodeParent(INode, ABC):
     def run_step(self, cuts: Dict[int, Cut] | None) -> Tuple[int, List[float]]:
         pass
 
+    @abstractmethod
+    def add_cuts(self, cuts: Dict[int, Cut]) -> None:
+        pass
+
 INodeRoot = INodeParent
 
 class INodeChild(INode, ABC):

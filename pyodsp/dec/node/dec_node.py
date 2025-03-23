@@ -32,7 +32,7 @@ class DecNodeParent(INodeParent, DecNode, ABC):
         self.children.append(idx)
         self.set_multiplier(idx, multiplier)
 
-    def set_children_group(self, groups: List[List[NodeIdx]]) -> None:
+    def set_groups(self, groups: List[List[NodeIdx]]) -> None:
         all_group_elements = set()
         for group in groups:
             group_set = set(group)

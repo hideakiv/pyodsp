@@ -25,9 +25,6 @@ class BdRootNode(DecNodeRoot):
 
     def set_bound(self, idx, bound) -> None:
         self.children_bounds[idx] = bound
-    
-    def set_logger(self):
-        self.alg_root.set_logger(self.idx, self.depth)
 
     def build(self) -> None:
         if self.built:

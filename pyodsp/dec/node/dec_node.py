@@ -60,6 +60,10 @@ class DecNodeParent(INodeParent, DecNode, ABC):
 
     def get_children(self) -> List[NodeIdx]:
         return self.children
+
+    def set_logger(self) -> None:
+        assert self.depth is not None
+        self.alg_root.set_logger(self.idx, self.depth)
     
     def save(self, dir: Path) -> None:
         node_dir = dir / f"node{self.idx}"

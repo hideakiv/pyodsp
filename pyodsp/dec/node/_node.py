@@ -54,6 +54,10 @@ class INodeParent(INode, ABC):
     def get_multiplier(self, idx: NodeIdx) -> float:
         pass
 
+    @abstractmethod
+    def set_logger(self) -> None:
+        pass
+
 INodeRoot = INodeParent
 
 class INodeChild(INode, ABC):

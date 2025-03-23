@@ -1,5 +1,4 @@
 from typing import List, Dict, Tuple
-from pathlib import Path
 
 from pyomo.core.base.var import VarData
 
@@ -9,7 +8,6 @@ from ..node.dec_node import DecNodeRoot
 from ..node.cut_aggregator import CutAggregator
 from .alg_root import DdAlgRoot
 from .mip_heuristic_root import MipHeuristicRoot
-from ..utils import create_directory
 
 
 class DdRootNode(DecNodeRoot):
@@ -23,9 +21,6 @@ class DdRootNode(DecNodeRoot):
 
         self.rootsolver = rootsolver
         self.kwargs = kwargs
-
-    def set_logger(self):
-        self.alg_root.set_logger(self.idx, self.depth)
 
     def build(self) -> None:
         if self.built:

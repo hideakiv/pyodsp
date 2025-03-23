@@ -1,6 +1,8 @@
 from abc import ABC, abstractmethod
 from pathlib import Path
 
+from ._node import NodeIdx
+
 class IAlg(ABC):
     @abstractmethod
     def save(self, dir: Path) -> None:
@@ -11,7 +13,9 @@ class IAlg(ABC):
         pass
 
 class IAlgRoot(IAlg, ABC):
-    pass
+    @abstractmethod
+    def set_logger(self, idx: NodeIdx, depth: int) -> None:
+        pass
 
 class IAlgLeaf(IAlg, ABC):
     pass

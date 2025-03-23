@@ -139,7 +139,3 @@ class DdAlgRoot(IAlgRoot, ABC):
     @abstractmethod
     def get_cuts(self) -> List[List[CutInfo]]:
         pass
-
-    @abstractmethod
-    def set_logger(self, node_id: int, depth: int) -> None:
-        pass

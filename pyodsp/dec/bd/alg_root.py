@@ -1,6 +1,5 @@
 from abc import ABC, abstractmethod
 from typing import List, Tuple
-from pathlib import Path
 
 from pyomo.core.base.var import VarData
 
@@ -28,8 +27,4 @@ class BdAlgRoot(IAlgRoot, ABC):
 
     @abstractmethod
     def reset_iteration(self) -> None:
-        pass
-
-    @abstractmethod
-    def set_logger(self, node_id: int, depth: int) -> None:
         pass

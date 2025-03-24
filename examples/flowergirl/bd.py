@@ -3,7 +3,7 @@ import pyomo.environ as pyo
 
 from flowergirl import first_stage, mid_stage, last_stage
 
-from pyodsp.dec.bd.node_root import BdRootNode
+from pyodsp.dec.node.dec_node import DecNodeRoot
 from pyodsp.dec.bd.alg_root_bm import BdAlgRootBm
 from pyodsp.dec.bd.node_inner import BdInnerNode
 from pyodsp.dec.bd.node_leaf import BdLeafNode
@@ -32,7 +32,7 @@ def create_root(solver_name):
     coupling_dn = [model.init_purchase]
     solver_root = PyomoSolver(model, solver_name, coupling_dn)
     alg_root = BdAlgRootBm(solver_root)
-    node = BdRootNode(0, alg_root)
+    node = DecNodeRoot(0, alg_root)
     node.add_child(1, multiplier=0.5)
     node.add_child(2, multiplier=0.5)
     return node

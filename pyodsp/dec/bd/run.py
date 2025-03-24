@@ -6,10 +6,9 @@ from pyodsp.alg.const import *
 
 from .logger import BdLogger
 from .node_leaf import BdLeafNode
-from .node_root import BdRootNode
 from .node_inner import BdInnerNode
 from ..utils import create_directory
-from ..node.dec_node import DecNode
+from ..node.dec_node import DecNode, DecNodeRoot
 
 
 class BdRun:
@@ -21,9 +20,9 @@ class BdRun:
         self.filedir = filedir
         create_directory(self.filedir)
 
-    def _get_root(self) -> BdRootNode | None:
+    def _get_root(self) -> DecNodeRoot | None:
         for node in self.nodes.values():
-            if type(node) is BdRootNode:
+            if type(node) is DecNodeRoot:
                 return node
         return None
 
@@ -38,7 +37,7 @@ class BdRun:
             node.save(self.filedir)
 
     def _run_check(self, node: DecNode) -> None:
-        if isinstance(node, BdRootNode) or isinstance(node, BdInnerNode):
+        if isinstance(node, DecNodeRoot):
             node.set_logger()
         for child_id in node.get_children():
             child = self.nodes[child_id]
@@ -48,7 +47,7 @@ class BdRun:
             self._run_check(child)
 
     def _run_node(self, node: DecNode, sol_up: List[float] | None = None) -> Cut | None:
-        if isinstance(node, BdRootNode):
+        if isinstance(node, DecNodeRoot):
 
             self._set_bounds(node)
             node.build()
@@ -75,7 +74,7 @@ class BdRun:
             return node.solve(sol_up)
         
     def _run_finalize(self, node: DecNode) -> None:
-        if isinstance(node, BdRootNode) or isinstance(node, BdInnerNode):
+        if isinstance(node, DecNodeRoot) or isinstance(node, BdInnerNode):
             solution = node.get_solution_dn()
             for child_id in node.get_children():
                 child = self.nodes[child_id]
@@ -102,7 +101,7 @@ class BdRun:
             self.logger.log_sub_problem(idx, "Feasibility", cut_dn.coeffs, cut_dn.rhs)
         return cut_dn
 
-    def _set_bounds(self, node: BdRootNode) -> None:
+    def _set_bounds(self, node: DecNodeRoot) -> None:
         for child in node.children:
             child_node = self.nodes[child]
             assert isinstance(child_node, BdLeafNode) or isinstance(child_node, BdInnerNode)

@@ -4,7 +4,7 @@ import pyomo.environ as pyo
 from aircon import first_stage, mid_stage, last_stage
 from utils import assert_approximately_equal
 
-from pyodsp.dec.bd.node_root import BdRootNode
+from pyodsp.dec.node.dec_node import DecNodeRoot
 from pyodsp.dec.bd.alg_root_bm import BdAlgRootBm
 from pyodsp.dec.bd.node_inner import BdInnerNode
 from pyodsp.dec.bd.node_leaf import BdLeafNode
@@ -34,7 +34,7 @@ def create_root(idx, demand, solver_name, agg=False):
     coupling_dn = [model.next_inventory]
     solver_root = PyomoSolver(model, solver_name, coupling_dn)
     alg_root = BdAlgRootBm(solver_root)
-    node = BdRootNode(idx, alg_root)
+    node = DecNodeRoot(idx, alg_root)
     node.add_child(1, multiplier=0.5)
     node.add_child(2, multiplier=0.5)
     if agg:

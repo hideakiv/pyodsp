@@ -2,11 +2,11 @@ from typing import List
 
 from pyodsp.alg.cuts import Cut
 
-from .node_root import BdRootNode
+from ..node.dec_node import DecNodeRoot
 from .alg_root import BdAlgRoot
 from .alg_leaf import BdAlgLeaf
 
-class BdInnerNode(BdRootNode):
+class BdInnerNode(DecNodeRoot):
     def __init__(
         self,
         idx: int,

@@ -4,7 +4,7 @@ import pyomo.environ as pyo
 
 from pyodsp.solver.pyomo_solver import PyomoSolver
 
-from pyodsp.dec.bd.node_root import BdRootNode
+from pyodsp.dec.node.dec_node import DecNodeRoot
 from pyodsp.dec.bd.alg_root_bm import BdAlgRootBm
 from pyodsp.dec.bd.node_leaf import BdLeafNode
 from pyodsp.dec.bd.alg_leaf_pyomo import BdAlgLeafPyomo
@@ -24,7 +24,7 @@ def create_root_node(solver="appsi_highs"):
     coupling_dn = [model1.x1, model1.x2]
     first_stage_solver = PyomoSolver(model1, solver, coupling_dn)
     first_stage_alg = BdAlgRootBm(first_stage_solver)
-    root_node = BdRootNode(0, first_stage_alg)
+    root_node = DecNodeRoot(0, first_stage_alg)
     return root_node
 
 

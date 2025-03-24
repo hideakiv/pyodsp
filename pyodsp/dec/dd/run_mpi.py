@@ -77,7 +77,7 @@ class DdRunMpi(DdRun):
     
     def _run_root(self) -> None:
         self.root.alg_root.reset_iteration()
-        solution = [0.0 for _ in range(self.root.get_num_constrs())]
+        solution = [0.0 for _ in range(self.root.get_num_vars())]
         
         # broadcast solution
         self.comm.bcast(solution, root=0)

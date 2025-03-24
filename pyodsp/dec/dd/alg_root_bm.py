@@ -49,6 +49,9 @@ class DdAlgRootBm(DdAlgRoot):
 
     def get_solution_dn(self) -> List[float]:
         return [var.value for var in self.bm.solver.vars]
+    
+    def get_num_vars(self) -> int:
+        return len(self.bm.solver.vars)
 
     def add_cuts(self, cuts_list: List[CutList]) -> None:
         self.bm.add_cuts(cuts_list)

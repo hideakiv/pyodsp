@@ -40,6 +40,10 @@ class IAlgRoot(IAlg, ABC):
     def get_solution_dn(self) -> List[float]:
         pass
 
+    @abstractmethod
+    def get_num_vars(self) -> int:
+        pass
+
 class IAlgLeaf(IAlg, ABC):
     @abstractmethod
     def build(self) -> None:

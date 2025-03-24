@@ -80,6 +80,10 @@ class INodeParent(INode, ABC):
     def get_solution_dn(self) -> List[float]:
         pass
 
+    @abstractmethod
+    def get_num_vars(self) -> int:
+        pass
+
 INodeRoot = INodeParent
 
 class INodeChild(INode, ABC):

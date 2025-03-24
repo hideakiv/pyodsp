@@ -15,9 +15,6 @@ class DdRootNode(DecNodeRoot):
         self.rootsolver = rootsolver
         self.kwargs = kwargs
 
-    def get_num_constrs(self) -> int:
-        return self.alg_root.num_constrs
-
     def solve_mip_heuristic(self) -> Dict[int, List[float]]:
         self.mip_heuristic = MipHeuristicRoot(
             self.rootsolver, self.groups, self.alg_root, **self.kwargs

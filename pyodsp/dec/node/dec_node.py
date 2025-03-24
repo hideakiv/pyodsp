@@ -115,6 +115,9 @@ class DecNodeParent(INodeParent, DecNode, ABC):
 
     def get_solution_dn(self) -> List[float]:
         return self.alg_root.get_solution_dn()
+    
+    def get_num_vars(self) -> int:
+        return self.alg_root.get_num_vars()
 
     def add_cuts(self, cuts: Dict[int, Cut]) -> None:
         aggregate_cuts = self.cut_aggregator.get_aggregate_cuts(cuts)

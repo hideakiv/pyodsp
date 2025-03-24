@@ -8,6 +8,4 @@ from ..node._alg import IAlgRoot
 
 class BdAlgRoot(IAlgRoot, ABC):
 
-    @abstractmethod
-    def get_vars(self) -> List[VarData]:
-        pass
+    pass

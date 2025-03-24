@@ -1,12 +1,12 @@
 from abc import ABC, abstractmethod
-from typing import List, Tuple
+from typing import List, Dict, Tuple
 
 from ..node._alg import IAlgLeaf
 
 class DdAlgLeaf(IAlgLeaf, ABC):
 
     @abstractmethod
-    def update_objective(self, coeffs: List[float]) -> None:
+    def set_coupling_matrix(self, coupling_matrix: List[Dict[int, float]]) -> None:
         pass
 
     @abstractmethod

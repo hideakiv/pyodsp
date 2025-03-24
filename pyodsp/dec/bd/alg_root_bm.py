@@ -37,6 +37,9 @@ class BdAlgRootBm(BdAlgRoot):
     def reset_iteration(self) -> None:
         self.bm.reset_iteration()
 
+    def get_solution_dn(self) -> List[float]:
+        return [var.value for var in self.get_vars()]
+
     def save(self, dir: Path) -> None:
         self.bm.save(dir)
         path = dir / "step_time.csv"

@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from typing import List, Tuple
 from pathlib import Path
 
-from pyodsp.alg.cuts import CutList
+from pyodsp.alg.cuts import Cut, CutList
 
 from ._node import NodeIdx
 
@@ -36,7 +36,19 @@ class IAlgRoot(IAlg, ABC):
     def reset_iteration(self) -> None:
         pass
 
+    @abstractmethod
+    def get_solution_dn(self) -> List[float]:
+        pass
+
 class IAlgLeaf(IAlg, ABC):
     @abstractmethod
     def build(self) -> None:
+        pass
+
+    @abstractmethod
+    def pass_solution(self, solution: List[float]) -> None:
+        pass
+
+    @abstractmethod
+    def get_subgradient(self) -> Cut:
         pass

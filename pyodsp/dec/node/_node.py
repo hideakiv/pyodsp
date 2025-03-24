@@ -76,6 +76,10 @@ class INodeParent(INode, ABC):
     def add_cuts(self, cuts: Dict[int, Cut]) -> None:
         pass
 
+    @abstractmethod
+    def get_solution_dn(self) -> List[float]:
+        pass
+
 INodeRoot = INodeParent
 
 class INodeChild(INode, ABC):

@@ -66,7 +66,7 @@ class DdRun:
         node.set_coupling_matrix(matrix)
 
     def _run_root(self) -> None:
-        self.root.alg_root.reset_iteration()
+        self.root.reset()
         cuts_dn = self._run_leaf([0.0 for _ in range(self.root.get_num_vars())])
         while True:
             status, solution = self.root.run_step(cuts_dn)

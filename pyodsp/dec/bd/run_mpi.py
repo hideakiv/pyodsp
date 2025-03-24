@@ -77,7 +77,7 @@ class BdRunMpi(BdRun):
             self.root.set_bound(child, combined_bounds[child])
         self.root.build()
 
-        self.root.alg_root.reset_iteration()
+        self.root.reset()
         combined_cuts_dn = None
         while True:
             status, solution = self.root.run_step(combined_cuts_dn)

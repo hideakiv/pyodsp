@@ -69,6 +69,10 @@ class INodeParent(INode, ABC):
         pass
 
     @abstractmethod
+    def reset(self) -> None:
+        pass
+
+    @abstractmethod
     def run_step(self, cuts: Dict[int, Cut] | None) -> Tuple[int, List[float]]:
         pass
 

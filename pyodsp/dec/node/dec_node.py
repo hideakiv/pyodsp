@@ -103,6 +103,9 @@ class DecNodeParent(INodeParent, DecNode, ABC):
         
         self.alg_root.build(subobj_bounds)
 
+    def reset(self) -> None:
+        self.alg_root.reset_iteration()
+
     def set_logger(self) -> None:
         assert self.depth is not None
         self.alg_root.set_logger(self.idx, self.depth)

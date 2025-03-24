@@ -55,7 +55,7 @@ class BdRun:
             if isinstance(node, BdInnerNode):
                 node.pass_solution(sol_up)
 
-            node.alg_root.reset_iteration()
+            node.reset()
             cuts_dn = None
             while True:
                 status, solution = node.run_step(cuts_dn)

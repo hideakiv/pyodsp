@@ -76,7 +76,7 @@ class DdRunMpi(DdRun):
         return matrices
     
     def _run_root(self) -> None:
-        self.root.alg_root.reset_iteration()
+        self.root.reset()
         solution = [0.0 for _ in range(self.root.get_num_vars())]
         
         # broadcast solution

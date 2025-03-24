@@ -87,6 +87,18 @@ class INodeChild(INode, ABC):
     def add_parent(self, idx: NodeIdx) -> None:
         pass
 
+    @abstractmethod
+    def pass_solution(self, solution: List[float]) -> None:
+        pass
+
+    @abstractmethod
+    def get_subgradient(self) -> Cut:
+        pass
+
+    @abstractmethod
+    def solve(self, solution: List[float]) -> Cut:
+        pass
+
 INodeLeaf = INodeChild
 
 class INodeInner(INodeParent, INodeChild, ABC):

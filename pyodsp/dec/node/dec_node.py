@@ -149,6 +149,16 @@ class DecNodeChild(INodeChild, DecNode, ABC):
     
     def build_inner(self) -> None:
         self.alg_leaf.build()
+
+    def pass_solution(self, solution: List[float]) -> None:
+        self.alg_leaf.pass_solution(solution)
+
+    def get_subgradient(self) -> Cut:
+        return self.alg_leaf.get_subgradient()
+
+    def solve(self, solution: List[float]) -> Cut:
+        self.pass_solution(solution)
+        return self.get_subgradient()
     
     def save(self, dir: Path) -> None:
         node_dir = dir / f"node{self.idx}"

@@ -53,7 +53,7 @@ class BdRun:
             self._set_bounds(node)
             node.build()
             if isinstance(node, BdInnerNode):
-                node.fix_variables(sol_up)
+                node.pass_solution(sol_up)
 
             node.alg_root.reset_iteration()
             cuts_dn = None
@@ -82,7 +82,7 @@ class BdRun:
                 if isinstance(child, BdLeafNode):
                     child.solve(solution)
                 elif isinstance(child, BdInnerNode):
-                    child.fix_variables(solution)
+                    child.pass_solution(solution)
                     child.get_subgradient()
                 self._run_finalize(child)
 

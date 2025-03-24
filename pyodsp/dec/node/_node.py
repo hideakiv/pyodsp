@@ -96,6 +96,14 @@ class INodeChild(INode, ABC):
         pass
 
     @abstractmethod
+    def set_bound(self, bound: float) -> None:
+        pass
+
+    @abstractmethod
+    def get_bound(self) -> float:
+        pass
+
+    @abstractmethod
     def pass_solution(self, solution: List[float]) -> None:
         pass
 

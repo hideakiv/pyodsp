@@ -5,8 +5,7 @@ from mpi4py import MPI
 from pyodsp.alg.const import *
 
 from .run import BdRun
-from ..node.dec_node import DecNode
-from .node_leaf import BdLeafNode
+from ..node.dec_node import DecNode, DecNodeLeaf
 from .node_inner import BdInnerNode
 
 
@@ -35,7 +34,7 @@ class BdRunMpi(BdRun):
     def run(self):
         bounds = {}
         for node in self.nodes.values():
-            if isinstance(node, BdLeafNode):
+            if isinstance(node, DecNodeLeaf):
                 bounds[node.idx] = node.get_bound()
 
         all_bounds = self.comm.gather(bounds, root=0)
@@ -63,7 +62,7 @@ class BdRunMpi(BdRun):
             node.save(self.filedir)
     
     def _init_leaf(self, node: DecNode, is_minimize: bool, depth: int) -> None:
-        if isinstance(node, BdLeafNode):
+        if isinstance(node, DecNodeLeaf):
             if node.is_minimize() != is_minimize:
                 raise ValueError("Inconsistent optimization sense")
             node.set_depth(depth)
@@ -90,7 +89,7 @@ class BdRunMpi(BdRun):
 
             cuts_dn = {}
             for node in self.nodes.values():
-                if isinstance(node, BdLeafNode):
+                if isinstance(node, DecNodeLeaf):
                     cut_dn = self._get_cut(node.idx, solution)
                     cuts_dn[node.idx] = cut_dn
 
@@ -108,7 +107,7 @@ class BdRunMpi(BdRun):
 
             cuts_dn = {}
             for node in self.nodes.values():
-                if isinstance(node, BdLeafNode):
+                if isinstance(node, DecNodeLeaf):
                     cut_dn = self._get_cut(node.idx, solution)
                     cuts_dn[node.idx] = cut_dn
 

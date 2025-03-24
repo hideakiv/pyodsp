@@ -153,6 +153,12 @@ class DecNodeChild(INodeChild, DecNode, ABC):
     def get_children(self) -> List[NodeIdx]:
         return []
     
+    def set_bound(self, bound: float) -> None:
+        self.bound = bound
+
+    def get_bound(self) -> float:
+        return self.bound
+    
     def build_inner(self) -> None:
         self.alg_leaf.build()
 

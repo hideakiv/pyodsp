@@ -5,10 +5,9 @@ from pyodsp.alg.cuts import Cut, OptimalityCut, FeasibilityCut
 from pyodsp.alg.const import *
 
 from .logger import BdLogger
-from .node_leaf import BdLeafNode
 from .node_inner import BdInnerNode
 from ..utils import create_directory
-from ..node.dec_node import DecNode, DecNodeRoot
+from ..node.dec_node import DecNode, DecNodeRoot, DecNodeLeaf
 
 
 class BdRun:
@@ -69,7 +68,7 @@ class BdRun:
                         return
 
                 cuts_dn = self._get_cuts(node, solution)
-        if isinstance(node, BdLeafNode):
+        if isinstance(node, DecNodeLeaf):
             node.build()
             return node.solve(sol_up)
         
@@ -78,7 +77,7 @@ class BdRun:
             solution = node.get_solution_dn()
             for child_id in node.get_children():
                 child = self.nodes[child_id]
-                if isinstance(child, BdLeafNode):
+                if isinstance(child, DecNodeLeaf):
                     child.solve(solution)
                 elif isinstance(child, BdInnerNode):
                     child.pass_solution(solution)
@@ -104,5 +103,5 @@ class BdRun:
     def _set_bounds(self, node: DecNodeRoot) -> None:
         for child in node.children:
             child_node = self.nodes[child]
-            assert isinstance(child_node, BdLeafNode) or isinstance(child_node, BdInnerNode)
+            assert isinstance(child_node, DecNodeLeaf) or isinstance(child_node, BdInnerNode)
             node.set_bound(child, child_node.get_bound())

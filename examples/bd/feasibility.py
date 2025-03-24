@@ -4,9 +4,8 @@ import pyomo.environ as pyo
 
 from pyodsp.solver.pyomo_solver import PyomoSolver
 
-from pyodsp.dec.node.dec_node import DecNodeRoot
+from pyodsp.dec.node.dec_node import DecNodeRoot, DecNodeLeaf
 from pyodsp.dec.bd.alg_root_bm import BdAlgRootBm
-from pyodsp.dec.bd.node_leaf import BdLeafNode
 from pyodsp.dec.bd.alg_leaf_pyomo import BdAlgLeafPyomo
 from pyodsp.dec.bd.run import BdRun
 
@@ -53,7 +52,9 @@ def create_leaf_node(i, solver="appsi_highs"):
     coupling_up = [block.x1, block.x2]
     second_stage_solver = PyomoSolver(block, solver, coupling_up)
     second_stage_alg = BdAlgLeafPyomo(second_stage_solver)
-    leaf_node = BdLeafNode(i, second_stage_alg, -1000.0, 0)
+    leaf_node = DecNodeLeaf(i, second_stage_alg)
+    leaf_node.set_bound(-1000.0)
+    leaf_node.add_parent(0)
     return leaf_node
 
 

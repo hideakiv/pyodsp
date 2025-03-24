@@ -4,10 +4,9 @@ import pyomo.environ as pyo
 from aircon import first_stage, mid_stage, last_stage
 from utils import assert_approximately_equal
 
-from pyodsp.dec.node.dec_node import DecNodeRoot
+from pyodsp.dec.node.dec_node import DecNodeRoot, DecNodeLeaf
 from pyodsp.dec.bd.alg_root_bm import BdAlgRootBm
 from pyodsp.dec.bd.node_inner import BdInnerNode
-from pyodsp.dec.bd.node_leaf import BdLeafNode
 from pyodsp.dec.bd.alg_leaf_pyomo import BdAlgLeafPyomo
 from pyodsp.dec.bd.run import BdRun
 from pyodsp.solver.pyomo_solver import PyomoSolver
@@ -69,7 +68,9 @@ def create_leaf(idx, demand, solver_name):
     solver_leaf = PyomoSolver(model, solver_name, coupling_up)
     alg_leaf = BdAlgLeafPyomo(solver_leaf)
     parent = (idx - 1) // 2
-    node = BdLeafNode(idx, alg_leaf, 0, parent)
+    node = DecNodeLeaf(idx, alg_leaf)
+    node.set_bound(0)
+    node.add_parent(parent)
     return node
 
 if __name__ == "__main__":

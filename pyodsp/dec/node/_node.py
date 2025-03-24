@@ -57,11 +57,11 @@ class INodeParent(INode, ABC):
         pass
 
     @abstractmethod
-    def set_bound(self, idx: NodeIdx, bound: float) -> None:
+    def set_child_bound(self, idx: NodeIdx, bound: float) -> None:
         pass
 
     @abstractmethod
-    def get_bound(self, idx: NodeIdx) -> float:
+    def get_child_bound(self, idx: NodeIdx) -> float:
         pass
 
     @abstractmethod

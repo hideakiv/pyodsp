@@ -5,8 +5,7 @@ from mpi4py import MPI
 from pyodsp.alg.const import *
 
 from .run import BdRun
-from ..node.dec_node import DecNode, DecNodeLeaf
-from .node_inner import BdInnerNode
+from ..node.dec_node import DecNode, DecNodeLeaf, DecNodeInner
 
 
 class BdRunMpi(BdRun):
@@ -18,7 +17,7 @@ class BdRunMpi(BdRun):
         self.rank = self.comm.Get_rank()
 
         for node in nodes:
-            if isinstance(node, BdInnerNode):
+            if isinstance(node, DecNodeInner):
                 raise ValueError("Nested Benders not supported in BdRunMpi")
 
         # gather node-rank info
@@ -73,7 +72,7 @@ class BdRunMpi(BdRun):
         for d in all_bounds:
             combined_bounds.update(d)
         for child in self.root.get_children():
-            self.root.set_bound(child, combined_bounds[child])
+            self.root.set_child_bound(child, combined_bounds[child])
         self.root.build()
 
         self.root.reset()

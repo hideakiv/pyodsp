@@ -5,9 +5,8 @@ from pyodsp.alg.cuts import Cut, OptimalityCut, FeasibilityCut
 from pyodsp.alg.const import *
 
 from .logger import BdLogger
-from .node_inner import BdInnerNode
 from ..utils import create_directory
-from ..node.dec_node import DecNode, DecNodeRoot, DecNodeLeaf
+from ..node.dec_node import DecNode, DecNodeRoot, DecNodeLeaf, DecNodeInner
 
 
 class BdRun:
@@ -50,7 +49,7 @@ class BdRun:
 
             self._set_bounds(node)
             node.build()
-            if isinstance(node, BdInnerNode):
+            if isinstance(node, DecNodeInner):
                 node.pass_solution(sol_up)
 
             node.reset()
@@ -59,7 +58,7 @@ class BdRun:
                 status, solution = node.run_step(cuts_dn)
 
                 if status != STATUS_NOT_FINISHED:
-                    if isinstance(node, BdInnerNode):
+                    if isinstance(node, DecNodeInner):
                         if status == STATUS_MAX_ITERATION or status == STATUS_TIME_LIMIT:
                             cuts_dn = self._get_cuts(node, solution)
                             node.add_cuts(cuts_dn)
@@ -73,13 +72,13 @@ class BdRun:
             return node.solve(sol_up)
         
     def _run_finalize(self, node: DecNode) -> None:
-        if isinstance(node, DecNodeRoot) or isinstance(node, BdInnerNode):
+        if isinstance(node, DecNodeRoot):
             solution = node.get_solution_dn()
             for child_id in node.get_children():
                 child = self.nodes[child_id]
                 if isinstance(child, DecNodeLeaf):
                     child.solve(solution)
-                elif isinstance(child, BdInnerNode):
+                elif isinstance(child, DecNodeInner):
                     child.pass_solution(solution)
                     child.get_subgradient()
                 self._run_finalize(child)
@@ -103,5 +102,5 @@ class BdRun:
     def _set_bounds(self, node: DecNodeRoot) -> None:
         for child in node.children:
             child_node = self.nodes[child]
-            assert isinstance(child_node, DecNodeLeaf) or isinstance(child_node, BdInnerNode)
-            node.set_bound(child, child_node.get_bound())
+            assert isinstance(child_node, DecNodeLeaf)
+            node.set_child_bound(child, child_node.get_bound())

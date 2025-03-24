@@ -10,9 +10,15 @@ from .cut_aggregator import CutAggregator
 from ..utils import create_directory
 
 class DecNode(INode, ABC):
-    def __init__(self, idx: NodeIdx) -> None:
+    def __init__(self, idx: NodeIdx, **kwargs) -> None:
         self.idx: NodeIdx = idx
         self.depth: int | None = None
+        
+        self.parents: List[NodeIdx] = []
+        self.children: List[NodeIdx] = []
+        self.children_multipliers: Dict[NodeIdx, float] = {}
+        self.children_bounds: Dict[int, float] = {}
+        self.groups = []
         
         self.built = False
 
@@ -27,6 +33,12 @@ class DecNode(INode, ABC):
     def set_depth(self, depth: int) -> None:
         self.depth = depth
 
+    def get_parents(self) -> List[NodeIdx]:
+        return self.parents
+
+    def get_children(self) -> List[NodeIdx]:
+        return self.children
+
     def build(self) -> None:
         if self.built:
             return
@@ -37,14 +49,10 @@ class DecNode(INode, ABC):
     def build_inner(self) -> None:
         pass
 
-class DecNodeParent(INodeParent, DecNode, ABC):
-    def __init__(self, idx: NodeIdx, alg_root: IAlgRoot) -> None:
-        super().__init__(idx)
+class DecNodeParent(INodeParent, DecNode):
+    def __init__(self, idx: NodeIdx, alg_root: IAlgRoot, **kwargs) -> None:
         self.alg_root = alg_root
-        self.children: List[NodeIdx] = []
-        self.children_multipliers: Dict[NodeIdx, float] = {}
-        self.children_bounds: Dict[int, float] = {}
-        self.groups = []
+        super().__init__(idx, **kwargs)
 
     def add_child(self, idx: NodeIdx, multiplier: float = 1.0) -> None:
         if idx in self.children:
@@ -71,17 +79,11 @@ class DecNodeParent(INodeParent, DecNode, ABC):
     def get_multiplier(self, idx: NodeIdx) -> float:
         return self.children_multipliers[idx]
 
-    def set_bound(self, idx: NodeIdx, bound: float) -> None:
+    def set_child_bound(self, idx: NodeIdx, bound: float) -> None:
         self.children_bounds[idx] = bound
 
-    def get_bound(self, idx: NodeIdx) -> float:
+    def get_child_bound(self, idx: NodeIdx) -> float:
         return self.children_bounds[idx]
-    
-    def get_parents(self) -> List[NodeIdx]:
-        return []
-
-    def get_children(self) -> List[NodeIdx]:
-        return self.children
 
     def build_inner(self) -> None:
         if len(self.groups) == 0:
@@ -136,22 +138,15 @@ class DecNodeParent(INodeParent, DecNode, ABC):
     
 DecNodeRoot = DecNodeParent
 
-class DecNodeChild(INodeChild, DecNode, ABC):
-    def __init__(self, idx: NodeIdx, alg_leaf: IAlgLeaf) -> None:
-        super().__init__(idx)
+class DecNodeChild(INodeChild, DecNode):
+    def __init__(self, idx: NodeIdx, alg_leaf: IAlgLeaf, **kwargs) -> None:
         self.alg_leaf = alg_leaf
-        self.parents: List[NodeIdx] = []
+        super().__init__(idx, **kwargs)
 
     def add_parent(self, idx: NodeIdx) -> None:
         if idx in self.parents:
             raise ValueError(f"Idx {idx} already in parents of node {self.idx}")
         self.parents.append(idx)
-
-    def get_parents(self) -> List[NodeIdx]:
-        return self.parents
-    
-    def get_children(self) -> List[NodeIdx]:
-        return []
     
     def set_bound(self, bound: float) -> None:
         self.bound = bound
@@ -183,16 +178,9 @@ class DecNodeChild(INodeChild, DecNode, ABC):
 
 DecNodeLeaf = DecNodeChild
 
-class DecNodeInner(INodeInner, DecNodeParent, DecNodeChild, ABC):
+class DecNodeInner(INodeInner, DecNodeParent, DecNodeChild):
     def __init__(self, idx: NodeIdx, alg_root: IAlgRoot, alg_leaf: IAlgLeaf) -> None:
-        DecNodeParent.__init__(self, idx, alg_root)
-        DecNodeChild.__init__(self, idx, alg_leaf)  # slightly inefficient
-
-    def get_parents(self) -> List[NodeIdx]:
-        return DecNodeChild.get_parents(self)
-    
-    def get_children(self) -> List[NodeIdx]:
-        return DecNodeParent.get_children(self)
+        super().__init__(idx=idx, alg_root=alg_root, alg_leaf=alg_leaf)
     
     def build_inner(self) -> None:
         DecNodeParent.build_inner(self)

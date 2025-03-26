@@ -4,6 +4,8 @@ from typing import Any, List, Dict, Tuple
 
 from pyodsp.alg.cuts import Cut
 
+from ..run._message import IMessage
+
 NodeIdx = Any
 
 class INode(ABC):
@@ -101,6 +103,10 @@ class INodeChild(INode, ABC):
 
     @abstractmethod
     def get_bound(self) -> float:
+        pass
+
+    @abstractmethod
+    def pass_init_message(self, message: IMessage) -> None:
         pass
 
     @abstractmethod

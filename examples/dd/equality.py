@@ -4,10 +4,10 @@ import pyomo.environ as pyo
 
 from pyodsp.solver.pyomo_solver import PyomoSolver
 
+from pyodsp.dec.node.dec_node import DecNodeLeaf
 from pyodsp.dec.dd.node_root import DdRootNode
 from pyodsp.dec.dd.alg_root_bm import DdAlgRootBm
 from pyodsp.dec.dd.alg_root_pbm import DdAlgRootPbm
-from pyodsp.dec.dd.node_leaf import DdLeafNode
 from pyodsp.dec.dd.alg_leaf_pyomo import DdAlgLeafPyomo
 from pyodsp.dec.dd.run import DdRun
 
@@ -34,7 +34,7 @@ def create_master(solver="appsi_highs", pbm=False) -> DdRootNode:
 cost = {1: -4, 2: -1, 3: -6}
 
 
-def create_sub(i, solver="appsi_highs") -> DdLeafNode:
+def create_sub(i, solver="appsi_highs") -> DecNodeLeaf:
     block = pyo.ConcreteModel()
     block.x = pyo.Var(bounds=(1, 2))
     vars_up = [block.x]
@@ -43,7 +43,8 @@ def create_sub(i, solver="appsi_highs") -> DdLeafNode:
 
     sub_solver = PyomoSolver(block, solver, vars_up)
     sub_alg = DdAlgLeafPyomo(sub_solver)
-    leaf_node = DdLeafNode(i, sub_alg, 0)
+    leaf_node = DecNodeLeaf(i, sub_alg)
+    leaf_node.add_parent(0)
     return leaf_node
 
 

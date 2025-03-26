@@ -5,6 +5,7 @@ from pathlib import Path
 from pyodsp.alg.cuts import Cut, CutList
 
 from ._node import NodeIdx
+from ..run._message import IMessage
 
 class IAlg(ABC):
     @abstractmethod
@@ -47,6 +48,10 @@ class IAlgRoot(IAlg, ABC):
 class IAlgLeaf(IAlg, ABC):
     @abstractmethod
     def build(self) -> None:
+        pass
+
+    @abstractmethod
+    def pass_init_message(self, message: IMessage) -> None:
         pass
 
     @abstractmethod

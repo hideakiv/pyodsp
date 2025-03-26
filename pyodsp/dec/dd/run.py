@@ -5,10 +5,10 @@ from pyodsp.alg.cuts import Cut, OptimalityCut, FeasibilityCut
 from pyodsp.alg.const import *
 
 from .logger import DdLogger
-from .node_leaf import DdLeafNode
 from .node_root import DdRootNode
 from ..utils import create_directory, SparseMatrix
-from ..node.dec_node import DecNode
+from ..node.dec_node import DecNode, DecNodeLeaf
+from ..run._message import DdInitMessage
 
 
 class DdRun:
@@ -50,6 +50,7 @@ class DdRun:
     
     def _init_root(self) -> None:
         self.logger.log_initialization()
+        assert self.root is not None
         self.root.build()
 
     def _init_leaf(
@@ -60,12 +61,13 @@ class DdRun:
         ) -> None:
         node = self.nodes[node_id]
         node.set_depth(depth)
-        assert isinstance(node, DdLeafNode)
+        assert isinstance(node, DecNodeLeaf)
         if node.is_minimize() != is_minimize:
             raise ValueError("Inconsistent optimization sense")
-        node.set_coupling_matrix(matrix)
+        node.pass_init_message(DdInitMessage(matrix))
 
     def _run_root(self) -> None:
+        assert self.root is not None
         self.root.reset()
         cuts_dn = self._run_leaf([0.0 for _ in range(self.root.get_num_vars())])
         while True:
@@ -79,14 +81,14 @@ class DdRun:
     def _run_leaf(self, solution: List[float]) -> Dict[int, Cut]:
         cuts_dn = {}
         for node in self.nodes.values():
-            if isinstance(node, DdLeafNode):
+            if isinstance(node, DecNodeLeaf):
                 cut_dn = self._get_cut(node.idx, solution)
                 cuts_dn[node.idx] = cut_dn
         return cuts_dn
 
     def _get_cut(self, idx: int, solution: List[float]) -> Cut:
         node = self.nodes[idx]
-        assert isinstance(node, DdLeafNode)
+        assert isinstance(node, DecNodeLeaf)
         node.build()
         cut_dn = node.solve(solution)
         assert cut_dn is not None
@@ -97,6 +99,7 @@ class DdRun:
         return cut_dn
     
     def _finalize_root(self) -> None:
+        assert self.root is not None
         solutions = self.root.solve_mip_heuristic()
         final_obj = 0.0
         for node_id, sols in solutions.items():
@@ -106,7 +109,7 @@ class DdRun:
 
     def _finalize_leaf(self, node_id, solution: List[float]) -> float:
         node = self.nodes[node_id]
-        assert isinstance(node, DdLeafNode)
+        assert isinstance(node, DecNodeLeaf)
         node.alg_leaf.fix_variables_and_solve(solution)
         return node.alg_leaf.get_objective_value()
 

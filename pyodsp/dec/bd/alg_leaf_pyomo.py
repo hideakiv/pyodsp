@@ -6,6 +6,8 @@ import pandas as pd
 from pyomo.environ import Suffix
 from pyomo.core.base.constraint import ConstraintData
 
+from pyodsp.dec.run._message import BdInitMessage
+
 from .alg_leaf import BdAlgLeaf
 from ..utils import CouplingData, get_nonzero_coefficients_from_model
 from pyodsp.alg.cuts import Cut, OptimalityCut, FeasibilityCut
@@ -27,6 +29,9 @@ class BdAlgLeafPyomo(BdAlgLeaf):
         self.coupling_constraints: List[ConstraintData] = [
             coupling_data.constraint for coupling_data in self.coupling_info
         ]
+
+    def pass_init_message(self, message: BdInitMessage) -> None:
+        pass
 
     def pass_solution(self, solution: List[float]) -> None:
         self._fix_variables(solution)

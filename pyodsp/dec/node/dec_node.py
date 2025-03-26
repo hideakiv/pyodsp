@@ -7,6 +7,7 @@ from pyodsp.alg.cuts import Cut
 from ._node import NodeIdx, INode, INodeParent, INodeChild, INodeInner
 from ._alg import IAlgRoot, IAlgLeaf
 from .cut_aggregator import CutAggregator
+from ..run._message import IMessage
 from ..utils import create_directory
 
 class DecNode(INode, ABC):
@@ -156,6 +157,9 @@ class DecNodeChild(INodeChild, DecNode):
     
     def build_inner(self) -> None:
         self.alg_leaf.build()
+
+    def pass_init_message(self, message: IMessage) -> None:
+        self.alg_leaf.pass_init_message(message)
 
     def pass_solution(self, solution: List[float]) -> None:
         self.alg_leaf.pass_solution(solution)

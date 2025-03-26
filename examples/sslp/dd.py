@@ -3,10 +3,10 @@ import pyomo.environ as pyo
 
 from sslp import first_stage, second_stage
 
+from pyodsp.dec.node.dec_node import DecNodeLeaf
 from pyodsp.dec.dd.node_root import DdRootNode
 from pyodsp.dec.dd.alg_root_bm import DdAlgRootBm
 from pyodsp.dec.dd.alg_root_pbm import DdAlgRootPbm
-from pyodsp.dec.dd.node_leaf import DdLeafNode
 from pyodsp.dec.dd.alg_leaf_pyomo import DdAlgLeafPyomo
 from pyodsp.dec.dd.run import DdRun
 from pyodsp.solver.pyomo_solver import PyomoSolver
@@ -49,7 +49,7 @@ def create_master(nJ: int, nS: int, solver="appsi_highs", pbm=False) -> DdRootNo
     root_node = DdRootNode(0, root_alg, solver)
     return root_node
 
-def create_sub(s: int, nI: int, nJ: int, nS: int, solver="appsi_highs") -> DdLeafNode:
+def create_sub(s: int, nI: int, nJ: int, nS: int, solver="appsi_highs") -> DecNodeLeaf:
     m = pyo.ConcreteModel()
     first_stage(m, nJ)
     m.b = pyo.Block()
@@ -60,7 +60,8 @@ def create_sub(s: int, nI: int, nJ: int, nS: int, solver="appsi_highs") -> DdLea
 
     sub_solver = PyomoSolver(m, solver, vars_up)
     sub_alg = DdAlgLeafPyomo(sub_solver)
-    leaf_node = DdLeafNode(s+1, sub_alg, 0)
+    leaf_node = DecNodeLeaf(s+1, sub_alg)
+    leaf_node.add_parent(0)
 
     return leaf_node
 

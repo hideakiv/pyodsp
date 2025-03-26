@@ -3,8 +3,7 @@ import pyomo.environ as pyo
 
 from sslp import first_stage, second_stage
 
-from pyodsp.dec.node.dec_node import DecNodeLeaf
-from pyodsp.dec.dd.node_root import DdRootNode
+from pyodsp.dec.node.dec_node import DecNodeRoot, DecNodeLeaf
 from pyodsp.dec.dd.alg_root_bm import DdAlgRootBm
 from pyodsp.dec.dd.alg_root_pbm import DdAlgRootPbm
 from pyodsp.dec.dd.alg_leaf_pyomo import DdAlgLeafPyomo
@@ -25,7 +24,7 @@ def main(nI: int, nJ: int, nS: int, solver="appsi_highs"):
     dd_run = DdRun(nodes, Path("output/sslp/dd"))
     dd_run.run()
 
-def create_master(nJ: int, nS: int, solver="appsi_highs", pbm=False) -> DdRootNode:
+def create_master(nJ: int, nS: int, solver="appsi_highs", pbm=False) -> DecNodeRoot:
     m = pyo.ConcreteModel()
     m.sJ = pyo.RangeSet(nJ)
     m.sS = pyo.RangeSet(nS)
@@ -46,7 +45,7 @@ def create_master(nJ: int, nS: int, solver="appsi_highs", pbm=False) -> DdRootNo
         root_alg = DdAlgRootPbm(m, True, "ipopt", vars_dn)
     else:
         root_alg = DdAlgRootBm(m, True, solver, vars_dn)
-    root_node = DdRootNode(0, root_alg, solver)
+    root_node = DecNodeRoot(0, root_alg, final_solver=solver)
     return root_node
 
 def create_sub(s: int, nI: int, nJ: int, nS: int, solver="appsi_highs") -> DecNodeLeaf:

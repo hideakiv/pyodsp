@@ -20,6 +20,8 @@ class DecNode(INode, ABC):
         self.children_multipliers: Dict[NodeIdx, float] = {}
         self.children_bounds: Dict[int, float] = {}
         self.groups = []
+
+        self.kwargs = kwargs
         
         self.built = False
 
@@ -55,6 +57,9 @@ class DecNodeParent(INodeParent, DecNode):
         self.alg_root = alg_root
         super().__init__(idx, **kwargs)
 
+    def get_alg_root(self) -> IAlgRoot:
+        return self.alg_root
+
     def add_child(self, idx: NodeIdx, multiplier: float = 1.0) -> None:
         if idx in self.children:
             raise ValueError(f"Idx {idx} already in children of node {self.idx}")
@@ -73,6 +78,9 @@ class DecNodeParent(INodeParent, DecNode):
             raise ValueError("Not all elements in groups coincide with children")
         
         self.groups = groups
+
+    def get_groups(self) -> List[List[NodeIdx]]:
+        return self.groups
 
     def set_multiplier(self, idx: NodeIdx, multiplier: float) -> None:
         self.children_multipliers[idx] = multiplier
@@ -143,6 +151,9 @@ class DecNodeChild(INodeChild, DecNode):
     def __init__(self, idx: NodeIdx, alg_leaf: IAlgLeaf, **kwargs) -> None:
         self.alg_leaf = alg_leaf
         super().__init__(idx, **kwargs)
+
+    def get_alg_leaf(self) -> IAlgLeaf:
+        return self.alg_leaf
 
     def add_parent(self, idx: NodeIdx) -> None:
         if idx in self.parents:

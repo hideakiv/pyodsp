@@ -1,10 +1,15 @@
 from abc import ABC, abstractmethod
-from typing import List, Dict
+from typing import Any, List, Dict
+
+NodeIdx = Any
 
 class IMessage(ABC):
     pass
 
 class BdInitMessage(IMessage):
+    pass
+
+class BdFinalMessage(IMessage):
     pass
 
 class DdInitMessage(IMessage):
@@ -13,3 +18,6 @@ class DdInitMessage(IMessage):
 
     def get_coupling_matrix(self):
         return self.coupling_matrix
+
+class DdFinalMessage(IMessage):
+    pass

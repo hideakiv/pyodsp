@@ -4,8 +4,7 @@ import pyomo.environ as pyo
 
 from pyodsp.solver.pyomo_solver import PyomoSolver
 
-from pyodsp.dec.node.dec_node import DecNodeLeaf
-from pyodsp.dec.dd.node_root import DdRootNode
+from pyodsp.dec.node.dec_node import DecNodeRoot, DecNodeLeaf
 from pyodsp.dec.dd.alg_root_bm import DdAlgRootBm
 from pyodsp.dec.dd.alg_leaf_pyomo import DdAlgLeafPyomo
 from pyodsp.dec.dd.run import DdRun
@@ -13,7 +12,7 @@ from pyodsp.dec.dd.run import DdRun
 from utils import get_args, assert_approximately_equal
 
 
-def create_master(solver="appsi_highs") -> DdRootNode:
+def create_master(solver="appsi_highs") -> DecNodeRoot:
     block = pyo.ConcreteModel()
     block.x1 = pyo.Var(within=pyo.Reals)
     block.x2 = pyo.Var(within=pyo.Reals)
@@ -26,7 +25,7 @@ def create_master(solver="appsi_highs") -> DdRootNode:
     )
 
     root_alg = DdAlgRootBm(block, True, solver, vars_dn)
-    root_node = DdRootNode(0, root_alg, solver)
+    root_node = DecNodeRoot(0, root_alg, final_solver=solver)
     return root_node
 
 

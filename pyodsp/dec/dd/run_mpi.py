@@ -5,6 +5,7 @@ from mpi4py import MPI
 from pyodsp.alg.const import *
 
 from .run import DdRun
+from .mip_heuristic_root import MipHeuristicRoot
 from ..node.dec_node import DecNode
 from ..utils import SparseMatrix
 
@@ -29,6 +30,7 @@ class DdRunMpi(DdRun):
 
     def run(self):
         if self.rank == 0:
+            assert self.root is not None
             self.root.set_depth(0)
             self.root.set_logger()
             self._init_root()
@@ -68,6 +70,7 @@ class DdRunMpi(DdRun):
 
     def _split_matrices(self) -> Dict[int, Dict[int, SparseMatrix]]:
         matrices: Dict[int, Dict[int, SparseMatrix]] = {}
+        assert self.root is not None
         for child_id in self.root.get_children():
             target = self.node_rank_map[child_id]
             if target not in matrices:
@@ -76,6 +79,7 @@ class DdRunMpi(DdRun):
         return matrices
     
     def _run_root(self) -> None:
+        assert self.root is not None
         self.root.reset()
         solution = [0.0 for _ in range(self.root.get_num_vars())]
         
@@ -121,7 +125,12 @@ class DdRunMpi(DdRun):
             all_cuts_dn = self.comm.gather(cuts_dn, root=0)
 
     def _finalize_root(self) -> None:
-        solutions = self.root.solve_mip_heuristic()
+        assert self.root is not None
+        mip_heuristic = MipHeuristicRoot(
+            self.root.get_groups(), self.root.get_alg_root(), **self.root.kwargs
+        )
+        mip_heuristic.build()
+        solutions = mip_heuristic.run()
 
         # split solutions
         solutions_dict: Dict[int, Dict[int, List[float]]] = {}

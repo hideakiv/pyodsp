@@ -17,9 +17,10 @@ from pyodsp.alg.cuts import OptimalityCut
 
 
 class MipHeuristicRoot:
-    def __init__(self, solver: str, groups: List[List[int]], alg: DdAlgRoot, **kwargs):
+    def __init__(self, groups: List[List[int]], alg: DdAlgRoot, **kwargs):
         self.alg = alg
         self.groups = groups
+        solver = kwargs.pop("final_solver")
         self.master = self._create_master(self.alg.coupling_model, solver, **kwargs)
 
     def _create_master(self, model: ConcreteModel, solver: str, **kwargs):

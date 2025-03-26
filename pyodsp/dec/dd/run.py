@@ -5,9 +5,9 @@ from pyodsp.alg.cuts import Cut, OptimalityCut, FeasibilityCut
 from pyodsp.alg.const import *
 
 from .logger import DdLogger
-from .node_root import DdRootNode
+from .mip_heuristic_root import MipHeuristicRoot
 from ..utils import create_directory, SparseMatrix
-from ..node.dec_node import DecNode, DecNodeLeaf
+from ..node.dec_node import DecNode, DecNodeRoot, DecNodeLeaf
 from ..run._message import DdInitMessage
 
 
@@ -20,9 +20,9 @@ class DdRun:
         self.filedir = filedir
         create_directory(self.filedir)
 
-    def _get_root(self) -> DdRootNode | None:
+    def _get_root(self) -> DecNodeRoot | None:
         for node in self.nodes.values():
-            if type(node) is DdRootNode:
+            if isinstance(node, DecNodeRoot) and not isinstance(node, DecNodeLeaf):
                 return node
         return None
 
@@ -100,7 +100,11 @@ class DdRun:
     
     def _finalize_root(self) -> None:
         assert self.root is not None
-        solutions = self.root.solve_mip_heuristic()
+        mip_heuristic = MipHeuristicRoot(
+            self.root.get_groups(), self.root.get_alg_root(), **self.root.kwargs
+        )
+        mip_heuristic.build()
+        solutions = mip_heuristic.run()
         final_obj = 0.0
         for node_id, sols in solutions.items():
             sub_obj = self._finalize_leaf(node_id, sols)

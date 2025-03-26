@@ -1,12 +1,11 @@
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Any, List, Dict, Tuple
+from typing import List, Dict, Tuple
 
 from pyodsp.alg.cuts import Cut
 
-from ..run._message import IMessage
-
-NodeIdx = Any
+from ._alg import IAlgRoot, IAlgLeaf
+from ..run._message import NodeIdx, IMessage
 
 class INode(ABC):
     @abstractmethod
@@ -43,11 +42,19 @@ class INode(ABC):
 
 class INodeParent(INode, ABC):
     @abstractmethod
+    def get_alg_root(self) -> IAlgRoot:
+        pass
+
+    @abstractmethod
     def add_child(self, idx: NodeIdx, multiplier: float) -> None:
         pass
     
     @abstractmethod
     def set_groups(self, groups: List[List[NodeIdx]]) -> None:
+        pass
+
+    @abstractmethod
+    def get_groups(self) -> List[List[NodeIdx]]:
         pass
 
     @abstractmethod
@@ -93,6 +100,10 @@ class INodeParent(INode, ABC):
 INodeRoot = INodeParent
 
 class INodeChild(INode, ABC):
+    @abstractmethod
+    def get_alg_leaf(self) -> IAlgLeaf:
+        pass
+
     @abstractmethod
     def add_parent(self, idx: NodeIdx) -> None:
         pass

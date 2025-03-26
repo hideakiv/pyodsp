@@ -5,25 +5,23 @@ from mpi4py import MPI
 from pyodsp.alg.const import *
 
 from .run import BdRun
-from .node import BdNode
-from .node_leaf import BdLeafNode
-from .node_inner import BdInnerNode
+from ..node._node import INode, INodeLeaf, INodeInner
 
 
 class BdRunMpi(BdRun):
     def __init__(
-        self, nodes: List[BdNode], filedir: Path
+        self, nodes: List[INode], filedir: Path
     ):
         super().__init__(nodes, filedir)
         self.comm = MPI.COMM_WORLD
         self.rank = self.comm.Get_rank()
 
         for node in nodes:
-            if isinstance(node, BdInnerNode):
+            if isinstance(node, INodeInner):
                 raise ValueError("Nested Benders not supported in BdRunMpi")
 
         # gather node-rank info
-        id_list = [node.idx for node in nodes]
+        id_list = [node.get_idx() for node in nodes]
         all_ids = self.comm.gather({self.rank: id_list}, root=0)
         self.node_rank_map: Dict[int, int] = {}
         if self.rank == 0:
@@ -35,12 +33,13 @@ class BdRunMpi(BdRun):
     def run(self):
         bounds = {}
         for node in self.nodes.values():
-            if isinstance(node, BdLeafNode):
-                bounds[node.idx] = node.get_bound()
+            if isinstance(node, INodeLeaf):
+                bounds[node.get_idx()] = node.get_bound()
 
         all_bounds = self.comm.gather(bounds, root=0)
 
         if self.rank == 0:
+            assert self.root is not None
             is_minimize = self.root.is_minimize()
             self.root.set_depth(0)
             self.root.set_logger()
@@ -62,22 +61,23 @@ class BdRunMpi(BdRun):
         for node in self.nodes.values():
             node.save(self.filedir)
     
-    def _init_leaf(self, node: BdNode, is_minimize: bool, depth: int) -> None:
-        if isinstance(node, BdLeafNode):
+    def _init_leaf(self, node: INode, is_minimize: bool, depth: int) -> None:
+        if isinstance(node, INodeLeaf):
             if node.is_minimize() != is_minimize:
                 raise ValueError("Inconsistent optimization sense")
             node.set_depth(depth)
 
     def _run_root(self, all_bounds) -> None:
+        assert self.root is not None
         self.logger.log_initialization()
         combined_bounds = {}
         for d in all_bounds:
             combined_bounds.update(d)
         for child in self.root.get_children():
-            self.root.set_bound(child, combined_bounds[child])
+            self.root.set_child_bound(child, combined_bounds[child])
         self.root.build()
 
-        self.root.alg.reset_iteration()
+        self.root.reset()
         combined_cuts_dn = None
         while True:
             status, solution = self.root.run_step(combined_cuts_dn)
@@ -90,9 +90,9 @@ class BdRunMpi(BdRun):
 
             cuts_dn = {}
             for node in self.nodes.values():
-                if isinstance(node, BdLeafNode):
-                    cut_dn = self._get_cut(node.idx, solution)
-                    cuts_dn[node.idx] = cut_dn
+                if isinstance(node, INodeLeaf):
+                    cut_dn = self._get_cut(node.get_idx(), solution)
+                    cuts_dn[node.get_idx()] = cut_dn
 
             all_cuts_dn = self.comm.gather(cuts_dn, root=0)
             combined_cuts_dn = {}
@@ -108,8 +108,8 @@ class BdRunMpi(BdRun):
 
             cuts_dn = {}
             for node in self.nodes.values():
-                if isinstance(node, BdLeafNode):
-                    cut_dn = self._get_cut(node.idx, solution)
-                    cuts_dn[node.idx] = cut_dn
+                if isinstance(node, INodeLeaf):
+                    cut_dn = self._get_cut(node.get_idx(), solution)
+                    cuts_dn[node.get_idx()] = cut_dn
 
             all_cuts_dn = self.comm.gather(cuts_dn, root=0)

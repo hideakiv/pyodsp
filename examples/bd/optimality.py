@@ -4,9 +4,8 @@ import pyomo.environ as pyo
 
 from pyodsp.solver.pyomo_solver import PyomoSolver
 
-from pyodsp.dec.bd.node_root import BdRootNode
+from pyodsp.dec.node.dec_node import DecNodeRoot, DecNodeLeaf
 from pyodsp.dec.bd.alg_root_bm import BdAlgRootBm
-from pyodsp.dec.bd.node_leaf import BdLeafNode
 from pyodsp.dec.bd.alg_leaf_pyomo import BdAlgLeafPyomo
 from pyodsp.dec.bd.run import BdRun
 
@@ -30,7 +29,7 @@ def create_root_node(solver="appsi_highs"):
     coupling_dn = [model1.x1, model1.x2]
     first_stage_solver = PyomoSolver(model1, solver, coupling_dn)
     first_stage_alg = BdAlgRootBm(first_stage_solver)
-    root_node = BdRootNode(0, first_stage_alg)
+    root_node = DecNodeRoot(0, first_stage_alg)
     return root_node
 
 
@@ -61,7 +60,9 @@ def create_leaf_node(i, solver="appsi_highs"):
     coupling_up = [block.x1, block.x2]
     second_stage_solver = PyomoSolver(block, solver, coupling_up)
     second_stage_alg = BdAlgLeafPyomo(second_stage_solver)
-    leaf_node = BdLeafNode(i, second_stage_alg, -30000, 0)
+    leaf_node = DecNodeLeaf(i, second_stage_alg)
+    leaf_node.set_bound(-30000.0)
+    leaf_node.add_parent(0)
     return leaf_node
 
 
@@ -80,7 +81,7 @@ def main():
     bd_run = BdRun([root_node, leaf_node_1, leaf_node_2], Path("output/bd/optimality"))
     bd_run.run()
 
-    assert_approximately_equal(root_node.alg.bm.obj_bound[-1], -855.83333333333)
+    assert_approximately_equal(root_node.alg_root.bm.obj_bound[-1], -855.83333333333)
 
 
 if __name__ == "__main__":

@@ -14,12 +14,14 @@ from pyomo.environ import (
 from .alg_root import DdAlgRoot
 from pyodsp.solver.pyomo_solver import PyomoSolver
 from pyodsp.alg.cuts import OptimalityCut
+from ..run._message import DdFinalMessage
 
 
 class MipHeuristicRoot:
-    def __init__(self, solver: str, groups: List[List[int]], alg: DdAlgRoot, **kwargs):
+    def __init__(self, groups: List[List[int]], alg: DdAlgRoot, **kwargs):
         self.alg = alg
         self.groups = groups
+        solver = kwargs.pop("final_solver")
         self.master = self._create_master(self.alg.coupling_model, solver, **kwargs)
 
     def _create_master(self, model: ConcreteModel, solver: str, **kwargs):
@@ -78,7 +80,7 @@ class MipHeuristicRoot:
 
             self.master.model._dd_obj.expr += obj
 
-    def run(self) -> Dict[int, List[float]]:
+    def run(self) -> Dict[int, DdFinalMessage]:
         self.master.solve()
         solutions = {}
 
@@ -86,6 +88,6 @@ class MipHeuristicRoot:
             assert len(group) == 1
             idx = group[0]
             solution = [value(var) for var in self.alg.get_vars_dn()[idx]]
-            solutions[idx] = solution
+            solutions[idx] = DdFinalMessage(solution)
 
         return solutions

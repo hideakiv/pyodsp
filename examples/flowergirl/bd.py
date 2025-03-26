@@ -3,10 +3,8 @@ import pyomo.environ as pyo
 
 from flowergirl import first_stage, mid_stage, last_stage
 
-from pyodsp.dec.bd.node_root import BdRootNode
+from pyodsp.dec.node.dec_node import DecNodeRoot, DecNodeLeaf, DecNodeInner
 from pyodsp.dec.bd.alg_root_bm import BdAlgRootBm
-from pyodsp.dec.bd.node_inner import BdInnerNode
-from pyodsp.dec.bd.node_leaf import BdLeafNode
 from pyodsp.dec.bd.alg_leaf_pyomo import BdAlgLeafPyomo
 from pyodsp.dec.bd.run import BdRun
 from pyodsp.solver.pyomo_solver import PyomoSolver
@@ -32,7 +30,7 @@ def create_root(solver_name):
     coupling_dn = [model.init_purchase]
     solver_root = PyomoSolver(model, solver_name, coupling_dn)
     alg_root = BdAlgRootBm(solver_root)
-    node = BdRootNode(0, alg_root)
+    node = DecNodeRoot(0, alg_root)
     node.add_child(1, multiplier=0.5)
     node.add_child(2, multiplier=0.5)
     return node
@@ -49,7 +47,9 @@ def create_inner(idx, demand, solver_name):
     solver_leaf = PyomoSolver(model, solver_name, coupling_up)
     alg_leaf = BdAlgLeafPyomo(solver_leaf)
     parent = (idx - 1) // 2
-    node = BdInnerNode(idx, alg_root, alg_leaf, 1000, parent)
+    node = DecNodeInner(idx, alg_root, alg_leaf)
+    node.set_bound(1000)
+    node.add_parent(parent)
     node.add_child(2 * idx + 1, multiplier=0.5)
     node.add_child(2 * idx + 2, multiplier=0.5)
     return node
@@ -63,7 +63,9 @@ def create_leaf(idx, demand, solver_name):
     solver_leaf = PyomoSolver(model, solver_name, coupling_up)
     alg_leaf = BdAlgLeafPyomo(solver_leaf)
     parent = (idx - 1) // 2
-    node = BdLeafNode(idx, alg_leaf, 1000, parent)
+    node = DecNodeLeaf(idx, alg_leaf)
+    node.set_bound(1000)
+    node.add_parent(parent)
     return node
 
 if __name__ == "__main__":

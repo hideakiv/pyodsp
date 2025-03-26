@@ -29,8 +29,9 @@ class DdAlgRootBm(DdAlgRoot):
         self.bm = BundleMethod(self.solver, max_iteration)
         self.step_time: List[float] = []
 
-    def build(self, num_cuts: int) -> None:
-        if self.is_minimize:
+    def build(self, bounds: List[float | None]) -> None:
+        num_cuts = len(bounds)
+        if self.is_minimize():
             dummy_bounds = [BM_DUMMY_BOUND for _ in range(num_cuts)]
         else:
             dummy_bounds = [-BM_DUMMY_BOUND for _ in range(num_cuts)]
@@ -45,6 +46,15 @@ class DdAlgRootBm(DdAlgRoot):
 
     def reset_iteration(self) -> None:
         self.bm.reset_iteration()
+
+    def get_solution_dn(self) -> List[float]:
+        return [var.value for var in self.bm.solver.vars]
+    
+    def get_num_vars(self) -> int:
+        return len(self.bm.solver.vars)
+
+    def add_cuts(self, cuts_list: List[CutList]) -> None:
+        self.bm.add_cuts(cuts_list)
 
     def get_cuts(self) -> List[List[CutInfo]]:
         return self.bm.cuts_manager.get_cuts()

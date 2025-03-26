@@ -33,7 +33,7 @@ def main():
     bd_run.run()
 
     if rank == 0:
-        assert_approximately_equal(node.alg.bm.obj_bound[-1], -855.83333333333)
+        assert_approximately_equal(node.alg_root.bm.obj_bound[-1], -855.83333333333)
 
     MPI.Finalize()
 

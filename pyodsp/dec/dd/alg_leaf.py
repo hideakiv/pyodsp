@@ -1,16 +1,12 @@
 from abc import ABC, abstractmethod
-from typing import List, Tuple
-from pathlib import Path
+from typing import List, Dict, Tuple
 
+from ..node._alg import IAlgLeaf
 
-class DdAlgLeaf(ABC):
-
-    @abstractmethod
-    def build(self) -> None:
-        pass
+class DdAlgLeaf(IAlgLeaf, ABC):
 
     @abstractmethod
-    def update_objective(self, coeffs: List[float]) -> None:
+    def set_coupling_matrix(self, coupling_matrix: List[Dict[int, float]]) -> None:
         pass
 
     @abstractmethod
@@ -18,21 +14,9 @@ class DdAlgLeaf(ABC):
         pass
 
     @abstractmethod
-    def is_minimize(self) -> bool:
-        pass
-
-    @abstractmethod
     def get_len_vars(self) -> int:
         pass
 
     @abstractmethod
-    def get_objective_value(self) -> float:
-        pass
-
-    @abstractmethod
     def fix_variables_and_solve(self, values: List[float]) -> None:
-        pass
-
-    @abstractmethod
-    def save(self, dir: Path) -> None:
         pass

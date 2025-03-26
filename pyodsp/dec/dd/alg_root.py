@@ -1,28 +1,20 @@
-from abc import abstractmethod
-from typing import List, Dict, Tuple
-from pathlib import Path
+from abc import ABC, abstractmethod
+from typing import List, Dict
 
 from pyomo.environ import (
     ConcreteModel,
     Var,
-    Constraint,
-    RangeSet,
     Objective,
-    minimize,
-    maximize,
-    NonNegativeReals,
-    Reals,
 )
 from pyomo.core.base.var import VarData, IndexedVar
 
-from pyodsp.dec.utils import get_nonzero_coefficients_group
-from pyodsp.solver.pyomo_solver import PyomoSolver
-from pyodsp.alg.cuts import CutList
 from pyodsp.alg.cuts_manager import CutInfo
-from pyodsp.alg.params import DEC_CUT_ABS_TOL
+from pyodsp.dec.run._message import DdInitMessage
 
+from ..node._alg import IAlgRoot
+from .master_creator import MasterCreator
 
-class DdAlgRoot:
+class DdAlgRoot(IAlgRoot, ABC):
 
     def __init__(
         self,
@@ -35,64 +27,13 @@ class DdAlgRoot:
         self.coupling_model = coupling_model
         self.vars_dn = vars_dn
         self._init_check()
-        self.solver = self._create_master(
+        mc = MasterCreator(
             coupling_model, is_minimize, solver_name, vars_dn, **kwargs
         )
-        self.is_minimize = is_minimize
-
-    def _create_master(
-        self,
-        coupling_model: ConcreteModel,
-        is_minimize: bool,
-        solver_name: str,
-        vars_dn: Dict[int, List[VarData]],
-        **kwargs
-    ) -> PyomoSolver:
-        master: ConcreteModel = ConcreteModel()
-        self.lagrangian_data = get_nonzero_coefficients_group(coupling_model, vars_dn)
-        self.num_constrs = len(self.lagrangian_data.constraints)
-
-        master.ld_plus = Var(
-            RangeSet(0, self.num_constrs - 1), domain=NonNegativeReals, initialize=0
-        )
-        master.ld_minus = Var(
-            RangeSet(0, self.num_constrs - 1), domain=NonNegativeReals, initialize=0
-        )
-        for i in range(self.num_constrs):
-            if self.lagrangian_data.lbs[i] is None:
-                master.ld_minus[i].fix(0)
-            if self.lagrangian_data.ubs[i] is None:
-                master.ld_plus[i].fix(0)
-        master.ld = Var(RangeSet(0, self.num_constrs - 1), domain=Reals, initialize=0)
-
-        def constr_rule(m, i):
-            return m.ld[i] == m.ld_plus[i] - m.ld_minus[i]
-
-        master.constr = Constraint(RangeSet(0, self.num_constrs - 1), rule=constr_rule)
-
-        def min_obj(m):
-            expr = 0.0
-            for i in range(self.num_constrs):
-                ub = self.lagrangian_data.ubs[i]
-                if ub is not None and abs(ub) > DEC_CUT_ABS_TOL:
-                    expr -= ub * m.ld_plus[i]
-                lb = self.lagrangian_data.lbs[i]
-                if lb is not None and abs(lb) > DEC_CUT_ABS_TOL:
-                    expr += lb * m.ld_minus[i]
-            return expr
-
-        def max_obj(m):
-            return -min_obj(m)
-
-        if is_minimize:
-            master.objective = Objective(rule=min_obj, sense=maximize)
-        else:
-            master.objective = Objective(rule=max_obj, sense=minimize)
-
-        lagrangian_duals: List[VarData] = [
-            master.ld[i] for i in range(self.num_constrs)
-        ]
-        return PyomoSolver(master, solver_name, lagrangian_duals, **kwargs)
+        self.solver = mc.create()
+        self.lagrangian_data = mc.lagrangian_data
+        self.num_constrs = mc.num_constrs
+        self._is_minimize = is_minimize
 
     def get_vars_dn(self) -> Dict[int, List[VarData]]:
         return self.vars_dn
@@ -120,28 +61,15 @@ class DdAlgRoot:
         
         if len(varname_list) > 0:
             raise ValueError(f"Variables {varname_list} not coupled")
-
-
-    @abstractmethod
-    def build(self, num_cuts: int) -> None:
-        pass
-
-    @abstractmethod
-    def run_step(self, cuts_list: List[CutList] | None) -> Tuple[int, List[float]]:
-        pass
-
-    @abstractmethod
-    def reset_iteration(self) -> None:
-        pass
+        
+    def is_minimize(self) -> bool:
+        return self._is_minimize
+    
+    def get_init_message(self, **kwargs) -> DdInitMessage:
+        child_id = kwargs["child_id"]
+        message = DdInitMessage(self.lagrangian_data.matrix[child_id])
+        return message
 
     @abstractmethod
     def get_cuts(self) -> List[List[CutInfo]]:
-        pass
-
-    @abstractmethod
-    def save(self, dir: Path) -> None:
-        pass
-
-    @abstractmethod
-    def set_logger(self, node_id: int, depth: int) -> None:
         pass

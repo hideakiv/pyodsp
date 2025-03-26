@@ -1,33 +1,9 @@
-from abc import ABC, abstractmethod
-from typing import List
-from pathlib import Path
+from abc import ABC
 
-from pyodsp.alg.cuts import Cut
+from ..node._alg import IAlgLeaf
 
 
-class BdAlgLeaf(ABC):
+class BdAlgLeaf(IAlgLeaf, ABC):
 
-    @abstractmethod
-    def build(self) -> None:
-        pass
+    pass
 
-    @abstractmethod
-    def fix_variables(self, values: List[float]) -> None:
-        """Fix the variables to a specified value
-
-        Args:
-            vars: The variables to be fixed.
-            values: The values to be set.
-        """
-
-    @abstractmethod
-    def get_subgradient(self) -> Cut:
-        pass
-
-    @abstractmethod
-    def save(self, dir: Path) -> None:
-        pass
-    
-    @abstractmethod
-    def is_minimize(self) -> bool:
-        pass

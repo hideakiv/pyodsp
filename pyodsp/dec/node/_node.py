@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import List, Dict, Tuple
+from typing import Any, List, Dict, Tuple
 
 from pyodsp.alg.cuts import Cut
 
@@ -8,6 +8,10 @@ from ._alg import IAlgRoot, IAlgLeaf
 from ..run._message import NodeIdx, IMessage
 
 class INode(ABC):
+    @abstractmethod
+    def get_kwargs(self) -> Dict[str, Any]:
+        pass
+
     @abstractmethod
     def get_idx(self) -> NodeIdx:
         pass
@@ -118,6 +122,10 @@ class INodeChild(INode, ABC):
 
     @abstractmethod
     def get_bound(self) -> float:
+        pass
+
+    @abstractmethod
+    def get_objective_value(self) -> float:
         pass
 
     @abstractmethod

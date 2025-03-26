@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Dict, List, Tuple
+from typing import Any, Dict, List, Tuple
 from pathlib import Path
 
 from pyodsp.alg.cuts import Cut
@@ -24,6 +24,9 @@ class DecNode(INode, ABC):
         self.kwargs = kwargs
         
         self.built = False
+
+    def get_kwargs(self) -> Dict[str, Any]:
+        return self.kwargs
 
     def get_idx(self) -> NodeIdx:
         return self.idx
@@ -168,6 +171,9 @@ class DecNodeChild(INodeChild, DecNode):
 
     def get_bound(self) -> float:
         return self.bound
+    
+    def get_objective_value(self) -> float:
+        return self.alg_leaf.get_objective_value()
     
     def build_inner(self) -> None:
         self.alg_leaf.build()

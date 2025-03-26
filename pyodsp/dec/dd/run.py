@@ -7,22 +7,22 @@ from pyodsp.alg.const import *
 from .logger import DdLogger
 from .mip_heuristic_root import MipHeuristicRoot
 from ..utils import create_directory
-from ..node.dec_node import DecNode, DecNodeRoot, DecNodeLeaf
+from ..node._node import INode, INodeRoot, INodeLeaf
 from ..run._message import IMessage
 
 
 class DdRun:
-    def __init__(self, nodes: List[DecNode], filedir: Path):
-        self.nodes: Dict[int, DecNode] = {node.idx: node for node in nodes}
+    def __init__(self, nodes: List[INode], filedir: Path):
+        self.nodes: Dict[int, INode] = {node.get_idx(): node for node in nodes}
         self.root = self._get_root()
         self.logger = DdLogger()
 
         self.filedir = filedir
         create_directory(self.filedir)
 
-    def _get_root(self) -> DecNodeRoot | None:
+    def _get_root(self) -> INodeRoot | None:
         for node in self.nodes.values():
-            if isinstance(node, DecNodeRoot) and not isinstance(node, DecNodeLeaf):
+            if isinstance(node, INodeRoot) and not isinstance(node, INodeLeaf):
                 return node
         return None
 
@@ -61,7 +61,7 @@ class DdRun:
         ) -> None:
         node = self.nodes[node_id]
         node.set_depth(depth)
-        assert isinstance(node, DecNodeLeaf)
+        assert isinstance(node, INodeLeaf)
         if node.is_minimize() != is_minimize:
             raise ValueError("Inconsistent optimization sense")
         node.pass_init_message(message)
@@ -81,14 +81,14 @@ class DdRun:
     def _run_leaf(self, solution: List[float]) -> Dict[int, Cut]:
         cuts_dn = {}
         for node in self.nodes.values():
-            if isinstance(node, DecNodeLeaf):
-                cut_dn = self._get_cut(node.idx, solution)
-                cuts_dn[node.idx] = cut_dn
+            if isinstance(node, INodeLeaf):
+                cut_dn = self._get_cut(node.get_idx(), solution)
+                cuts_dn[node.get_idx()] = cut_dn
         return cuts_dn
 
     def _get_cut(self, idx: int, solution: List[float]) -> Cut:
         node = self.nodes[idx]
-        assert isinstance(node, DecNodeLeaf)
+        assert isinstance(node, INodeLeaf)
         node.build()
         cut_dn = node.solve(solution)
         assert cut_dn is not None
@@ -101,7 +101,7 @@ class DdRun:
     def _finalize_root(self) -> None:
         assert self.root is not None
         mip_heuristic = MipHeuristicRoot(
-            self.root.get_groups(), self.root.get_alg_root(), **self.root.kwargs
+            self.root.get_groups(), self.root.get_alg_root(), **self.root.get_kwargs()
         )
         mip_heuristic.build()
         solutions = mip_heuristic.run()
@@ -113,7 +113,7 @@ class DdRun:
 
     def _finalize_leaf(self, node_id, message: IMessage) -> float:
         node = self.nodes[node_id]
-        assert isinstance(node, DecNodeLeaf)
+        assert isinstance(node, INodeLeaf)
         node.pass_final_message(message)
-        return node.alg_leaf.get_objective_value()
+        return node.get_objective_value()
 

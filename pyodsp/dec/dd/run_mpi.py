@@ -6,20 +6,20 @@ from pyodsp.alg.const import *
 
 from .run import DdRun
 from .mip_heuristic_root import MipHeuristicRoot
-from ..node.dec_node import DecNode
+from ..node._node import INode
 from ..run._message import IMessage
 
 
 class DdRunMpi(DdRun):
     def __init__(
-        self, nodes: List[DecNode], filedir: Path
+        self, nodes: List[INode], filedir: Path
     ):
         super().__init__(nodes, filedir)
         self.comm = MPI.COMM_WORLD
         self.rank = self.comm.Get_rank()
 
         # gather node-rank info
-        id_list = [node.idx for node in nodes]
+        id_list = [node.get_idx() for node in nodes]
         all_ids = self.comm.gather({self.rank: id_list}, root=0)
         self.node_rank_map: Dict[int, int] = {}
         if self.rank == 0:
@@ -127,7 +127,7 @@ class DdRunMpi(DdRun):
     def _finalize_root(self) -> None:
         assert self.root is not None
         mip_heuristic = MipHeuristicRoot(
-            self.root.get_groups(), self.root.get_alg_root(), **self.root.kwargs
+            self.root.get_groups(), self.root.get_alg_root(), **self.root.get_kwargs()
         )
         mip_heuristic.build()
         solutions = mip_heuristic.run()

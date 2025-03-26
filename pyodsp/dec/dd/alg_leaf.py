@@ -18,9 +18,5 @@ class DdAlgLeaf(IAlgLeaf, ABC):
         pass
 
     @abstractmethod
-    def get_objective_value(self) -> float:
-        pass
-
-    @abstractmethod
     def fix_variables_and_solve(self, values: List[float]) -> None:
         pass

@@ -6,9 +6,9 @@ from pyodsp.alg.const import *
 
 from .logger import DdLogger
 from .mip_heuristic_root import MipHeuristicRoot
-from ..utils import create_directory, SparseMatrix
+from ..utils import create_directory
 from ..node.dec_node import DecNode, DecNodeRoot, DecNodeLeaf
-from ..run._message import DdInitMessage
+from ..run._message import IMessage
 
 
 class DdRun:
@@ -35,7 +35,7 @@ class DdRun:
             for child_id in self.root.get_children():
                 self._init_leaf(
                     child_id, 
-                    self.root.alg_root.lagrangian_data.matrix[child_id], 
+                    self.root.get_init_message(child_id=child_id), 
                     self.root.is_minimize(),
                     self.root.get_depth() + 1
                 )
@@ -55,7 +55,7 @@ class DdRun:
 
     def _init_leaf(
             self, node_id: int, 
-            matrix: SparseMatrix, 
+            message: IMessage, 
             is_minimize: bool,
             depth: int,
         ) -> None:
@@ -64,7 +64,7 @@ class DdRun:
         assert isinstance(node, DecNodeLeaf)
         if node.is_minimize() != is_minimize:
             raise ValueError("Inconsistent optimization sense")
-        node.pass_init_message(DdInitMessage(matrix))
+        node.pass_init_message(message)
 
     def _run_root(self) -> None:
         assert self.root is not None
@@ -106,14 +106,14 @@ class DdRun:
         mip_heuristic.build()
         solutions = mip_heuristic.run()
         final_obj = 0.0
-        for node_id, sols in solutions.items():
-            sub_obj = self._finalize_leaf(node_id, sols)
+        for node_id, message in solutions.items():
+            sub_obj = self._finalize_leaf(node_id, message)
             final_obj += sub_obj
         self.logger.log_completion(final_obj)
 
-    def _finalize_leaf(self, node_id, solution: List[float]) -> float:
+    def _finalize_leaf(self, node_id, message: IMessage) -> float:
         node = self.nodes[node_id]
         assert isinstance(node, DecNodeLeaf)
-        node.alg_leaf.fix_variables_and_solve(solution)
+        node.pass_final_message(message)
         return node.alg_leaf.get_objective_value()
 

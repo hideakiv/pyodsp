@@ -7,7 +7,7 @@ from pyodsp.alg.const import *
 from .run import DdRun
 from .mip_heuristic_root import MipHeuristicRoot
 from ..node.dec_node import DecNode
-from ..utils import SparseMatrix
+from ..run._message import IMessage
 
 
 class DdRunMpi(DdRun):
@@ -68,14 +68,14 @@ class DdRunMpi(DdRun):
         for node in self.nodes.values():
             node.save(self.filedir)
 
-    def _split_matrices(self) -> Dict[int, Dict[int, SparseMatrix]]:
-        matrices: Dict[int, Dict[int, SparseMatrix]] = {}
+    def _split_matrices(self) -> Dict[int, Dict[int, IMessage]]:
+        matrices: Dict[int, Dict[int, IMessage]] = {}
         assert self.root is not None
         for child_id in self.root.get_children():
             target = self.node_rank_map[child_id]
             if target not in matrices:
                 matrices[target] = {}
-            matrices[target][child_id] = self.root.alg_root.lagrangian_data.matrix[child_id]
+            matrices[target][child_id] = self.root.get_init_message(child_id=child_id)
         return matrices
     
     def _run_root(self) -> None:
@@ -133,20 +133,20 @@ class DdRunMpi(DdRun):
         solutions = mip_heuristic.run()
 
         # split solutions
-        solutions_dict: Dict[int, Dict[int, List[float]]] = {}
+        solutions_dict: Dict[int, Dict[int, IMessage]] = {}
         for child_id in self.root.get_children():
             target = self.node_rank_map[child_id]
             if target not in solutions_dict:
                 solutions_dict[target] = {}
             solutions_dict[target][child_id] = solutions[child_id]
 
-        for target, sols in solutions_dict.items():
-            self.comm.send(sols, dest=target, tag=1)
+        for target, message in solutions_dict.items():
+            self.comm.send(message, dest=target, tag=1)
         
         final_obj = 0.0
         if 0 in solutions_dict:
-            for node_id, sols in solutions_dict[0].items():
-                sub_obj = self._finalize_leaf(node_id, sols)
+            for node_id, message in solutions_dict[0].items():
+                sub_obj = self._finalize_leaf(node_id, message)
                 final_obj += sub_obj
         all_objs = self.comm.gather(final_obj, root=0)
         total_obj = 0.0
@@ -157,7 +157,7 @@ class DdRunMpi(DdRun):
     def _finalize_leaf_mpi(self):
         solutions_info = self.comm.recv(source=0, tag=1)
         final_obj = 0.0
-        for node_id, sols in solutions_info.items():
-            sub_obj = self._finalize_leaf(node_id, sols)
+        for node_id, message in solutions_info.items():
+            sub_obj = self._finalize_leaf(node_id, message)
             final_obj += sub_obj
         all_objs = self.comm.gather(final_obj, root=0)

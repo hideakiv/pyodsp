@@ -29,6 +29,10 @@ class IAlgRoot(IAlg, ABC):
         pass
 
     @abstractmethod
+    def get_init_message(self, **kwargs) -> IMessage:
+        pass
+
+    @abstractmethod
     def add_cuts(self, cuts_list: List[CutList]) -> None:
         pass
 
@@ -50,11 +54,19 @@ class IAlgLeaf(IAlg, ABC):
         pass
 
     @abstractmethod
+    def get_objective_value(self) -> float:
+        pass
+
+    @abstractmethod
     def pass_init_message(self, message: IMessage) -> None:
         pass
 
     @abstractmethod
     def pass_solution(self, solution: List[float]) -> None:
+        pass
+
+    @abstractmethod
+    def pass_final_message(self, message: IMessage) -> None:
         pass
 
     @abstractmethod

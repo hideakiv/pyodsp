@@ -5,7 +5,7 @@ import pandas as pd
 
 from pyodsp.alg.cuts import Cut, OptimalityCut, FeasibilityCut
 from pyodsp.alg.params import DEC_CUT_ABS_TOL
-from pyodsp.dec.run._message import DdInitMessage
+from pyodsp.dec.run._message import DdInitMessage, DdFinalMessage
 
 from .alg_leaf import DdAlgLeaf
 from .coupling_manager import CouplingManager
@@ -31,6 +31,10 @@ class DdAlgLeafPyomo(DdAlgLeaf):
 
     def pass_solution(self, solution: List[float]) -> None:
         self._update_objective(solution)
+
+    def pass_final_message(self, message: DdFinalMessage) -> None:
+        solution = message.get_solution()
+        self.fix_variables_and_solve(solution)
 
     def _update_objective(self, coeffs: List[float]) -> None:
         self.primal_coeffs = self.cm.dual_times_matrix(coeffs)

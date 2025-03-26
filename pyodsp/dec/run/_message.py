@@ -20,4 +20,8 @@ class DdInitMessage(IMessage):
         return self.coupling_matrix
 
 class DdFinalMessage(IMessage):
-    pass
+    def __init__(self, solution: List[float]) -> None:
+        self.solution = solution
+
+    def get_solution(self):
+        return self.solution

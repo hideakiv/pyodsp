@@ -6,7 +6,7 @@ import pandas as pd
 from pyomo.environ import Suffix
 from pyomo.core.base.constraint import ConstraintData
 
-from pyodsp.dec.run._message import BdInitMessage
+from pyodsp.dec.run._message import BdInitMessage, BdFinalMessage
 
 from .alg_leaf import BdAlgLeaf
 from ..utils import CouplingData, get_nonzero_coefficients_from_model
@@ -36,6 +36,9 @@ class BdAlgLeafPyomo(BdAlgLeaf):
     def pass_solution(self, solution: List[float]) -> None:
         self._fix_variables(solution)
 
+    def pass_final_message(self, message: BdFinalMessage) -> None:
+        pass
+
     def _fix_variables(self, coupling_values: List[float]) -> None:
         """Fix the variables to a specified value
 
@@ -63,11 +66,13 @@ class BdAlgLeafPyomo(BdAlgLeaf):
             return cut
         else:
             raise ValueError("Unknown solver status")
-        
+    
+    def get_objective_value(self) -> float:
+        return self.solver.get_objective_value()
 
     def _optimality_cut(self) -> OptimalityCut:
         pi = self.solver.get_dual(self.coupling_constraints)
-        objective = self.solver.get_objective_value()
+        objective = self.get_objective_value()
         coeff = [0.0 for _ in range(len(self.solver.vars))]
         rhs = objective
         for i, dual_var in enumerate(pi):

@@ -9,6 +9,7 @@ from pyomo.environ import (
 from pyomo.core.base.var import VarData, IndexedVar
 
 from pyodsp.alg.cuts_manager import CutInfo
+from pyodsp.dec.run._message import DdInitMessage
 
 from ..node._alg import IAlgRoot
 from .master_creator import MasterCreator
@@ -63,6 +64,11 @@ class DdAlgRoot(IAlgRoot, ABC):
         
     def is_minimize(self) -> bool:
         return self._is_minimize
+    
+    def get_init_message(self, **kwargs) -> DdInitMessage:
+        child_id = kwargs["child_id"]
+        message = DdInitMessage(self.lagrangian_data.matrix[child_id])
+        return message
 
     @abstractmethod
     def get_cuts(self) -> List[List[CutInfo]]:

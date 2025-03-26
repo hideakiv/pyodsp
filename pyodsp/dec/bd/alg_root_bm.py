@@ -5,6 +5,8 @@ import pandas as pd
 
 from pyomo.core.base.var import VarData
 
+from pyodsp.dec.run._message import BdInitMessage
+
 from .alg_root import BdAlgRoot
 from pyodsp.solver.pyomo_solver import PyomoSolver
 from pyodsp.alg.bm.bm import BundleMethod
@@ -42,6 +44,9 @@ class BdAlgRootBm(BdAlgRoot):
     
     def get_num_vars(self) -> int:
         return len(self.get_vars())
+    
+    def get_init_message(self, **kwargs) -> BdInitMessage:
+        raise NotImplementedError()
     
     def save(self, dir: Path) -> None:
         self.bm.save(dir)

@@ -126,6 +126,9 @@ class DecNodeParent(INodeParent, DecNode):
             return self.alg_root.run_step(None)
         aggregate_cuts = self.cut_aggregator.get_aggregate_cuts(cuts)
         return self.alg_root.run_step(aggregate_cuts)
+    
+    def get_init_message(self, **kwargs) -> IMessage:
+        return self.alg_root.get_init_message(**kwargs)
 
     def get_solution_dn(self) -> List[float]:
         return self.alg_root.get_solution_dn()
@@ -174,6 +177,9 @@ class DecNodeChild(INodeChild, DecNode):
 
     def pass_solution(self, solution: List[float]) -> None:
         self.alg_leaf.pass_solution(solution)
+
+    def pass_final_message(self, message: IMessage) -> None:
+        return self.alg_leaf.pass_final_message(message)
 
     def get_subgradient(self) -> Cut:
         return self.alg_leaf.get_subgradient()

@@ -86,6 +86,10 @@ class INodeParent(INode, ABC):
         pass
 
     @abstractmethod
+    def get_init_message(self, **kwargs) -> IMessage:
+        pass
+
+    @abstractmethod
     def add_cuts(self, cuts: Dict[int, Cut]) -> None:
         pass
 
@@ -122,6 +126,10 @@ class INodeChild(INode, ABC):
 
     @abstractmethod
     def pass_solution(self, solution: List[float]) -> None:
+        pass
+
+    @abstractmethod
+    def pass_final_message(self, message: IMessage) -> None:
         pass
 
     @abstractmethod

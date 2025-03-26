@@ -1,7 +1,4 @@
-from abc import ABC, abstractmethod
-from typing import List
-
-from pyomo.core.base.var import VarData
+from abc import ABC
 
 from ..node._alg import IAlgRoot
 

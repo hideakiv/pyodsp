@@ -25,7 +25,10 @@ class DdAlgLeafPyomo(DdAlgLeaf):
         self.solver.original_objective.deactivate()
 
     def pass_solution(self, solution: List[float]) -> None:
-        self.primal_coeffs = self.cm.dual_times_matrix(solution)
+        self._update_objective(solution)
+
+    def _update_objective(self, coeffs: List[float]) -> None:
+        self.primal_coeffs = self.cm.dual_times_matrix(coeffs)
         update_linear_terms_in_objective(self.solver, self.primal_coeffs, self.solver.vars)
 
     def get_subgradient(self) -> Cut:

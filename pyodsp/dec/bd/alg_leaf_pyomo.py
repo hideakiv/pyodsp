@@ -29,15 +29,18 @@ class BdAlgLeafPyomo(BdAlgLeaf):
         ]
 
     def pass_solution(self, solution: List[float]) -> None:
+        self._fix_variables(solution)
+
+    def _fix_variables(self, coupling_values: List[float]) -> None:
         """Fix the variables to a specified value
 
         Args:
             vars: The variables to be fixed.
             values: The values to be set.
         """
-        self.coupling_values: List[float] = solution
+        self.coupling_values: List[float] = coupling_values
         for i, var in enumerate(self.solver.vars):
-            var.fix(solution[i])
+            var.fix(coupling_values[i])
 
     def get_subgradient(self) -> Cut:
         start = time.time()

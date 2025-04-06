@@ -14,9 +14,7 @@ from pyodsp.alg.cuts import CutList
 
 
 class BdAlgRootBm(BdAlgRoot):
-
     def __init__(self, solver: PyomoSolver, max_iteration=1000) -> None:
-
         self.bm = BundleMethod(solver, max_iteration)
         self.step_time: List[float] = []
 
@@ -41,13 +39,13 @@ class BdAlgRootBm(BdAlgRoot):
 
     def get_solution_dn(self) -> List[float]:
         return [var.value for var in self.get_vars()]
-    
+
     def get_num_vars(self) -> int:
         return len(self.get_vars())
-    
+
     def get_init_message(self, **kwargs) -> BdInitMessage:
         raise NotImplementedError()
-    
+
     def save(self, dir: Path) -> None:
         self.bm.save(dir)
         path = dir / "step_time.csv"
@@ -56,6 +54,6 @@ class BdAlgRootBm(BdAlgRoot):
 
     def is_minimize(self) -> bool:
         return self.bm.solver.is_minimize()
-    
+
     def set_logger(self, node_id: int, depth: int) -> None:
         self.bm.set_logger(node_id, depth)

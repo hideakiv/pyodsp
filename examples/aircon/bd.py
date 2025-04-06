@@ -10,6 +10,7 @@ from pyodsp.dec.bd.alg_leaf_pyomo import BdAlgLeafPyomo
 from pyodsp.dec.bd.run import BdRun
 from pyodsp.solver.pyomo_solver import PyomoSolver
 
+
 def main(solver="appsi_highs", agg=False):
     demand = [1, 1, 3, 1, 3, 1, 3]
     nodes = []
@@ -26,6 +27,7 @@ def main(solver="appsi_highs", agg=False):
     bd_run.run()
     assert_approximately_equal(nodes[0].alg_root.bm.obj_bound[-1], 6.25)
 
+
 def create_root(idx, demand, solver_name, agg=False):
     model = pyo.ConcreteModel()
     first_stage(model, demand)
@@ -38,6 +40,7 @@ def create_root(idx, demand, solver_name, agg=False):
     if agg:
         node.set_groups([[1, 2]])
     return node
+
 
 def create_inner(idx, demand, solver_name, agg=False):
     model = pyo.ConcreteModel()
@@ -60,6 +63,7 @@ def create_inner(idx, demand, solver_name, agg=False):
         node.set_groups([[2 * idx + 1, 2 * idx + 2]])
     return node
 
+
 def create_leaf(idx, demand, solver_name):
     model = pyo.ConcreteModel()
     model.prev_inventory = pyo.Var()
@@ -73,6 +77,7 @@ def create_leaf(idx, demand, solver_name):
     node.set_bound(0)
     node.add_parent(parent)
     return node
+
 
 if __name__ == "__main__":
     main(agg=True)

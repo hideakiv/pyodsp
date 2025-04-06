@@ -10,6 +10,7 @@ from pyodsp.dec.dd.alg_leaf_pyomo import DdAlgLeafPyomo
 from pyodsp.dec.dd.run import DdRun
 from pyodsp.solver.pyomo_solver import PyomoSolver
 
+
 def main(nI: int, nJ: int, nS: int, solver="appsi_highs"):
     nodes = []
     master = create_master(nJ, nS, solver)
@@ -18,11 +19,12 @@ def main(nI: int, nJ: int, nS: int, solver="appsi_highs"):
 
     for s in range(nS):
         sub = create_sub(s, nI, nJ, nS, solver)
-        master.add_child(s+1)
+        master.add_child(s + 1)
         nodes.append(sub)
 
     dd_run = DdRun(nodes, Path("output/sslp/dd"))
     dd_run.run()
+
 
 def create_master(nJ: int, nS: int, solver="appsi_highs", pbm=False) -> DecNodeRoot:
     m = pyo.ConcreteModel()
@@ -31,22 +33,24 @@ def create_master(nJ: int, nS: int, solver="appsi_highs", pbm=False) -> DecNodeR
     m.x = pyo.Var(m.sJ, m.sS, domain=pyo.Binary)
     vars_dn = {}
     for s in m.sS:
-        xs = [m.x[j,s] for j in m.sJ]
+        xs = [m.x[j, s] for j in m.sJ]
         vars_dn[s] = xs
 
     def rule_x(m, j, s):
         if s == nS:
             return m.x[j, s] == m.x[j, 1]
         else:
-            return m.x[j, s] == m.x[j, s+1]
+            return m.x[j, s] == m.x[j, s + 1]
+
     m.constr = pyo.Constraint(m.sJ, m.sS, rule=rule_x)
-    
+
     if pbm:
         root_alg = DdAlgRootPbm(m, True, "ipopt", vars_dn)
     else:
         root_alg = DdAlgRootBm(m, True, solver, vars_dn)
     root_node = DecNodeRoot(0, root_alg, final_solver=solver)
     return root_node
+
 
 def create_sub(s: int, nI: int, nJ: int, nS: int, solver="appsi_highs") -> DecNodeLeaf:
     m = pyo.ConcreteModel()
@@ -55,14 +59,15 @@ def create_sub(s: int, nI: int, nJ: int, nS: int, solver="appsi_highs") -> DecNo
     second_stage(m.b, m.x, nI, nJ, seed2=3 + s)
     m.obj.expr = (m.obj.expr + m.b.objexpr) / nS
 
-    vars_up = [m.x[j] for j in range(1, nJ+1)]
+    vars_up = [m.x[j] for j in range(1, nJ + 1)]
 
     sub_solver = PyomoSolver(m, solver, vars_up)
     sub_alg = DdAlgLeafPyomo(sub_solver)
-    leaf_node = DecNodeLeaf(s+1, sub_alg)
+    leaf_node = DecNodeLeaf(s + 1, sub_alg)
     leaf_node.add_parent(0)
 
     return leaf_node
+
 
 if __name__ == "__main__":
     main(50, 10, 5)

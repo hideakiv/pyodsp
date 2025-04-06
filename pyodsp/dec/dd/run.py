@@ -34,10 +34,10 @@ class DdRun:
             self._init_root()
             for child_id in self.root.get_children():
                 self._init_leaf(
-                    child_id, 
-                    self.root.get_init_message(child_id=child_id), 
+                    child_id,
+                    self.root.get_init_message(child_id=child_id),
                     self.root.is_minimize(),
-                    self.root.get_depth() + 1
+                    self.root.get_depth() + 1,
                 )
 
             self._run_root()
@@ -47,18 +47,19 @@ class DdRun:
 
         for node in self.nodes.values():
             node.save(self.filedir)
-    
+
     def _init_root(self) -> None:
         self.logger.log_initialization()
         assert self.root is not None
         self.root.build()
 
     def _init_leaf(
-            self, node_id: int, 
-            message: IMessage, 
-            is_minimize: bool,
-            depth: int,
-        ) -> None:
+        self,
+        node_id: int,
+        message: IMessage,
+        is_minimize: bool,
+        depth: int,
+    ) -> None:
         node = self.nodes[node_id]
         node.set_depth(depth)
         assert isinstance(node, INodeLeaf)
@@ -97,7 +98,7 @@ class DdRun:
         if isinstance(cut_dn, FeasibilityCut):
             self.logger.log_sub_problem(idx, "Feasibility", cut_dn.coeffs, cut_dn.rhs)
         return cut_dn
-    
+
     def _finalize_root(self) -> None:
         assert self.root is not None
         mip_heuristic = MipHeuristicRoot(
@@ -116,4 +117,3 @@ class DdRun:
         assert isinstance(node, INodeLeaf)
         node.pass_final_message(message)
         return node.get_objective_value()
-

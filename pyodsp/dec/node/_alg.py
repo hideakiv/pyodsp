@@ -6,6 +6,7 @@ from pyodsp.alg.cuts import Cut, CutList
 
 from ..run._message import NodeIdx, IMessage
 
+
 class IAlg(ABC):
     @abstractmethod
     def save(self, dir: Path) -> None:
@@ -14,6 +15,7 @@ class IAlg(ABC):
     @abstractmethod
     def is_minimize(self) -> bool:
         pass
+
 
 class IAlgRoot(IAlg, ABC):
     @abstractmethod
@@ -47,6 +49,7 @@ class IAlgRoot(IAlg, ABC):
     @abstractmethod
     def get_num_vars(self) -> int:
         pass
+
 
 class IAlgLeaf(IAlg, ABC):
     @abstractmethod

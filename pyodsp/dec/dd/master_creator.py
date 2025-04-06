@@ -10,7 +10,7 @@ from pyomo.environ import (
     maximize,
     NonNegativeReals,
     Reals,
-    ScalarVar
+    ScalarVar,
 )
 
 from pyodsp.dec.utils import get_nonzero_coefficients_group
@@ -25,7 +25,7 @@ class MasterCreator:
         is_minimize: bool,
         solver_name: str,
         vars_dn: Dict[int, List[ScalarVar]],
-        **kwargs
+        **kwargs,
     ) -> None:
         self.lagrangian_data = get_nonzero_coefficients_group(coupling_model, vars_dn)
         self.num_constrs = len(self.lagrangian_data.constraints)

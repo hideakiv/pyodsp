@@ -11,9 +11,7 @@ from ..run._message import IMessage
 
 
 class DdRunMpi(DdRun):
-    def __init__(
-        self, nodes: List[INode], filedir: Path
-    ):
+    def __init__(self, nodes: List[INode], filedir: Path):
         super().__init__(nodes, filedir)
         self.comm = MPI.COMM_WORLD
         self.rank = self.comm.Get_rank()
@@ -46,7 +44,9 @@ class DdRunMpi(DdRun):
             if 0 in matrices:
                 matrix_info = matrices[0]
                 for node_id, matrix in matrix_info.items():
-                    self._init_leaf(node_id, matrix, is_minimize, self.root.get_depth() + 1)
+                    self._init_leaf(
+                        node_id, matrix, is_minimize, self.root.get_depth() + 1
+                    )
 
             self._run_root()
 
@@ -77,12 +77,12 @@ class DdRunMpi(DdRun):
                 matrices[target] = {}
             matrices[target][child_id] = self.root.get_init_message(child_id=child_id)
         return matrices
-    
+
     def _run_root(self) -> None:
         assert self.root is not None
         self.root.reset()
         solution = [0.0 for _ in range(self.root.get_num_vars())]
-        
+
         # broadcast solution
         self.comm.bcast(solution, root=0)
 
@@ -103,13 +103,13 @@ class DdRunMpi(DdRun):
             self.comm.bcast(solution, root=0)
 
             cuts_dn = self._run_leaf(solution)
-            
+
             # gather cuts
             all_cuts_dn = self.comm.gather(cuts_dn, root=0)
             combined_cuts_dn = {}
             for d in all_cuts_dn:
                 combined_cuts_dn.update(d)
-        
+
         self.logger.log_finaliziation()
 
     def _run_leaf_mpi(self) -> None:
@@ -142,7 +142,7 @@ class DdRunMpi(DdRun):
 
         for target, message in solutions_dict.items():
             self.comm.send(message, dest=target, tag=1)
-        
+
         final_obj = 0.0
         if 0 in solutions_dict:
             for node_id, message in solutions_dict[0].items():

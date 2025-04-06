@@ -9,6 +9,7 @@ from pyodsp.dec.bd.alg_leaf_pyomo import BdAlgLeafPyomo
 from pyodsp.dec.bd.run import BdRun
 from pyodsp.solver.pyomo_solver import PyomoSolver
 
+
 def main(solver="appsi_highs"):
     demand = [0, 10, 15, 20, 21, 22, 28, 38, 37, 36, 35, 34, 33, 32, 31]
     nodes = []
@@ -24,6 +25,7 @@ def main(solver="appsi_highs"):
     bd_run = BdRun(nodes, Path("output/flowergirl/bd"))
     bd_run.run()
 
+
 def create_root(solver_name):
     model = pyo.ConcreteModel()
     first_stage(model)
@@ -34,6 +36,7 @@ def create_root(solver_name):
     node.add_child(1, multiplier=0.5)
     node.add_child(2, multiplier=0.5)
     return node
+
 
 def create_inner(idx, demand, solver_name):
     model = pyo.ConcreteModel()
@@ -54,6 +57,7 @@ def create_inner(idx, demand, solver_name):
     node.add_child(2 * idx + 2, multiplier=0.5)
     return node
 
+
 def create_leaf(idx, demand, solver_name):
     model = pyo.ConcreteModel()
     model.prev_inventory = pyo.Var()
@@ -67,6 +71,7 @@ def create_leaf(idx, demand, solver_name):
     node.set_bound(1000)
     node.add_parent(parent)
     return node
+
 
 if __name__ == "__main__":
     main()

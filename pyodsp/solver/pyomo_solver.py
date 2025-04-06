@@ -59,7 +59,7 @@ class PyomoSolver(Solver):
     def get_original_objective_value(self) -> float:
         """Get the objective value of the model"""
         return pyo.value(self.original_objective)
-    
+
     def activate_original_objective(self) -> None:
         """Activate the original objective"""
         current_obj = self._get_objective()
@@ -208,7 +208,6 @@ class PyomoSolver(Solver):
         return pyo.value(self._unbounded_model._mod_obj)
 
     def _create_unbounded_model(self) -> None:
-
         self._unbounded_model = self.model.clone()
 
         for vars in self._unbounded_model.component_objects(pyo.Var):

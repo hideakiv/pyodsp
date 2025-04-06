@@ -1,4 +1,3 @@
-
 # Solution Status
 STATUS_NOT_FINISHED = 0
 STATUS_OPTIMAL = 1

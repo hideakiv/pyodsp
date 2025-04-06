@@ -56,7 +56,7 @@ class BdAlgLeafPyomo(BdAlgLeaf):
         cut = self._get_subgradient_inner()
         self.step_time.append(time.time() - start)
         return cut
-    
+
     def _get_subgradient_inner(self) -> Cut:
         if self.solver.is_optimal():
             cut = self._optimality_cut()
@@ -66,7 +66,7 @@ class BdAlgLeafPyomo(BdAlgLeaf):
             return cut
         else:
             raise ValueError("Unknown solver status")
-    
+
     def get_objective_value(self) -> float:
         return self.solver.get_objective_value()
 
@@ -81,8 +81,12 @@ class BdAlgLeafPyomo(BdAlgLeaf):
                 temp = dual_var * coefficients
                 coeff[j] += temp
                 rhs += temp * self.coupling_values[j]
-        sparse_coeff = {j: val for j, val in enumerate(coeff) if abs(val) > DEC_CUT_ABS_TOL}
-        return OptimalityCut(coeffs=sparse_coeff, rhs=rhs, objective_value=objective, info={})
+        sparse_coeff = {
+            j: val for j, val in enumerate(coeff) if abs(val) > DEC_CUT_ABS_TOL
+        }
+        return OptimalityCut(
+            coeffs=sparse_coeff, rhs=rhs, objective_value=objective, info={}
+        )
 
     def _feasibility_cut(self) -> FeasibilityCut:
         sigma = self.solver.get_dual_ray(self.coupling_constraints)
@@ -97,7 +101,9 @@ class BdAlgLeafPyomo(BdAlgLeaf):
                 temp = dual_ray * coefficients
                 coeff[j] += temp
                 rhs += temp * self.coupling_values[j]
-        sparse_coeff = {j: val for j, val in enumerate(coeff) if abs(val) > DEC_CUT_ABS_TOL}
+        sparse_coeff = {
+            j: val for j, val in enumerate(coeff) if abs(val) > DEC_CUT_ABS_TOL
+        }
         return FeasibilityCut(coeffs=sparse_coeff, rhs=rhs, info={})
 
     def save(self, dir: Path) -> None:

@@ -46,7 +46,6 @@ class BdRun:
 
     def _run_node(self, node: INode, sol_up: List[float] | None = None) -> Cut | None:
         if isinstance(node, INodeRoot):
-
             self._set_bounds(node)
             node.build()
             if isinstance(node, INodeInner):
@@ -60,7 +59,10 @@ class BdRun:
 
                 if status != STATUS_NOT_FINISHED:
                     if isinstance(node, INodeInner):
-                        if status == STATUS_MAX_ITERATION or status == STATUS_TIME_LIMIT:
+                        if (
+                            status == STATUS_MAX_ITERATION
+                            or status == STATUS_TIME_LIMIT
+                        ):
                             cuts_dn = self._get_cuts(node, solution)
                             node.add_cuts(cuts_dn)
                         return node.get_subgradient()
@@ -72,7 +74,7 @@ class BdRun:
             assert sol_up is not None
             node.build()
             return node.solve(sol_up)
-        
+
     def _run_finalize(self, node: INode) -> None:
         if isinstance(node, INodeRoot):
             solution = node.get_solution_dn()

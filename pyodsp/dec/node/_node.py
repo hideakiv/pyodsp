@@ -7,6 +7,7 @@ from pyodsp.alg.cuts import Cut
 from ._alg import IAlgRoot, IAlgLeaf
 from ..run._message import NodeIdx, IMessage
 
+
 class INode(ABC):
     @abstractmethod
     def get_kwargs(self) -> Dict[str, Any]:
@@ -44,6 +45,7 @@ class INode(ABC):
     def is_minimize(self) -> bool:
         pass
 
+
 class INodeParent(INode, ABC):
     @abstractmethod
     def get_alg_root(self) -> IAlgRoot:
@@ -52,7 +54,7 @@ class INodeParent(INode, ABC):
     @abstractmethod
     def add_child(self, idx: NodeIdx, multiplier: float) -> None:
         pass
-    
+
     @abstractmethod
     def set_groups(self, groups: List[List[NodeIdx]]) -> None:
         pass
@@ -105,7 +107,9 @@ class INodeParent(INode, ABC):
     def get_num_vars(self) -> int:
         pass
 
+
 INodeRoot = INodeParent
+
 
 class INodeChild(INode, ABC):
     @abstractmethod
@@ -148,7 +152,9 @@ class INodeChild(INode, ABC):
     def solve(self, solution: List[float]) -> Cut:
         pass
 
+
 INodeLeaf = INodeChild
+
 
 class INodeInner(INodeParent, INodeChild, ABC):
     pass

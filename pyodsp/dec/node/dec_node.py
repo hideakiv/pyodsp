@@ -10,11 +10,12 @@ from .cut_aggregator import CutAggregator
 from ..run._message import IMessage
 from ..utils import create_directory
 
+
 class DecNode(INode, ABC):
     def __init__(self, idx: NodeIdx, **kwargs) -> None:
         self.idx: NodeIdx = idx
         self.depth: int | None = None
-        
+
         self.parents: List[NodeIdx] = []
         self.children: List[NodeIdx] = []
         self.children_multipliers: Dict[NodeIdx, float] = {}
@@ -22,7 +23,7 @@ class DecNode(INode, ABC):
         self.groups = []
 
         self.kwargs = kwargs
-        
+
         self.built = False
 
     def get_kwargs(self) -> Dict[str, Any]:
@@ -55,6 +56,7 @@ class DecNode(INode, ABC):
     def build_inner(self) -> None:
         pass
 
+
 class DecNodeParent(INodeParent, DecNode):
     def __init__(self, idx: NodeIdx, alg_root: IAlgRoot, **kwargs) -> None:
         self.alg_root = alg_root
@@ -76,10 +78,10 @@ class DecNodeParent(INodeParent, DecNode):
             if not all_group_elements.isdisjoint(group_set):
                 raise ValueError("Groups are not disjoint")
             all_group_elements.update(group_set)
-        
+
         if all_group_elements != set(self.children):
             raise ValueError("Not all elements in groups coincide with children")
-        
+
         self.groups = groups
 
     def get_groups(self) -> List[List[NodeIdx]]:
@@ -114,7 +116,7 @@ class DecNodeParent(INodeParent, DecNode):
                     self.children_multipliers[member] * self.children_bounds[member]
                 )
             subobj_bounds.append(bound)
-        
+
         self.alg_root.build(subobj_bounds)
 
     def reset(self) -> None:
@@ -129,20 +131,20 @@ class DecNodeParent(INodeParent, DecNode):
             return self.alg_root.run_step(None)
         aggregate_cuts = self.cut_aggregator.get_aggregate_cuts(cuts)
         return self.alg_root.run_step(aggregate_cuts)
-    
+
     def get_init_message(self, **kwargs) -> IMessage:
         return self.alg_root.get_init_message(**kwargs)
 
     def get_solution_dn(self) -> List[float]:
         return self.alg_root.get_solution_dn()
-    
+
     def get_num_vars(self) -> int:
         return self.alg_root.get_num_vars()
 
     def add_cuts(self, cuts: Dict[int, Cut]) -> None:
         aggregate_cuts = self.cut_aggregator.get_aggregate_cuts(cuts)
         self.alg_root.add_cuts(aggregate_cuts)
-    
+
     def save(self, dir: Path) -> None:
         node_dir = dir / f"node{self.idx}"
         create_directory(node_dir)
@@ -150,8 +152,10 @@ class DecNodeParent(INodeParent, DecNode):
 
     def is_minimize(self) -> bool:
         return self.alg_root.is_minimize()
-    
+
+
 DecNodeRoot = DecNodeParent
+
 
 class DecNodeChild(INodeChild, DecNode):
     def __init__(self, idx: NodeIdx, alg_leaf: IAlgLeaf, **kwargs) -> None:
@@ -165,16 +169,16 @@ class DecNodeChild(INodeChild, DecNode):
         if idx in self.parents:
             raise ValueError(f"Idx {idx} already in parents of node {self.idx}")
         self.parents.append(idx)
-    
+
     def set_bound(self, bound: float) -> None:
         self.bound = bound
 
     def get_bound(self) -> float:
         return self.bound
-    
+
     def get_objective_value(self) -> float:
         return self.alg_leaf.get_objective_value()
-    
+
     def build_inner(self) -> None:
         self.alg_leaf.build()
 
@@ -193,7 +197,7 @@ class DecNodeChild(INodeChild, DecNode):
     def solve(self, solution: List[float]) -> Cut:
         self.pass_solution(solution)
         return self.get_subgradient()
-    
+
     def save(self, dir: Path) -> None:
         node_dir = dir / f"node{self.idx}"
         create_directory(node_dir)
@@ -201,14 +205,15 @@ class DecNodeChild(INodeChild, DecNode):
 
     def is_minimize(self) -> bool:
         return self.alg_leaf.is_minimize()
-    
+
 
 DecNodeLeaf = DecNodeChild
+
 
 class DecNodeInner(INodeInner, DecNodeParent, DecNodeChild):
     def __init__(self, idx: NodeIdx, alg_root: IAlgRoot, alg_leaf: IAlgLeaf) -> None:
         super().__init__(idx=idx, alg_root=alg_root, alg_leaf=alg_leaf)
-    
+
     def build_inner(self) -> None:
         DecNodeParent.build_inner(self)
         DecNodeChild.build_inner(self)

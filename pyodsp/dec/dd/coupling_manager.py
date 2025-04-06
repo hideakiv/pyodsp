@@ -1,12 +1,10 @@
 from typing import List, Dict
 
+
 class CouplingManager:
     def __init__(
-            self,
-            coupling_matrix: List[Dict[int, float]],
-            len_vars: int,
-            is_minimize: bool
-        ) -> None:
+        self, coupling_matrix: List[Dict[int, float]], len_vars: int, is_minimize: bool
+    ) -> None:
         self.len_vars = len_vars
         self.is_minimize = is_minimize
         self.row_major: List[Dict[int, float]] = coupling_matrix

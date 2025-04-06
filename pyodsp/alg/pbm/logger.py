@@ -34,7 +34,7 @@ class PbmLogger:
         ub: float | None,
         x: List[float],
         numcuts: int,
-        elapsed: float
+        elapsed: float,
     ) -> None:
         if lb is None:
             lb = "-"
@@ -48,14 +48,20 @@ class PbmLogger:
             ub = "-"
         else:
             ub = f"{ub:.4f}"
-        self.logger.info(f"Node: {self.node_id} - Iteration: {iteration}\tLB: {lb}\t CB: {cb}\t UB: {ub}\t NumCuts: {numcuts}\t Elapsed: {elapsed:.2f}")
+        self.logger.info(
+            f"Node: {self.node_id} - Iteration: {iteration}\tLB: {lb}\t CB: {cb}\t UB: {ub}\t NumCuts: {numcuts}\t Elapsed: {elapsed:.2f}"
+        )
         self.logger.debug(f"Node: {self.node_id} - \tsolution: {x}")
 
     def log_sub_problem(self, idx, cut_type: str, coefficients, constant) -> None:
-        self.logger.debug(f"Node: {self.node_id} - \t{idx}\t{cut_type}\t{coefficients}\t{constant}")
+        self.logger.debug(
+            f"Node: {self.node_id} - \t{idx}\t{cut_type}\t{coefficients}\t{constant}"
+        )
 
     def log_status_optimal(self) -> None:
-        self.logger.info(f"Node: {self.node_id} - Regularized Bundle method terminated by optimality")
+        self.logger.info(
+            f"Node: {self.node_id} - Regularized Bundle method terminated by optimality"
+        )
 
     def log_status_max_iter(self) -> None:
         self.logger.info(
@@ -63,12 +69,18 @@ class PbmLogger:
         )
 
     def log_status_time_limit(self) -> None:
-        self.logger.info(f"Node: {self.node_id} - Regularized Bundle method terminated by time limit")
+        self.logger.info(
+            f"Node: {self.node_id} - Regularized Bundle method terminated by time limit"
+        )
 
     def log_infeasible(self) -> None:
-        self.logger.info(f"Node: {self.node_id} - Bundle method terminated by infeasibility")
+        self.logger.info(
+            f"Node: {self.node_id} - Bundle method terminated by infeasibility"
+        )
 
     def log_completion(self, iteration: int, objective_value: float | None) -> None:
         self.logger.info(f"Node: {self.node_id} - Regularized Bundle method completed")
         self.logger.info(f"Node: {self.node_id} - Total iterations: {iteration}")
-        self.logger.info(f"Node: {self.node_id} - Final objective value: {objective_value}")
+        self.logger.info(
+            f"Node: {self.node_id} - Final objective value: {objective_value}"
+        )

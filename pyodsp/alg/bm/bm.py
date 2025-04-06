@@ -85,7 +85,7 @@ class BundleMethod:
             theta_val = theta.value
             current_obj += theta_val
         self.obj_bound.append(current_obj)
-    
+
     def _log(self) -> None:
         if self.solver.is_minimize():
             lb = self.obj_bound[-1]
@@ -95,20 +95,21 @@ class BundleMethod:
             ub = self.obj_bound[-1]
         numcuts = self.cuts_manager.get_num_cuts()
         elapsed = time.time() - self.start_time
-        self.logger.log_master_problem(self.iteration, lb, ub, self.current_solution, numcuts, elapsed)
+        self.logger.log_master_problem(
+            self.iteration, lb, ub, self.current_solution, numcuts, elapsed
+        )
 
     def _termination_check(self) -> bool:
-        
         if self.iteration >= self.max_iteration:
             self.status = STATUS_MAX_ITERATION
             self.logger.log_status_max_iter()
             return True
-        
+
         if time.time() - self.start_time > BM_TIME_LIMIT:
             self.status = STATUS_TIME_LIMIT
             self.logger.log_status_time_limit()
             return True
-        
+
         if (
             len(self.obj_val) == 0
             or self.obj_val[-1] is None
@@ -122,7 +123,7 @@ class BundleMethod:
             self.status = STATUS_OPTIMAL
             self.logger.log_status_optimal()
             return True
-        
+
         return False
 
     def save(self, dir: Path) -> None:
@@ -171,7 +172,6 @@ class BundleMethod:
         add_terms_to_objective(self.solver, self.solver.model._theta)
 
     def _add_optimality_cut(self, idx: int, cut: OptimalityCut) -> bool:
-
         theta = self.solver.model._theta[idx]
         theta_val = theta.value
         cut_num = self.cuts_manager.get_num_optimality(idx)
@@ -213,7 +213,6 @@ class BundleMethod:
         return True
 
     def _add_feasibility_cut(self, idx: int, cut: FeasibilityCut) -> bool:
-
         cut_num = self.cuts_manager.get_num_feasibility(idx)
         vars = self.solver.vars
 

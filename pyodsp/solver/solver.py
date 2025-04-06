@@ -20,7 +20,7 @@ class Solver(ABC):
     def get_original_objective_value(self) -> float:
         """Get the original objective value of the model"""
         return 0.0
-    
+
     @abstractmethod
     def activate_original_objective(self) -> None:
         """Activate the original objective"""

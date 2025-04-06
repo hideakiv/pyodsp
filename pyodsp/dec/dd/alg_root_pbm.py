@@ -12,7 +12,6 @@ from pyodsp.alg.cuts_manager import CutInfo
 
 
 class DdAlgRootPbm(DdAlgRoot):
-
     def __init__(
         self,
         coupling_model: ConcreteModel,
@@ -20,7 +19,7 @@ class DdAlgRootPbm(DdAlgRoot):
         solver_name: str,
         vars_dn: Dict[int, List[ScalarVar]],
         max_iteration=1000,
-        **kwargs
+        **kwargs,
     ) -> None:
         super().__init__(coupling_model, is_minimize, solver_name, vars_dn, **kwargs)
 
@@ -43,7 +42,7 @@ class DdAlgRootPbm(DdAlgRoot):
 
     def get_solution_dn(self) -> List[float]:
         return [var.value for var in self.pbm.solver.vars]
-    
+
     def get_num_vars(self) -> int:
         return len(self.pbm.solver.vars)
 
@@ -58,6 +57,6 @@ class DdAlgRootPbm(DdAlgRoot):
         path = dir / "step_time.csv"
         df = pd.DataFrame(self.step_time, columns=["step_time"])
         df.to_csv(path, index=False)
-    
+
     def set_logger(self, node_id: int, depth: int) -> None:
         self.pbm.set_logger(node_id, depth)

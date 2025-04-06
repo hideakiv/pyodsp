@@ -31,7 +31,7 @@ class ProximalBundleMethod(BundleMethod):
         super().__init__(solver, max_iteration)
         self.penalty = penalty
         self.center_val = []
-    
+
     def set_logger(self, node_id: int, depth: int) -> None:
         self.logger = PbmLogger(node_id, depth)
 
@@ -56,7 +56,7 @@ class ProximalBundleMethod(BundleMethod):
                 self.obj_val.append(obj_val)
             else:
                 self.obj_val.append(None)
-                
+
             if no_cuts or self._improved():
                 self._update_center(self.current_solution)
                 self.center_val.append(self.obj_val[-1])
@@ -80,7 +80,7 @@ class ProximalBundleMethod(BundleMethod):
             self.logger.log_completion(self.iteration, self.obj_bound[-1])
 
         return self.status, self.current_solution
-    
+
     def _log(self) -> None:
         if self.solver.is_minimize():
             lb = self.obj_bound[-1]
@@ -91,21 +91,26 @@ class ProximalBundleMethod(BundleMethod):
         numcuts = self.cuts_manager.get_num_cuts()
         elapsed = time.time() - self.start_time
         self.logger.log_master_problem(
-            self.iteration, lb, self.center_val[-1], ub, self.current_solution, numcuts, elapsed
+            self.iteration,
+            lb,
+            self.center_val[-1],
+            ub,
+            self.current_solution,
+            numcuts,
+            elapsed,
         )
-    
+
     def _termination_check(self) -> bool:
-        
         if self.iteration >= self.max_iteration:
             self.status = STATUS_MAX_ITERATION
             self.logger.log_status_max_iter()
             return True
-        
+
         if time.time() - self.start_time > BM_TIME_LIMIT:
             self.status = STATUS_TIME_LIMIT
             self.logger.log_status_time_limit()
             return True
-        
+
         if len(self.center_val) == 0 or self.center_val[-1] is None:
             return False
 
@@ -119,7 +124,7 @@ class ProximalBundleMethod(BundleMethod):
             self.status = STATUS_OPTIMAL
             self.logger.log_status_optimal()
             return True
-        
+
         return False
 
     def save(self, dir: Path) -> None:

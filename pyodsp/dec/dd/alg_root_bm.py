@@ -13,7 +13,6 @@ from pyodsp.alg.params import BM_DUMMY_BOUND
 
 
 class DdAlgRootBm(DdAlgRoot):
-
     def __init__(
         self,
         coupling_model: ConcreteModel,
@@ -21,7 +20,7 @@ class DdAlgRootBm(DdAlgRoot):
         solver_name: str,
         vars_dn: Dict[int, List[ScalarVar]],
         max_iteration=1000,
-        **kwargs
+        **kwargs,
     ) -> None:
         super().__init__(coupling_model, is_minimize, solver_name, vars_dn, **kwargs)
 
@@ -48,7 +47,7 @@ class DdAlgRootBm(DdAlgRoot):
 
     def get_solution_dn(self) -> List[float]:
         return [var.value for var in self.bm.solver.vars]
-    
+
     def get_num_vars(self) -> int:
         return len(self.bm.solver.vars)
 
@@ -63,6 +62,6 @@ class DdAlgRootBm(DdAlgRoot):
         path = dir / "step_time.csv"
         df = pd.DataFrame(self.step_time, columns=["step_time"])
         df.to_csv(path, index=False)
-    
+
     def set_logger(self, node_id: int, depth: int) -> None:
         self.bm.set_logger(node_id, depth)

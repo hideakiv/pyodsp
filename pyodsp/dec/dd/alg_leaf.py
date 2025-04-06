@@ -3,8 +3,8 @@ from typing import List, Dict, Tuple
 
 from ..node._alg import IAlgLeaf
 
-class DdAlgLeaf(IAlgLeaf, ABC):
 
+class DdAlgLeaf(IAlgLeaf, ABC):
     @abstractmethod
     def set_coupling_matrix(self, coupling_matrix: List[Dict[int, float]]) -> None:
         pass

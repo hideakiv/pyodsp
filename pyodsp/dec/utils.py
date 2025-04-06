@@ -73,7 +73,9 @@ def get_nonzero_coefficients_from_constraint(
             coefficients[i] = all_coefficients[var.name]
     return CouplingData(constraint, coefficients, vars)
 
+
 SparseMatrix = List[Dict[int, float]]
+
 
 @dataclass
 class LagrangianData:

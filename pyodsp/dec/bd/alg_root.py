@@ -4,5 +4,4 @@ from ..node._alg import IAlgRoot
 
 
 class BdAlgRoot(IAlgRoot, ABC):
-
     pass

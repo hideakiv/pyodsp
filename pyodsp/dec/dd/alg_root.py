@@ -14,22 +14,20 @@ from pyodsp.dec.run._message import DdInitMessage
 from ..node._alg import IAlgRoot
 from .master_creator import MasterCreator
 
-class DdAlgRoot(IAlgRoot, ABC):
 
+class DdAlgRoot(IAlgRoot, ABC):
     def __init__(
         self,
         coupling_model: ConcreteModel,
         is_minimize: bool,
         solver_name: str,
         vars_dn: Dict[int, List[ScalarVar]],
-        **kwargs
+        **kwargs,
     ) -> None:
         self.coupling_model = coupling_model
         self.vars_dn = vars_dn
         self._init_check()
-        mc = MasterCreator(
-            coupling_model, is_minimize, solver_name, vars_dn, **kwargs
-        )
+        mc = MasterCreator(coupling_model, is_minimize, solver_name, vars_dn, **kwargs)
         self.solver = mc.create()
         self.lagrangian_data = mc.lagrangian_data
         self.num_constrs = mc.num_constrs
@@ -42,7 +40,7 @@ class DdAlgRoot(IAlgRoot, ABC):
         for obj in self.coupling_model.component_objects(Objective, active=True):
             # There should not be any objective
             raise ValueError("Objective should not be defined in coupling_model")
-        
+
         # Check that vars_dn is properly specified
         varname_list = []
         for var in self.coupling_model.component_objects(ctype=Var):
@@ -57,14 +55,16 @@ class DdAlgRoot(IAlgRoot, ABC):
                 if var.name in varname_list:
                     varname_list.pop(varname_list.index(var.name))
                 else:
-                    raise ValueError(f"Variable {var.name} does not exist in varname_list")
-        
+                    raise ValueError(
+                        f"Variable {var.name} does not exist in varname_list"
+                    )
+
         if len(varname_list) > 0:
             raise ValueError(f"Variables {varname_list} not coupled")
-        
+
     def is_minimize(self) -> bool:
         return self._is_minimize
-    
+
     def get_init_message(self, **kwargs) -> DdInitMessage:
         child_id = kwargs["child_id"]
         message = DdInitMessage(self.lagrangian_data.matrix[child_id])

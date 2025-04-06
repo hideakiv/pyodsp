@@ -9,9 +9,7 @@ from ..node._node import INode, INodeLeaf, INodeInner
 
 
 class BdRunMpi(BdRun):
-    def __init__(
-        self, nodes: List[INode], filedir: Path
-    ):
+    def __init__(self, nodes: List[INode], filedir: Path):
         super().__init__(nodes, filedir)
         self.comm = MPI.COMM_WORLD
         self.rank = self.comm.Get_rank()
@@ -60,7 +58,7 @@ class BdRunMpi(BdRun):
 
         for node in self.nodes.values():
             node.save(self.filedir)
-    
+
     def _init_leaf(self, node: INode, is_minimize: bool, depth: int) -> None:
         if isinstance(node, INodeLeaf):
             if node.is_minimize() != is_minimize:

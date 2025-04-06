@@ -20,7 +20,9 @@ class DdAlgLeafPyomo(DdAlgLeaf):
         self._is_minimize = self.solver.is_minimize()
 
     def set_coupling_matrix(self, coupling_matrix: List[Dict[int, float]]) -> None:
-        self.cm = CouplingManager(coupling_matrix, self.get_len_vars(), self.is_minimize())
+        self.cm = CouplingManager(
+            coupling_matrix, self.get_len_vars(), self.is_minimize()
+        )
 
     def build(self) -> None:
         self.solver.original_objective.deactivate()
@@ -38,7 +40,9 @@ class DdAlgLeafPyomo(DdAlgLeaf):
 
     def _update_objective(self, coeffs: List[float]) -> None:
         self.primal_coeffs = self.cm.dual_times_matrix(coeffs)
-        update_linear_terms_in_objective(self.solver, self.primal_coeffs, self.solver.vars)
+        update_linear_terms_in_objective(
+            self.solver, self.primal_coeffs, self.solver.vars
+        )
 
     def get_subgradient(self) -> Cut:
         is_optimal, solution, obj = self.get_solution_or_ray()
@@ -46,7 +50,11 @@ class DdAlgLeafPyomo(DdAlgLeaf):
             dual_coeffs = self.cm.matrix_times_primal(solution)
             product = self.cm.inner_product(self.primal_coeffs, solution)
             rhs = obj - product
-            sparse_coeff = {j: val for j, val in enumerate(dual_coeffs) if abs(val) > DEC_CUT_ABS_TOL}
+            sparse_coeff = {
+                j: val
+                for j, val in enumerate(dual_coeffs)
+                if abs(val) > DEC_CUT_ABS_TOL
+            }
             return OptimalityCut(
                 coeffs=sparse_coeff,
                 rhs=rhs,
@@ -57,7 +65,11 @@ class DdAlgLeafPyomo(DdAlgLeaf):
             dual_coeffs = self.cm.matrix_times_primal(solution)
             product = self.cm.inner_product(self.primal_coeffs, solution)
             rhs = obj - product
-            sparse_coeff = {j: val for j, val in enumerate(dual_coeffs) if abs(val) > DEC_CUT_ABS_TOL}
+            sparse_coeff = {
+                j: val
+                for j, val in enumerate(dual_coeffs)
+                if abs(val) > DEC_CUT_ABS_TOL
+            }
             return FeasibilityCut(
                 coeffs=sparse_coeff, rhs=rhs, info={"solution": solution}
             )
@@ -87,7 +99,6 @@ class DdAlgLeafPyomo(DdAlgLeaf):
         return self.solver.get_objective_value()
 
     def _get_ray(self) -> Tuple[List[float], float]:
-
         ray = self.solver.get_unbd_ray()
         obj = self.solver.get_unbounded_model_objective_value()
 

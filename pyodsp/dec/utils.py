@@ -2,8 +2,7 @@ from typing import List, Dict, Tuple
 from pathlib import Path
 from dataclasses import dataclass
 
-from pyomo.environ import ConcreteModel, Constraint
-from pyomo.core.base.var import VarData
+from pyomo.environ import ConcreteModel, Constraint, ScalarVar
 from pyomo.core.base.constraint import ConstraintData, IndexedConstraint
 from pyomo.repn import generate_standard_repn
 
@@ -21,11 +20,11 @@ class CouplingData:
 
     constraint: ConstraintData
     coefficients: Dict[int, float]
-    vars: List[VarData]
+    vars: List[ScalarVar]
 
 
 def get_nonzero_coefficients_from_model(
-    model: ConcreteModel, vars: List[VarData]
+    model: ConcreteModel, vars: List[ScalarVar]
 ) -> List[CouplingData]:
     """Get the nonzero coefficients of the variables in the constraints.
 
@@ -53,7 +52,7 @@ def get_nonzero_coefficients_from_model(
 
 
 def get_nonzero_coefficients_from_constraint(
-    constraint: ConstraintData, vars: List[VarData]
+    constraint: ConstraintData, vars: List[ScalarVar]
 ) -> CouplingData:
     """Get the nonzero coefficients of the variables in the constraint.
 
@@ -84,11 +83,11 @@ class LagrangianData:
     matrix: Dict[int, SparseMatrix]
     ubs: List[float | None]
     constraints: List[ConstraintData]
-    vars_dict: Dict[int, List[VarData]]
+    vars_dict: Dict[int, List[ScalarVar]]
 
 
 def get_nonzero_coefficients_group(
-    model: ConcreteModel, vars_dict: Dict[int, List[VarData]]
+    model: ConcreteModel, vars_dict: Dict[int, List[ScalarVar]]
 ) -> LagrangianData:
     matrix: Dict[int, SparseMatrix] = {}
     lbs: List[float | None] = []
@@ -120,7 +119,7 @@ def get_nonzero_coefficients_group(
 
 
 def get_nonzero_coefficients_group_from_constraint(
-    constraint: ConstraintData, vars_dict: Dict[int, List[VarData]]
+    constraint: ConstraintData, vars_dict: Dict[int, List[ScalarVar]]
 ) -> Tuple[float | None, Dict[int, CouplingData], float | None]:
     repn = generate_standard_repn(constraint.body)
     all_coefficients = {

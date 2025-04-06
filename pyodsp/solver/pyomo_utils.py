@@ -1,20 +1,19 @@
 from typing import List
 
-from pyomo.environ import Var, Objective
-from pyomo.core.base.var import VarData
+from pyomo.environ import Var, Objective, ScalarVar
 
 from pyodsp.solver.pyomo_solver import PyomoSolver
 
 
 def add_linear_terms_to_objective(
-    solver: PyomoSolver, coeffs: List[float], vars: Var | List[VarData]
+    solver: PyomoSolver, coeffs: List[float], vars: Var | List[ScalarVar]
 ) -> None:
     solver.original_objective.deactivate()
     update_linear_terms_in_objective(solver, coeffs, vars)
 
 
 def update_linear_terms_in_objective(
-    solver: PyomoSolver, coeffs: List[float], vars: Var | List[VarData]
+    solver: PyomoSolver, coeffs: List[float], vars: Var | List[ScalarVar]
 ) -> None:
     modified_expr = solver.original_objective.expr + sum(
         coeffs[i] * vars[i] for i in range(len(coeffs))
@@ -35,7 +34,7 @@ def add_terms_to_objective(solver: PyomoSolver, vars: Var) -> None:
 
 def update_quad_terms_in_objective(
     solver: PyomoSolver,
-    quadvars: List[VarData],
+    quadvars: List[ScalarVar],
     center: List[float],
     penalty: float = 1.0,
 ) -> None:
@@ -59,7 +58,7 @@ def update_quad_terms_in_objective(
 def add_quad_terms_to_objective(
     solver: PyomoSolver,
     linvars: Var,
-    quadvars: List[VarData],
+    quadvars: List[ScalarVar],
     center: List[float],
     penalty: float = 1.0,
 ) -> None:

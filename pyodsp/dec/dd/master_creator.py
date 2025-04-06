@@ -10,8 +10,8 @@ from pyomo.environ import (
     maximize,
     NonNegativeReals,
     Reals,
+    ScalarVar
 )
-from pyomo.core.base.var import VarData
 
 from pyodsp.dec.utils import get_nonzero_coefficients_group
 from pyodsp.solver.pyomo_solver import PyomoSolver
@@ -24,7 +24,7 @@ class MasterCreator:
         coupling_model: ConcreteModel,
         is_minimize: bool,
         solver_name: str,
-        vars_dn: Dict[int, List[VarData]],
+        vars_dn: Dict[int, List[ScalarVar]],
         **kwargs
     ) -> None:
         self.lagrangian_data = get_nonzero_coefficients_group(coupling_model, vars_dn)
@@ -73,7 +73,7 @@ class MasterCreator:
         else:
             master.objective = Objective(rule=max_obj, sense=minimize)
 
-        lagrangian_duals: List[VarData] = [
+        lagrangian_duals: List[ScalarVar] = [
             master.ld[i] for i in range(self.num_constrs)
         ]
         return PyomoSolver(master, self.solver_name, lagrangian_duals, **self.kwargs)

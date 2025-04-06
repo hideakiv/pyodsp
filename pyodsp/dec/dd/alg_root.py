@@ -5,8 +5,9 @@ from pyomo.environ import (
     ConcreteModel,
     Var,
     Objective,
+    ScalarVar,
 )
-from pyomo.core.base.var import VarData, IndexedVar
+from pyomo.core.base.var import IndexedVar
 
 from pyodsp.alg.cuts_manager import CutInfo
 from pyodsp.dec.run._message import DdInitMessage
@@ -21,7 +22,7 @@ class DdAlgRoot(IAlgRoot, ABC):
         coupling_model: ConcreteModel,
         is_minimize: bool,
         solver_name: str,
-        vars_dn: Dict[int, List[VarData]],
+        vars_dn: Dict[int, List[ScalarVar]],
         **kwargs
     ) -> None:
         self.coupling_model = coupling_model
@@ -35,7 +36,7 @@ class DdAlgRoot(IAlgRoot, ABC):
         self.num_constrs = mc.num_constrs
         self._is_minimize = is_minimize
 
-    def get_vars_dn(self) -> Dict[int, List[VarData]]:
+    def get_vars_dn(self) -> Dict[int, List[ScalarVar]]:
         return self.vars_dn
 
     def _init_check(self) -> None:
@@ -46,7 +47,7 @@ class DdAlgRoot(IAlgRoot, ABC):
         # Check that vars_dn is properly specified
         varname_list = []
         for var in self.coupling_model.component_objects(ctype=Var):
-            if isinstance(var, VarData):
+            if isinstance(var, ScalarVar):
                 varname_list.append(var.name)
             elif isinstance(var, IndexedVar):
                 for index in var:

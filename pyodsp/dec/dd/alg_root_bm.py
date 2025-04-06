@@ -3,8 +3,7 @@ from pathlib import Path
 import time
 import pandas as pd
 
-from pyomo.environ import ConcreteModel
-from pyomo.core.base.var import VarData
+from pyomo.environ import ConcreteModel, ScalarVar
 
 from .alg_root import DdAlgRoot
 from pyodsp.alg.bm.bm import BundleMethod
@@ -20,7 +19,7 @@ class DdAlgRootBm(DdAlgRoot):
         coupling_model: ConcreteModel,
         is_minimize: bool,
         solver_name: str,
-        vars_dn: Dict[int, List[VarData]],
+        vars_dn: Dict[int, List[ScalarVar]],
         max_iteration=1000,
         **kwargs
     ) -> None:

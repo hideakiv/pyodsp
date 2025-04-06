@@ -6,8 +6,8 @@ from pyomo.environ import (
     Var,
     Objective,
     ScalarVar,
+    VarList,
 )
-from pyomo.core.base.var import IndexedVar
 
 from pyodsp.alg.cuts_manager import CutInfo
 from pyodsp.dec.run._message import DdInitMessage
@@ -49,7 +49,7 @@ class DdAlgRoot(IAlgRoot, ABC):
         for var in self.coupling_model.component_objects(ctype=Var):
             if isinstance(var, ScalarVar):
                 varname_list.append(var.name)
-            elif isinstance(var, IndexedVar):
+            elif isinstance(var, VarList):
                 for index in var:
                     varname_list.append(var[index].name)
 

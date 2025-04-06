@@ -3,7 +3,7 @@ from pathlib import Path
 import time
 import pandas as pd
 
-from pyomo.core.base.var import VarData
+from pyomo.environ import ScalarVar
 
 from pyodsp.dec.run._message import BdInitMessage
 
@@ -20,7 +20,7 @@ class BdAlgRootBm(BdAlgRoot):
         self.bm = BundleMethod(solver, max_iteration)
         self.step_time: List[float] = []
 
-    def get_vars(self) -> List[VarData]:
+    def get_vars(self) -> List[ScalarVar]:
         return self.bm.solver.vars
 
     def build(self, subobj_bounds: List[float]) -> None:

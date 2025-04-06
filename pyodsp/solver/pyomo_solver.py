@@ -4,7 +4,6 @@ from pathlib import Path
 import pandas as pd
 
 import pyomo.environ as pyo
-from pyomo.core.base.var import VarData
 from pyomo.repn.standard_repn import generate_standard_repn
 from pyomo.opt import TerminationCondition
 
@@ -15,7 +14,7 @@ class PyomoSolver(Solver):
     """Base class for solvers using Pyomo"""
 
     def __init__(
-        self, model: pyo.ConcreteModel, solver: str, vars: List[VarData], **kwargs
+        self, model: pyo.ConcreteModel, solver: str, vars: List[pyo.ScalarVar], **kwargs
     ):
         """Initialize the subsolver.
 
@@ -282,7 +281,7 @@ class PyomoSolver(Solver):
 
         sol.to_csv(path, sep="\t", index=False)
 
-    def _change_domain_to_real(self, var: VarData) -> None:
+    def _change_domain_to_real(self, var: pyo.ScalarVar) -> None:
         if var.domain is pyo.NonNegativeIntegers:
             var.domain = pyo.NonNegativeReals
         elif var.domain is pyo.Integers:

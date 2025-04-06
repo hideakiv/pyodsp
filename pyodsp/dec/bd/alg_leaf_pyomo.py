@@ -4,7 +4,7 @@ import time
 import pandas as pd
 
 from pyomo.environ import Suffix
-from pyomo.core.base.constraint import ConstraintData
+from pyomo.core.base.constraint import ScalarConstraint
 
 from pyodsp.dec.run._message import BdInitMessage, BdFinalMessage
 
@@ -26,7 +26,7 @@ class BdAlgLeafPyomo(BdAlgLeaf):
         self.coupling_info: List[CouplingData] = get_nonzero_coefficients_from_model(
             self.solver.model, coupling_vars
         )
-        self.coupling_constraints: List[ConstraintData] = [
+        self.coupling_constraints: List[ScalarConstraint] = [
             coupling_data.constraint for coupling_data in self.coupling_info
         ]
 

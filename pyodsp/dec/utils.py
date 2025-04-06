@@ -3,7 +3,7 @@ from pathlib import Path
 from dataclasses import dataclass
 
 from pyomo.environ import ConcreteModel, Constraint, ScalarVar, ConstraintList
-from pyomo.core.base.constraint import ConstraintData
+from pyomo.core.base.constraint import ScalarConstraint
 from pyomo.repn import generate_standard_repn
 
 
@@ -18,7 +18,7 @@ def create_directory(filedir: Path) -> None:
 class CouplingData:
     """Coefficients of the variables in the constraint."""
 
-    constraint: ConstraintData
+    constraint: ScalarConstraint
     coefficients: Dict[int, float]
     vars: List[ScalarVar]
 
@@ -37,7 +37,7 @@ def get_nonzero_coefficients_from_model(
     """
     coupling_list: List[CouplingData] = []
     for constraint in model.component_objects(ctype=Constraint):
-        if isinstance(constraint, ConstraintData):
+        if isinstance(constraint, ScalarConstraint):
             coupling_data = get_nonzero_coefficients_from_constraint(constraint, vars)
             if len(coupling_data.coefficients) > 0:
                 coupling_list.append(coupling_data)
@@ -52,7 +52,7 @@ def get_nonzero_coefficients_from_model(
 
 
 def get_nonzero_coefficients_from_constraint(
-    constraint: ConstraintData, vars: List[ScalarVar]
+    constraint: ScalarConstraint, vars: List[ScalarVar]
 ) -> CouplingData:
     """Get the nonzero coefficients of the variables in the constraint.
 
@@ -82,7 +82,7 @@ class LagrangianData:
     lbs: List[float | None]
     matrix: Dict[int, SparseMatrix]
     ubs: List[float | None]
-    constraints: List[ConstraintData]
+    constraints: List[ScalarConstraint]
     vars_dict: Dict[int, List[ScalarVar]]
 
 
@@ -92,11 +92,11 @@ def get_nonzero_coefficients_group(
     matrix: Dict[int, SparseMatrix] = {}
     lbs: List[float | None] = []
     ubs: List[float | None] = []
-    constraints: List[ConstraintData] = []
+    constraints: List[ScalarConstraint] = []
     for key in vars_dict.keys():
         matrix[key] = []
     for constraint in model.component_objects(ctype=Constraint):
-        if isinstance(constraint, ConstraintData):
+        if isinstance(constraint, ScalarConstraint):
             lb, coupling_data, ub = get_nonzero_coefficients_group_from_constraint(
                 constraint, vars_dict
             )
@@ -119,7 +119,7 @@ def get_nonzero_coefficients_group(
 
 
 def get_nonzero_coefficients_group_from_constraint(
-    constraint: ConstraintData, vars_dict: Dict[int, List[ScalarVar]]
+    constraint: ScalarConstraint, vars_dict: Dict[int, List[ScalarVar]]
 ) -> Tuple[float | None, Dict[int, CouplingData], float | None]:
     repn = generate_standard_repn(constraint.body)
     all_coefficients = {

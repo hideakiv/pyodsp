@@ -2,8 +2,8 @@ from typing import List, Dict, Tuple
 from pathlib import Path
 from dataclasses import dataclass
 
-from pyomo.environ import ConcreteModel, Constraint, ScalarVar
-from pyomo.core.base.constraint import ConstraintData, IndexedConstraint
+from pyomo.environ import ConcreteModel, Constraint, ScalarVar, ConstraintList
+from pyomo.core.base.constraint import ConstraintData
 from pyomo.repn import generate_standard_repn
 
 
@@ -41,7 +41,7 @@ def get_nonzero_coefficients_from_model(
             coupling_data = get_nonzero_coefficients_from_constraint(constraint, vars)
             if len(coupling_data.coefficients) > 0:
                 coupling_list.append(coupling_data)
-        elif isinstance(constraint, IndexedConstraint):
+        elif isinstance(constraint, ConstraintList):
             for index in constraint:
                 coupling_data = get_nonzero_coefficients_from_constraint(
                     constraint[index], vars
@@ -105,7 +105,7 @@ def get_nonzero_coefficients_group(
             lbs.append(lb)
             ubs.append(ub)
             constraints.append(constraint)
-        elif isinstance(constraint, IndexedConstraint):
+        elif isinstance(constraint, ConstraintList):
             for index in constraint:
                 lb, coupling_data, ub = get_nonzero_coefficients_group_from_constraint(
                     constraint[index], vars_dict

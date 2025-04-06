@@ -6,7 +6,6 @@ from pyomo.environ import (
     Var,
     Objective,
     ScalarVar,
-    VarList,
 )
 
 from pyodsp.alg.cuts_manager import CutInfo
@@ -49,7 +48,7 @@ class DdAlgRoot(IAlgRoot, ABC):
         for var in self.coupling_model.component_objects(ctype=Var):
             if isinstance(var, ScalarVar):
                 varname_list.append(var.name)
-            elif isinstance(var, VarList):
+            else:
                 for index in var:
                     varname_list.append(var[index].name)
 

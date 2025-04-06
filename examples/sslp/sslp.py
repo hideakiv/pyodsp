@@ -35,7 +35,6 @@ Parameters (scenario):
 """
 import random
 import pyomo.environ as pyo
-from pyomo.core.base.block import BlockData
 
 
 
@@ -62,7 +61,7 @@ def first_stage(model: pyo.ConcreteModel, nJ: int, seed: int=1):
 
     model.obj = pyo.Objective(expr=sum(model.c[j] * model.x[j] for j in model.sJ), sense=pyo.minimize)\
     
-def second_stage(block: BlockData, x: pyo.Var, nI: int, nJ: int, seed1: int=2, seed2: int=3):
+def second_stage(block: pyo.ScalarBlock, x: pyo.Var, nI: int, nJ: int, seed1: int=2, seed2: int=3):
     random.seed(seed1)
     block.sI = pyo.RangeSet(nI)
     block.sJ = pyo.RangeSet(nJ)

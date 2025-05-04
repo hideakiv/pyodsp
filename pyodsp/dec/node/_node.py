@@ -2,8 +2,6 @@ from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Any, List, Dict, Tuple
 
-from pyodsp.alg.cuts import Cut
-
 from ._alg import IAlgRoot, IAlgLeaf
 from ..run._message import NodeIdx, InitMessage, FinalMessage, DnMessage, UpMessage
 
@@ -88,7 +86,9 @@ class INodeParent(INode, ABC):
         pass
 
     @abstractmethod
-    def run_step(self, cuts: Dict[int, Cut] | None) -> Tuple[int, DnMessage]:
+    def run_step(
+        self, up_messages: Dict[int, UpMessage] | None
+    ) -> Tuple[int, DnMessage]:
         pass
 
     @abstractmethod
@@ -96,7 +96,7 @@ class INodeParent(INode, ABC):
         pass
 
     @abstractmethod
-    def add_cuts(self, cuts: Dict[int, Cut]) -> None:
+    def add_cuts(self, cuts: Dict[int, UpMessage]) -> None:
         pass
 
     @abstractmethod
@@ -145,11 +145,11 @@ class INodeChild(INode, ABC):
         pass
 
     @abstractmethod
-    def get_subgradient(self) -> Cut:
+    def get_up_message(self) -> UpMessage:
         pass
 
     @abstractmethod
-    def solve(self, message: DnMessage) -> Cut:
+    def solve(self, message: DnMessage) -> UpMessage:
         pass
 
 

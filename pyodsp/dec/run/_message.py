@@ -1,5 +1,7 @@
-from abc import ABC
+from abc import ABC, abstractmethod
 from typing import Any
+
+from pyodsp.alg.cuts import Cut
 
 NodeIdx = Any
 
@@ -13,7 +15,9 @@ class InitMessage(IMessage, ABC):
 
 
 class UpMessage(IMessage, ABC):
-    pass
+    @abstractmethod
+    def get_cut(self) -> Cut:
+        pass
 
 
 class DnMessage(IMessage, ABC):

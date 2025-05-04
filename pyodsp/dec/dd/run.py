@@ -1,7 +1,7 @@
 from typing import List, Dict
 from pathlib import Path
 
-from pyodsp.alg.cuts import Cut, OptimalityCut, FeasibilityCut
+from pyodsp.alg.cuts import OptimalityCut, FeasibilityCut
 from pyodsp.alg.const import *
 
 from .logger import DdLogger
@@ -75,34 +75,35 @@ class DdRun:
             dn_message = DdDnMessage([0.0 for _ in range(self.root.get_num_vars())])
         else:
             dn_message = DdDnMessage(init_solution)
-        cuts_dn = self._run_leaf(dn_message)
+        up_messages = self._run_leaf(dn_message)
         while True:
-            status, solution = self.root.run_step(cuts_dn)
+            status, dn_message = self.root.run_step(up_messages)
             if status != STATUS_NOT_FINISHED:
                 break
-            cuts_dn = self._run_leaf(solution)
+            up_messages = self._run_leaf(dn_message)
 
         self.logger.log_finaliziation()
 
-    def _run_leaf(self, message: DnMessage) -> Dict[int, Cut]:
-        cuts_dn = {}
+    def _run_leaf(self, message: DnMessage) -> Dict[int, UpMessage]:
+        up_messages = {}
         for node in self.nodes.values():
             if isinstance(node, INodeLeaf):
-                cut_dn = self._get_cut(node.get_idx(), message)
-                cuts_dn[node.get_idx()] = cut_dn
-        return cuts_dn
+                up_message = self._get_up_message(node.get_idx(), message)
+                up_messages[node.get_idx()] = up_message
+        return up_messages
 
-    def _get_cut(self, idx: int, message: DnMessage) -> Cut:
+    def _get_up_message(self, idx: int, message: DnMessage) -> UpMessage:
         node = self.nodes[idx]
         assert isinstance(node, INodeLeaf)
         node.build()
-        cut_dn = node.solve(message)
+        up_message = node.solve(message)
+        cut_dn = up_message.get_cut()
         assert cut_dn is not None
         if isinstance(cut_dn, OptimalityCut):
             self.logger.log_sub_problem(idx, "Optimality", cut_dn.coeffs, cut_dn.rhs)
         if isinstance(cut_dn, FeasibilityCut):
             self.logger.log_sub_problem(idx, "Feasibility", cut_dn.coeffs, cut_dn.rhs)
-        return cut_dn
+        return up_message
 
     def _finalize_root(self) -> None:
         assert self.root is not None

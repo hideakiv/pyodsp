@@ -73,5 +73,5 @@ class IAlgLeaf(IAlg, ABC):
         pass
 
     @abstractmethod
-    def get_subgradient(self) -> Cut:
+    def get_up_message(self) -> UpMessage:
         pass

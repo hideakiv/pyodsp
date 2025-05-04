@@ -1,13 +1,13 @@
 from typing import List, Dict
 from pathlib import Path
 
-from pyodsp.alg.cuts import Cut, OptimalityCut, FeasibilityCut
+from pyodsp.alg.cuts import OptimalityCut, FeasibilityCut
 from pyodsp.alg.const import *
 
 from .logger import BdLogger
 from ..utils import create_directory
 from ..node._node import INode, INodeRoot, INodeLeaf, INodeInner
-from ..run._message import DnMessage
+from ..run._message import DnMessage, UpMessage
 
 
 class BdRun:
@@ -45,7 +45,9 @@ class BdRun:
                 raise ValueError("Inconsistent optimization sense")
             self._run_check(child)
 
-    def _run_node(self, node: INode, dn_message: DnMessage | None = None) -> Cut | None:
+    def _run_node(
+        self, node: INode, dn_message: DnMessage | None = None
+    ) -> UpMessage | None:
         if isinstance(node, INodeRoot):
             self._set_bounds(node)
             node.build()
@@ -54,9 +56,9 @@ class BdRun:
                 node.pass_dn_message(dn_message)
 
             node.reset()
-            cuts_dn = None
+            up_messages = None
             while True:
-                status, new_dn_message = node.run_step(cuts_dn)
+                status, new_dn_message = node.run_step(up_messages)
 
                 if status != STATUS_NOT_FINISHED:
                     if isinstance(node, INodeInner):
@@ -64,13 +66,13 @@ class BdRun:
                             status == STATUS_MAX_ITERATION
                             or status == STATUS_TIME_LIMIT
                         ):
-                            cuts_dn = self._get_cuts(node, new_dn_message)
-                            node.add_cuts(cuts_dn)
-                        return node.get_subgradient()
+                            up_messages = self._get_up_messages(node, new_dn_message)
+                            node.add_cuts(up_messages)
+                        return node.get_up_message()
                     else:
                         return
 
-                cuts_dn = self._get_cuts(node, new_dn_message)
+                up_messages = self._get_up_messages(node, new_dn_message)
         if isinstance(node, INodeLeaf):
             assert dn_message is not None
             node.build()
@@ -85,24 +87,27 @@ class BdRun:
                     child.solve(dn_message)
                 elif isinstance(child, INodeInner):
                     child.pass_dn_message(dn_message)
-                    child.get_subgradient()
+                    child.get_up_message()
                 self._run_finalize(child)
 
-    def _get_cuts(self, node: INode, dn_message: DnMessage) -> Dict[int, Cut]:
-        cuts_dn = {}
+    def _get_up_messages(
+        self, node: INode, dn_message: DnMessage
+    ) -> Dict[int, UpMessage]:
+        up_messages = {}
         for child in node.get_children():
-            cut_dn = self._get_cut(child, dn_message)
-            cuts_dn[child] = cut_dn
-        return cuts_dn
+            up_message = self._get_up_message(child, dn_message)
+            up_messages[child] = up_message
+        return up_messages
 
-    def _get_cut(self, idx: int, dn_message: DnMessage) -> Cut:
-        cut_dn = self._run_node(self.nodes[idx], dn_message)
-        assert cut_dn is not None
+    def _get_up_message(self, idx: int, dn_message: DnMessage) -> UpMessage:
+        up_message = self._run_node(self.nodes[idx], dn_message)
+        assert up_message is not None
+        cut_dn = up_message.get_cut()
         if isinstance(cut_dn, OptimalityCut):
             self.logger.log_sub_problem(idx, "Optimality", cut_dn.coeffs, cut_dn.rhs)
         if isinstance(cut_dn, FeasibilityCut):
             self.logger.log_sub_problem(idx, "Feasibility", cut_dn.coeffs, cut_dn.rhs)
-        return cut_dn
+        return up_message
 
     def _set_bounds(self, node: INodeRoot) -> None:
         for child in node.get_children():

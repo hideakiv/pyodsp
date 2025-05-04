@@ -6,7 +6,7 @@ import pandas as pd
 from pyodsp.alg.cuts import Cut, OptimalityCut, FeasibilityCut
 from pyodsp.alg.params import DEC_CUT_ABS_TOL
 
-from .message import DdInitMessage, DdFinalMessage, DdDnMessage
+from .message import DdInitMessage, DdFinalMessage, DdDnMessage, DdUpMessage
 from .alg_leaf import DdAlgLeaf
 from .coupling_manager import CouplingManager
 from pyodsp.solver.pyomo_solver import PyomoSolver
@@ -45,7 +45,7 @@ class DdAlgLeafPyomo(DdAlgLeaf):
             self.solver, self.primal_coeffs, self.solver.vars
         )
 
-    def get_subgradient(self) -> Cut:
+    def get_up_message(self) -> DdUpMessage:
         is_optimal, solution, obj = self.get_solution_or_ray()
         if is_optimal:
             dual_coeffs = self.cm.matrix_times_primal(solution)
@@ -56,12 +56,13 @@ class DdAlgLeafPyomo(DdAlgLeaf):
                 for j, val in enumerate(dual_coeffs)
                 if abs(val) > DEC_CUT_ABS_TOL
             }
-            return OptimalityCut(
+            cut = OptimalityCut(
                 coeffs=sparse_coeff,
                 rhs=rhs,
                 objective_value=obj,
                 info={"solution": solution},
             )
+            return DdUpMessage(cut)
         else:
             dual_coeffs = self.cm.matrix_times_primal(solution)
             product = self.cm.inner_product(self.primal_coeffs, solution)
@@ -71,9 +72,10 @@ class DdAlgLeafPyomo(DdAlgLeaf):
                 for j, val in enumerate(dual_coeffs)
                 if abs(val) > DEC_CUT_ABS_TOL
             }
-            return FeasibilityCut(
+            cut = FeasibilityCut(
                 coeffs=sparse_coeff, rhs=rhs, info={"solution": solution}
             )
+            return DdUpMessage(cut)
 
     def get_solution_or_ray(self) -> Tuple[bool, List[float], float]:
         start = time.time()

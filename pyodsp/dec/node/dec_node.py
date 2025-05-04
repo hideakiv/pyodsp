@@ -126,10 +126,12 @@ class DecNodeParent(INodeParent, DecNode):
         assert self.depth is not None
         self.alg_root.set_logger(self.idx, self.depth)
 
-    def run_step(self, cuts: Dict[int, Cut] | None) -> Tuple[int, DnMessage]:
-        if cuts is None:
+    def run_step(
+        self, up_messages: Dict[int, UpMessage] | None
+    ) -> Tuple[int, DnMessage]:
+        if up_messages is None:
             return self.alg_root.run_step(None)
-        aggregate_cuts = self.cut_aggregator.get_aggregate_cuts(cuts)
+        aggregate_cuts = self.cut_aggregator.get_aggregate_cuts(up_messages)
         return self.alg_root.run_step(aggregate_cuts)
 
     def get_init_message(self, **kwargs) -> InitMessage:
@@ -141,8 +143,8 @@ class DecNodeParent(INodeParent, DecNode):
     def get_num_vars(self) -> int:
         return self.alg_root.get_num_vars()
 
-    def add_cuts(self, cuts: Dict[int, Cut]) -> None:
-        aggregate_cuts = self.cut_aggregator.get_aggregate_cuts(cuts)
+    def add_cuts(self, up_messages: Dict[int, UpMessage]) -> None:
+        aggregate_cuts = self.cut_aggregator.get_aggregate_cuts(up_messages)
         self.alg_root.add_cuts(aggregate_cuts)
 
     def save(self, dir: Path) -> None:
@@ -191,12 +193,12 @@ class DecNodeChild(INodeChild, DecNode):
     def pass_final_message(self, message: FinalMessage) -> None:
         return self.alg_leaf.pass_final_message(message)
 
-    def get_subgradient(self) -> Cut:
-        return self.alg_leaf.get_subgradient()
+    def get_up_message(self) -> UpMessage:
+        return self.alg_leaf.get_up_message()
 
-    def solve(self, message: DnMessage) -> Cut:
+    def solve(self, message: DnMessage) -> UpMessage:
         self.pass_dn_message(message)
-        return self.get_subgradient()
+        return self.get_up_message()
 
     def save(self, dir: Path) -> None:
         node_dir = dir / f"node{self.idx}"

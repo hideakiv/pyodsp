@@ -1,7 +1,7 @@
 from typing import List, Dict
 
 from pyodsp.alg.cuts import Cut, OptimalityCut, FeasibilityCut, CutList
-from ._node import NodeIdx
+from ._node import NodeIdx, UpMessage
 
 
 class CutAggregator:
@@ -13,12 +13,12 @@ class CutAggregator:
             [multipliers[idx] for idx in group] for group in groups
         ]
 
-    def get_aggregate_cuts(self, cuts: Dict[int, Cut]) -> List[CutList]:
+    def get_aggregate_cuts(self, up_messages: Dict[int, UpMessage]) -> List[CutList]:
         aggregate_cuts = []
         for i, group in enumerate(self.groups):
             group_cut = []
             for child in group:
-                group_cut.append(cuts[child])
+                group_cut.append(up_messages[child].get_cut())
             aggregate_cut = self._get_aggregate_cut(
                 self.group_multipliers[i], group_cut
             )

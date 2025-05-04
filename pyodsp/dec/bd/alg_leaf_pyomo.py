@@ -6,7 +6,7 @@ import pandas as pd
 from pyomo.environ import Suffix
 from pyomo.core.base.constraint import ScalarConstraint
 
-from .message import BdInitMessage, BdFinalMessage, BdDnMessage
+from .message import BdInitMessage, BdFinalMessage, BdDnMessage, BdUpMessage
 from .alg_leaf import BdAlgLeaf
 from ..utils import CouplingData, get_nonzero_coefficients_from_model
 from pyodsp.alg.cuts import Cut, OptimalityCut, FeasibilityCut
@@ -50,12 +50,12 @@ class BdAlgLeafPyomo(BdAlgLeaf):
         for i, var in enumerate(self.solver.vars):
             var.fix(coupling_values[i])
 
-    def get_subgradient(self) -> Cut:
+    def get_up_message(self) -> BdUpMessage:
         start = time.time()
         self.solver.solve()
         cut = self._get_subgradient_inner()
         self.step_time.append(time.time() - start)
-        return cut
+        return BdUpMessage(cut)
 
     def _get_subgradient_inner(self) -> Cut:
         if self.solver.is_optimal():

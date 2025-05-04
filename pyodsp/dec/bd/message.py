@@ -1,5 +1,6 @@
 from typing import List
 from ..run._message import InitMessage, FinalMessage, DnMessage, UpMessage
+from pyodsp.alg.cuts import Cut
 
 
 class BdInitMessage(InitMessage):
@@ -7,7 +8,11 @@ class BdInitMessage(InitMessage):
 
 
 class BdUpMessage(UpMessage):
-    pass
+    def __init__(self, cut: Cut) -> None:
+        self.cut = cut
+
+    def get_cut(self):
+        return self.cut
 
 
 class BdDnMessage(DnMessage):

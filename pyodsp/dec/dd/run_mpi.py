@@ -90,43 +90,43 @@ class DdRunMpi(DdRun):
         # broadcast solution
         self.comm.bcast(dn_message, root=0)
 
-        cuts_dn = self._run_leaf(dn_message)
+        up_messages = self._run_leaf(dn_message)
 
         # gather cuts
-        all_cuts_dn = self.comm.gather(cuts_dn, root=0)
-        combined_cuts_dn = {}
-        for d in all_cuts_dn:
-            combined_cuts_dn.update(d)
+        all_up_messages = self.comm.gather(up_messages, root=0)
+        combined_up_messages = {}
+        for d in all_up_messages:
+            combined_up_messages.update(d)
 
         while True:
-            status, new_dn_message = self.root.run_step(combined_cuts_dn)
+            status, new_dn_message = self.root.run_step(combined_up_messages)
             if status != STATUS_NOT_FINISHED:
                 self.comm.bcast(-1, root=0)
                 break
             # broadcast solution
             self.comm.bcast(new_dn_message, root=0)
 
-            cuts_dn = self._run_leaf(new_dn_message)
+            up_messages = self._run_leaf(new_dn_message)
 
             # gather cuts
-            all_cuts_dn = self.comm.gather(cuts_dn, root=0)
-            combined_cuts_dn = {}
-            for d in all_cuts_dn:
-                combined_cuts_dn.update(d)
+            all_up_messages = self.comm.gather(up_messages, root=0)
+            combined_up_messages = {}
+            for d in all_up_messages:
+                combined_up_messages.update(d)
 
         self.logger.log_finaliziation()
 
     def _run_leaf_mpi(self) -> None:
         message: DnMessage = None
         message = self.comm.bcast(message, root=0)
-        cuts_dn = self._run_leaf(message)
-        all_cuts_dn = self.comm.gather(cuts_dn, root=0)
+        up_messages = self._run_leaf(message)
+        all_up_messages = self.comm.gather(up_messages, root=0)
         while True:
             message = self.comm.bcast(message, root=0)
             if message == -1:
                 break
-            cuts_dn = self._run_leaf(message)
-            all_cuts_dn = self.comm.gather(cuts_dn, root=0)
+            up_messages = self._run_leaf(message)
+            all_up_messages = self.comm.gather(up_messages, root=0)
 
     def _finalize_root(self) -> None:
         assert self.root is not None

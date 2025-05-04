@@ -5,8 +5,7 @@ import pandas as pd
 
 from pyomo.environ import ScalarVar
 
-from pyodsp.dec.run._message import BdInitMessage
-
+from .message import BdInitMessage
 from .alg_root import BdAlgRoot
 from pyodsp.solver.pyomo_solver import PyomoSolver
 from pyodsp.alg.bm.bm import BundleMethod

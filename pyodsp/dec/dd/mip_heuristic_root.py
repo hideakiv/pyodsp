@@ -14,7 +14,7 @@ from pyomo.environ import (
 from .alg_root import DdAlgRoot
 from pyodsp.solver.pyomo_solver import PyomoSolver
 from pyodsp.alg.cuts import OptimalityCut
-from ..run._message import DdFinalMessage
+from .message import DdFinalMessage
 
 
 class MipHeuristicRoot:

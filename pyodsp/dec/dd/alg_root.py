@@ -9,8 +9,8 @@ from pyomo.environ import (
 )
 
 from pyodsp.alg.cuts_manager import CutInfo
-from pyodsp.dec.run._message import DdInitMessage
 
+from .message import DdInitMessage
 from ..node._alg import IAlgRoot
 from .master_creator import MasterCreator
 

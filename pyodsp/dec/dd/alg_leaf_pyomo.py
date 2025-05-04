@@ -5,8 +5,8 @@ import pandas as pd
 
 from pyodsp.alg.cuts import Cut, OptimalityCut, FeasibilityCut
 from pyodsp.alg.params import DEC_CUT_ABS_TOL
-from pyodsp.dec.run._message import DdInitMessage, DdFinalMessage
 
+from .message import DdInitMessage, DdFinalMessage
 from .alg_leaf import DdAlgLeaf
 from .coupling_manager import CouplingManager
 from pyodsp.solver.pyomo_solver import PyomoSolver

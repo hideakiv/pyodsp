@@ -8,57 +8,17 @@ class IMessage(ABC):
     pass
 
 
-class InitMessage(IMessage):
+class InitMessage(IMessage, ABC):
     pass
 
 
-class UpMessage(IMessage):
+class UpMessage(IMessage, ABC):
     pass
 
 
-class DnMessage(IMessage):
+class DnMessage(IMessage, ABC):
     pass
 
 
-class FinalMessage(IMessage):
+class FinalMessage(IMessage, ABC):
     pass
-
-
-class BdInitMessage(InitMessage):
-    pass
-
-
-class BdUpMessage(UpMessage):
-    pass
-
-
-class BdDnMessage(DnMessage):
-    pass
-
-
-class BdFinalMessage(FinalMessage):
-    pass
-
-
-class DdInitMessage(InitMessage):
-    def __init__(self, coupling_matrix: List[Dict[int, float]]) -> None:
-        self.coupling_matrix = coupling_matrix
-
-    def get_coupling_matrix(self):
-        return self.coupling_matrix
-
-
-class DdUpMessage(UpMessage):
-    pass
-
-
-class DdDnMessage(DnMessage):
-    pass
-
-
-class DdFinalMessage(FinalMessage):
-    def __init__(self, solution: List[float]) -> None:
-        self.solution = solution
-
-    def get_solution(self):
-        return self.solution

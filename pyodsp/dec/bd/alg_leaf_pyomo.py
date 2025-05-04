@@ -6,7 +6,7 @@ import pandas as pd
 from pyomo.environ import Suffix
 from pyomo.core.base.constraint import ScalarConstraint
 
-from .message import BdInitMessage, BdFinalMessage
+from .message import BdInitMessage, BdFinalMessage, BdDnMessage
 from .alg_leaf import BdAlgLeaf
 from ..utils import CouplingData, get_nonzero_coefficients_from_model
 from pyodsp.alg.cuts import Cut, OptimalityCut, FeasibilityCut
@@ -32,7 +32,8 @@ class BdAlgLeafPyomo(BdAlgLeaf):
     def pass_init_message(self, message: BdInitMessage) -> None:
         pass
 
-    def pass_solution(self, solution: List[float]) -> None:
+    def pass_dn_message(self, message: BdDnMessage) -> None:
+        solution = message.get_solution()
         self._fix_variables(solution)
 
     def pass_final_message(self, message: BdFinalMessage) -> None:

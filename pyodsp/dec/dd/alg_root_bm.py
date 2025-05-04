@@ -5,6 +5,7 @@ import pandas as pd
 
 from pyomo.environ import ConcreteModel, ScalarVar
 
+from .message import DdDnMessage
 from .alg_root import DdAlgRoot
 from pyodsp.alg.bm.bm import BundleMethod
 from pyodsp.alg.cuts import CutList
@@ -36,17 +37,17 @@ class DdAlgRootBm(DdAlgRoot):
 
         self.bm.build(num_cuts, dummy_bounds)
 
-    def run_step(self, cuts_list: List[CutList] | None) -> Tuple[int, List[float]]:
+    def run_step(self, cuts_list: List[CutList] | None) -> Tuple[int, DdDnMessage]:
         start = time.time()
         status, solution = self.bm.run_step(cuts_list)
         self.step_time.append(time.time() - start)
-        return status, solution
+        return status, DdDnMessage(solution)
 
     def reset_iteration(self) -> None:
         self.bm.reset_iteration()
 
-    def get_solution_dn(self) -> List[float]:
-        return [var.value for var in self.bm.solver.vars]
+    def get_dn_message(self) -> DdDnMessage:
+        return DdDnMessage([var.value for var in self.bm.solver.vars])
 
     def get_num_vars(self) -> int:
         return len(self.bm.solver.vars)

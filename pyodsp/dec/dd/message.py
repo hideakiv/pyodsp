@@ -15,7 +15,11 @@ class DdUpMessage(UpMessage):
 
 
 class DdDnMessage(DnMessage):
-    pass
+    def __init__(self, solution: List[float]) -> None:
+        self.solution = solution
+
+    def get_solution(self):
+        return self.solution
 
 
 class DdFinalMessage(FinalMessage):

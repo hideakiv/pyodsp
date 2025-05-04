@@ -6,6 +6,7 @@ import pandas as pd
 from pyomo.environ import ConcreteModel, ScalarVar
 
 from .alg_root import DdAlgRoot
+from .message import DdDnMessage
 from pyodsp.alg.pbm.pbm import ProximalBundleMethod
 from pyodsp.alg.cuts import CutList
 from pyodsp.alg.cuts_manager import CutInfo
@@ -31,17 +32,17 @@ class DdAlgRootPbm(DdAlgRoot):
         self.pbm.set_init_solution([0.0 for _ in range(num_cuts)])
         self.pbm.build(num_cuts)
 
-    def run_step(self, cuts_list: List[CutList] | None) -> Tuple[int, List[float]]:
+    def run_step(self, cuts_list: List[CutList] | None) -> Tuple[int, DdDnMessage]:
         start = time.time()
         status, solution = self.pbm.run_step(cuts_list)
         self.step_time.append(time.time() - start)
-        return status, solution
+        return status, DdDnMessage(solution)
 
     def reset_iteration(self) -> None:
         self.pbm.reset_iteration()
 
-    def get_solution_dn(self) -> List[float]:
-        return [var.value for var in self.pbm.solver.vars]
+    def get_dn_message(self) -> DdDnMessage:
+        return DdDnMessage([var.value for var in self.pbm.solver.vars])
 
     def get_num_vars(self) -> int:
         return len(self.pbm.solver.vars)

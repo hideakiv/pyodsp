@@ -7,7 +7,7 @@ from pyodsp.alg.cuts import Cut
 from ._node import NodeIdx, INode, INodeParent, INodeChild, INodeInner
 from ._alg import IAlgRoot, IAlgLeaf
 from .cut_aggregator import CutAggregator
-from ..run._message import InitMessage, FinalMessage
+from ..run._message import InitMessage, FinalMessage, DnMessage, UpMessage
 from ..utils import create_directory
 
 
@@ -126,7 +126,7 @@ class DecNodeParent(INodeParent, DecNode):
         assert self.depth is not None
         self.alg_root.set_logger(self.idx, self.depth)
 
-    def run_step(self, cuts: Dict[int, Cut] | None) -> Tuple[int, List[float]]:
+    def run_step(self, cuts: Dict[int, Cut] | None) -> Tuple[int, DnMessage]:
         if cuts is None:
             return self.alg_root.run_step(None)
         aggregate_cuts = self.cut_aggregator.get_aggregate_cuts(cuts)
@@ -135,8 +135,8 @@ class DecNodeParent(INodeParent, DecNode):
     def get_init_message(self, **kwargs) -> InitMessage:
         return self.alg_root.get_init_message(**kwargs)
 
-    def get_solution_dn(self) -> List[float]:
-        return self.alg_root.get_solution_dn()
+    def get_dn_message(self) -> DnMessage:
+        return self.alg_root.get_dn_message()
 
     def get_num_vars(self) -> int:
         return self.alg_root.get_num_vars()
@@ -185,8 +185,8 @@ class DecNodeChild(INodeChild, DecNode):
     def pass_init_message(self, message: InitMessage) -> None:
         self.alg_leaf.pass_init_message(message)
 
-    def pass_solution(self, solution: List[float]) -> None:
-        self.alg_leaf.pass_solution(solution)
+    def pass_dn_message(self, message: DnMessage) -> None:
+        self.alg_leaf.pass_dn_message(message)
 
     def pass_final_message(self, message: FinalMessage) -> None:
         return self.alg_leaf.pass_final_message(message)
@@ -194,8 +194,8 @@ class DecNodeChild(INodeChild, DecNode):
     def get_subgradient(self) -> Cut:
         return self.alg_leaf.get_subgradient()
 
-    def solve(self, solution: List[float]) -> Cut:
-        self.pass_solution(solution)
+    def solve(self, message: DnMessage) -> Cut:
+        self.pass_dn_message(message)
         return self.get_subgradient()
 
     def save(self, dir: Path) -> None:

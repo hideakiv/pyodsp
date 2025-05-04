@@ -78,18 +78,18 @@ class BdRunMpi(BdRun):
         self.root.reset()
         combined_cuts_dn = None
         while True:
-            status, solution = self.root.run_step(combined_cuts_dn)
+            status, new_dn_message = self.root.run_step(combined_cuts_dn)
 
             if status != STATUS_NOT_FINISHED:
                 self.comm.bcast(-1, root=0)
                 return
 
-            self.comm.bcast(solution, root=0)
+            self.comm.bcast(new_dn_message, root=0)
 
             cuts_dn = {}
             for node in self.nodes.values():
                 if isinstance(node, INodeLeaf):
-                    cut_dn = self._get_cut(node.get_idx(), solution)
+                    cut_dn = self._get_cut(node.get_idx(), new_dn_message)
                     cuts_dn[node.get_idx()] = cut_dn
 
             all_cuts_dn = self.comm.gather(cuts_dn, root=0)

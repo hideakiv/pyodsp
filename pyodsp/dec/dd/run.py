@@ -5,10 +5,11 @@ from pyodsp.alg.cuts import Cut, OptimalityCut, FeasibilityCut
 from pyodsp.alg.const import *
 
 from .logger import DdLogger
+from .message import DdDnMessage
 from .mip_heuristic_root import MipHeuristicRoot
 from ..utils import create_directory
 from ..node._node import INode, INodeRoot, INodeLeaf
-from ..run._message import IMessage
+from ..run._message import InitMessage, FinalMessage, DnMessage, UpMessage
 
 
 class DdRun:
@@ -26,7 +27,7 @@ class DdRun:
                 return node
         return None
 
-    def run(self):
+    def run(self, init_solution: List[float] | None = None):
         if self.root is not None:
             # run root process
             self.root.set_depth(0)
@@ -40,7 +41,7 @@ class DdRun:
                     self.root.get_depth() + 1,
                 )
 
-            self._run_root()
+            self._run_root(init_solution)
             self._finalize_root()
         else:
             raise ValueError("root node not found")
@@ -56,7 +57,7 @@ class DdRun:
     def _init_leaf(
         self,
         node_id: int,
-        message: IMessage,
+        message: InitMessage,
         is_minimize: bool,
         depth: int,
     ) -> None:
@@ -67,10 +68,14 @@ class DdRun:
             raise ValueError("Inconsistent optimization sense")
         node.pass_init_message(message)
 
-    def _run_root(self) -> None:
+    def _run_root(self, init_solution: List[float] | None = None) -> None:
         assert self.root is not None
         self.root.reset()
-        cuts_dn = self._run_leaf([0.0 for _ in range(self.root.get_num_vars())])
+        if init_solution is None:
+            dn_message = DdDnMessage([0.0 for _ in range(self.root.get_num_vars())])
+        else:
+            dn_message = DdDnMessage(init_solution)
+        cuts_dn = self._run_leaf(dn_message)
         while True:
             status, solution = self.root.run_step(cuts_dn)
             if status != STATUS_NOT_FINISHED:
@@ -79,19 +84,19 @@ class DdRun:
 
         self.logger.log_finaliziation()
 
-    def _run_leaf(self, solution: List[float]) -> Dict[int, Cut]:
+    def _run_leaf(self, message: DnMessage) -> Dict[int, Cut]:
         cuts_dn = {}
         for node in self.nodes.values():
             if isinstance(node, INodeLeaf):
-                cut_dn = self._get_cut(node.get_idx(), solution)
+                cut_dn = self._get_cut(node.get_idx(), message)
                 cuts_dn[node.get_idx()] = cut_dn
         return cuts_dn
 
-    def _get_cut(self, idx: int, solution: List[float]) -> Cut:
+    def _get_cut(self, idx: int, message: DnMessage) -> Cut:
         node = self.nodes[idx]
         assert isinstance(node, INodeLeaf)
         node.build()
-        cut_dn = node.solve(solution)
+        cut_dn = node.solve(message)
         assert cut_dn is not None
         if isinstance(cut_dn, OptimalityCut):
             self.logger.log_sub_problem(idx, "Optimality", cut_dn.coeffs, cut_dn.rhs)
@@ -112,7 +117,7 @@ class DdRun:
             final_obj += sub_obj
         self.logger.log_completion(final_obj)
 
-    def _finalize_leaf(self, node_id, message: IMessage) -> float:
+    def _finalize_leaf(self, node_id, message: FinalMessage) -> float:
         node = self.nodes[node_id]
         assert isinstance(node, INodeLeaf)
         node.pass_final_message(message)

@@ -5,9 +5,10 @@ from mpi4py import MPI
 from pyodsp.alg.const import *
 
 from .run import DdRun
+from .message import DdDnMessage
 from .mip_heuristic_root import MipHeuristicRoot
 from ..node._node import INode
-from ..run._message import IMessage
+from ..run._message import InitMessage, FinalMessage, DnMessage, UpMessage
 
 
 class DdRunMpi(DdRun):
@@ -26,7 +27,7 @@ class DdRunMpi(DdRun):
                     for idx in ids:
                         self.node_rank_map[idx] = target
 
-    def run(self):
+    def run(self, init_solution: List[float] | None = None):
         if self.rank == 0:
             assert self.root is not None
             self.root.set_depth(0)
@@ -48,7 +49,7 @@ class DdRunMpi(DdRun):
                         node_id, matrix, is_minimize, self.root.get_depth() + 1
                     )
 
-            self._run_root()
+            self._run_root(init_solution)
 
             self._finalize_root()
         else:
@@ -68,8 +69,8 @@ class DdRunMpi(DdRun):
         for node in self.nodes.values():
             node.save(self.filedir)
 
-    def _split_matrices(self) -> Dict[int, Dict[int, IMessage]]:
-        matrices: Dict[int, Dict[int, IMessage]] = {}
+    def _split_matrices(self) -> Dict[int, Dict[int, InitMessage]]:
+        matrices: Dict[int, Dict[int, InitMessage]] = {}
         assert self.root is not None
         for child_id in self.root.get_children():
             target = self.node_rank_map[child_id]
@@ -78,15 +79,18 @@ class DdRunMpi(DdRun):
             matrices[target][child_id] = self.root.get_init_message(child_id=child_id)
         return matrices
 
-    def _run_root(self) -> None:
+    def _run_root(self, init_solution: List[float] | None = None) -> None:
         assert self.root is not None
         self.root.reset()
-        solution = [0.0 for _ in range(self.root.get_num_vars())]
+        if init_solution is None:
+            dn_message = DdDnMessage([0.0 for _ in range(self.root.get_num_vars())])
+        else:
+            dn_message = DdDnMessage(init_solution)
 
         # broadcast solution
-        self.comm.bcast(solution, root=0)
+        self.comm.bcast(dn_message, root=0)
 
-        cuts_dn = self._run_leaf(solution)
+        cuts_dn = self._run_leaf(dn_message)
 
         # gather cuts
         all_cuts_dn = self.comm.gather(cuts_dn, root=0)
@@ -95,14 +99,14 @@ class DdRunMpi(DdRun):
             combined_cuts_dn.update(d)
 
         while True:
-            status, solution = self.root.run_step(combined_cuts_dn)
+            status, new_dn_message = self.root.run_step(combined_cuts_dn)
             if status != STATUS_NOT_FINISHED:
                 self.comm.bcast(-1, root=0)
                 break
             # broadcast solution
-            self.comm.bcast(solution, root=0)
+            self.comm.bcast(new_dn_message, root=0)
 
-            cuts_dn = self._run_leaf(solution)
+            cuts_dn = self._run_leaf(new_dn_message)
 
             # gather cuts
             all_cuts_dn = self.comm.gather(cuts_dn, root=0)
@@ -113,15 +117,15 @@ class DdRunMpi(DdRun):
         self.logger.log_finaliziation()
 
     def _run_leaf_mpi(self) -> None:
-        solution: List[float] = None
-        solution = self.comm.bcast(solution, root=0)
-        cuts_dn = self._run_leaf(solution)
+        message: DnMessage = None
+        message = self.comm.bcast(message, root=0)
+        cuts_dn = self._run_leaf(message)
         all_cuts_dn = self.comm.gather(cuts_dn, root=0)
         while True:
-            solution = self.comm.bcast(solution, root=0)
-            if solution == -1:
+            message = self.comm.bcast(message, root=0)
+            if message == -1:
                 break
-            cuts_dn = self._run_leaf(solution)
+            cuts_dn = self._run_leaf(message)
             all_cuts_dn = self.comm.gather(cuts_dn, root=0)
 
     def _finalize_root(self) -> None:
@@ -133,7 +137,7 @@ class DdRunMpi(DdRun):
         solutions = mip_heuristic.run()
 
         # split solutions
-        solutions_dict: Dict[int, Dict[int, IMessage]] = {}
+        solutions_dict: Dict[int, Dict[int, FinalMessage]] = {}
         for child_id in self.root.get_children():
             target = self.node_rank_map[child_id]
             if target not in solutions_dict:

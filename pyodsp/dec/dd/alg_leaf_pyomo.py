@@ -6,7 +6,7 @@ import pandas as pd
 from pyodsp.alg.cuts import Cut, OptimalityCut, FeasibilityCut
 from pyodsp.alg.params import DEC_CUT_ABS_TOL
 
-from .message import DdInitMessage, DdFinalMessage
+from .message import DdInitMessage, DdFinalMessage, DdDnMessage
 from .alg_leaf import DdAlgLeaf
 from .coupling_manager import CouplingManager
 from pyodsp.solver.pyomo_solver import PyomoSolver
@@ -31,7 +31,8 @@ class DdAlgLeafPyomo(DdAlgLeaf):
         coupling_matrix = message.get_coupling_matrix()
         self.set_coupling_matrix(coupling_matrix)
 
-    def pass_solution(self, solution: List[float]) -> None:
+    def pass_dn_message(self, message: DdDnMessage) -> None:
+        solution = message.get_solution()
         self._update_objective(solution)
 
     def pass_final_message(self, message: DdFinalMessage) -> None:

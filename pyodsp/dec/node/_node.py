@@ -5,7 +5,7 @@ from typing import Any, List, Dict, Tuple
 from pyodsp.alg.cuts import Cut
 
 from ._alg import IAlgRoot, IAlgLeaf
-from ..run._message import NodeIdx, InitMessage, FinalMessage
+from ..run._message import NodeIdx, InitMessage, FinalMessage, DnMessage, UpMessage
 
 
 class INode(ABC):
@@ -88,7 +88,7 @@ class INodeParent(INode, ABC):
         pass
 
     @abstractmethod
-    def run_step(self, cuts: Dict[int, Cut] | None) -> Tuple[int, List[float]]:
+    def run_step(self, cuts: Dict[int, Cut] | None) -> Tuple[int, DnMessage]:
         pass
 
     @abstractmethod
@@ -100,7 +100,7 @@ class INodeParent(INode, ABC):
         pass
 
     @abstractmethod
-    def get_solution_dn(self) -> List[float]:
+    def get_dn_message(self) -> DnMessage:
         pass
 
     @abstractmethod
@@ -137,7 +137,7 @@ class INodeChild(INode, ABC):
         pass
 
     @abstractmethod
-    def pass_solution(self, solution: List[float]) -> None:
+    def pass_dn_message(self, message: DnMessage) -> None:
         pass
 
     @abstractmethod
@@ -149,7 +149,7 @@ class INodeChild(INode, ABC):
         pass
 
     @abstractmethod
-    def solve(self, solution: List[float]) -> Cut:
+    def solve(self, message: DnMessage) -> Cut:
         pass
 
 

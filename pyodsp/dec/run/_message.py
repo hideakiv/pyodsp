@@ -8,15 +8,39 @@ class IMessage(ABC):
     pass
 
 
-class BdInitMessage(IMessage):
+class InitMessage(IMessage):
     pass
 
 
-class BdFinalMessage(IMessage):
+class UpMessage(IMessage):
     pass
 
 
-class DdInitMessage(IMessage):
+class DnMessage(IMessage):
+    pass
+
+
+class FinalMessage(IMessage):
+    pass
+
+
+class BdInitMessage(InitMessage):
+    pass
+
+
+class BdUpMessage(UpMessage):
+    pass
+
+
+class BdDnMessage(DnMessage):
+    pass
+
+
+class BdFinalMessage(FinalMessage):
+    pass
+
+
+class DdInitMessage(InitMessage):
     def __init__(self, coupling_matrix: List[Dict[int, float]]) -> None:
         self.coupling_matrix = coupling_matrix
 
@@ -24,7 +48,15 @@ class DdInitMessage(IMessage):
         return self.coupling_matrix
 
 
-class DdFinalMessage(IMessage):
+class DdUpMessage(UpMessage):
+    pass
+
+
+class DdDnMessage(DnMessage):
+    pass
+
+
+class DdFinalMessage(FinalMessage):
     def __init__(self, solution: List[float]) -> None:
         self.solution = solution
 

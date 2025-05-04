@@ -7,7 +7,7 @@ from pyodsp.alg.cuts import Cut
 from ._node import NodeIdx, INode, INodeParent, INodeChild, INodeInner
 from ._alg import IAlgRoot, IAlgLeaf
 from .cut_aggregator import CutAggregator
-from ..run._message import IMessage
+from ..run._message import InitMessage, FinalMessage
 from ..utils import create_directory
 
 
@@ -132,7 +132,7 @@ class DecNodeParent(INodeParent, DecNode):
         aggregate_cuts = self.cut_aggregator.get_aggregate_cuts(cuts)
         return self.alg_root.run_step(aggregate_cuts)
 
-    def get_init_message(self, **kwargs) -> IMessage:
+    def get_init_message(self, **kwargs) -> InitMessage:
         return self.alg_root.get_init_message(**kwargs)
 
     def get_solution_dn(self) -> List[float]:
@@ -182,13 +182,13 @@ class DecNodeChild(INodeChild, DecNode):
     def build_inner(self) -> None:
         self.alg_leaf.build()
 
-    def pass_init_message(self, message: IMessage) -> None:
+    def pass_init_message(self, message: InitMessage) -> None:
         self.alg_leaf.pass_init_message(message)
 
     def pass_solution(self, solution: List[float]) -> None:
         self.alg_leaf.pass_solution(solution)
 
-    def pass_final_message(self, message: IMessage) -> None:
+    def pass_final_message(self, message: FinalMessage) -> None:
         return self.alg_leaf.pass_final_message(message)
 
     def get_subgradient(self) -> Cut:

@@ -5,7 +5,7 @@ from typing import Any, List, Dict, Tuple
 from pyodsp.alg.cuts import Cut
 
 from ._alg import IAlgRoot, IAlgLeaf
-from ..run._message import NodeIdx, IMessage
+from ..run._message import NodeIdx, InitMessage, FinalMessage
 
 
 class INode(ABC):
@@ -92,7 +92,7 @@ class INodeParent(INode, ABC):
         pass
 
     @abstractmethod
-    def get_init_message(self, **kwargs) -> IMessage:
+    def get_init_message(self, **kwargs) -> InitMessage:
         pass
 
     @abstractmethod
@@ -133,7 +133,7 @@ class INodeChild(INode, ABC):
         pass
 
     @abstractmethod
-    def pass_init_message(self, message: IMessage) -> None:
+    def pass_init_message(self, message: InitMessage) -> None:
         pass
 
     @abstractmethod
@@ -141,7 +141,7 @@ class INodeChild(INode, ABC):
         pass
 
     @abstractmethod
-    def pass_final_message(self, message: IMessage) -> None:
+    def pass_final_message(self, message: FinalMessage) -> None:
         pass
 
     @abstractmethod

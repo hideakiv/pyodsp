@@ -96,7 +96,7 @@ class INodeParent(INode, ABC):
         pass
 
     @abstractmethod
-    def get_dn_message(self) -> DnMessage:
+    def get_final_message(self) -> FinalMessage:
         pass
 
     @abstractmethod

@@ -81,14 +81,12 @@ class BdRun:
 
     def _run_finalize(self, node: INode) -> None:
         if isinstance(node, INodeRoot):
-            dn_message = node.get_dn_message()
+            final_message = node.get_final_message()
             for child_id in node.get_children():
                 child = self.nodes[child_id]
-                if isinstance(child, INodeLeaf):
-                    child.solve(dn_message)
-                elif isinstance(child, INodeInner):
-                    child.pass_dn_message(dn_message)
-                    child.get_up_message()
+                assert isinstance(child, INodeLeaf)
+                child.pass_final_message(final_message)
+                child.get_up_message()
                 self._run_finalize(child)
 
     def _get_up_messages(

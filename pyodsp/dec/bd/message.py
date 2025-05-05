@@ -34,4 +34,8 @@ class BdDnMessage(DnMessage):
 
 
 class BdFinalMessage(FinalMessage):
-    pass
+    def __init__(self, solution: List[float]) -> None:
+        self.solution = solution
+
+    def get_solution(self):
+        return self.solution

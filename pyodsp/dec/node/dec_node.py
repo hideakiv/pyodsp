@@ -139,8 +139,8 @@ class DecNodeParent(INodeParent, DecNode):
         init_message.set_depth(self.get_depth())
         return init_message
 
-    def get_dn_message(self) -> DnMessage:
-        return self.alg_root.get_dn_message()
+    def get_final_message(self) -> FinalMessage:
+        return self.alg_root.get_final_message()
 
     def get_num_vars(self) -> int:
         return self.alg_root.get_num_vars()

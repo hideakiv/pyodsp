@@ -40,6 +40,7 @@ class BdAlgLeafPyomo(BdAlgLeaf):
     def pass_final_message(self, message: BdFinalMessage) -> None:
         solution = message.get_solution()
         self._fix_variables(solution)
+        self.get_up_message()
 
     def _fix_variables(self, coupling_values: List[float]) -> None:
         """Fix the variables to a specified value

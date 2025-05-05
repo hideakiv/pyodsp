@@ -86,7 +86,6 @@ class BdRun:
                 child = self.nodes[child_id]
                 assert isinstance(child, INodeLeaf)
                 child.pass_final_message(final_message)
-                child.get_up_message()
                 self._run_finalize(child)
 
     def _get_up_messages(

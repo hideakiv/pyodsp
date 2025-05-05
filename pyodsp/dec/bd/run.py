@@ -29,13 +29,13 @@ class BdRun:
         if self.root is not None:
             self.logger.log_initialization()
             self.root.set_depth(0)
-            self._run_check(self.root)
+            self._run_init(self.root)
             self._run_node(self.root)
             self._run_finalize(self.root)
         for node in self.nodes.values():
             node.save(self.filedir)
 
-    def _run_check(self, node: INode) -> None:
+    def _run_init(self, node: INode) -> None:
         if isinstance(node, INodeRoot):
             node.set_logger()
             init_message = node.get_init_message()
@@ -44,7 +44,7 @@ class BdRun:
             child = self.nodes[child_id]
             assert isinstance(child, INodeLeaf)
             child.pass_init_message(init_message)
-            self._run_check(child)
+            self._run_init(child)
 
     def _run_node(
         self, node: INode, dn_message: DnMessage | None = None

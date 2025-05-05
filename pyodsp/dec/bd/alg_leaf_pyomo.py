@@ -30,7 +30,8 @@ class BdAlgLeafPyomo(BdAlgLeaf):
         ]
 
     def pass_init_message(self, message: BdInitMessage) -> None:
-        pass
+        if self.is_minimize() != message.get_is_minimize():
+            raise ValueError("Inconsistent optimization sense")
 
     def pass_dn_message(self, message: BdDnMessage) -> None:
         solution = message.get_solution()

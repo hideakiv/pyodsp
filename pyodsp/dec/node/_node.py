@@ -39,10 +39,6 @@ class INode(ABC):
     def save(self, dir: Path) -> None:
         pass
 
-    @abstractmethod
-    def is_minimize(self) -> bool:
-        pass
-
 
 class INodeParent(INode, ABC):
     @abstractmethod

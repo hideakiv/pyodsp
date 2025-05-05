@@ -11,7 +11,17 @@ class IMessage(ABC):
 
 
 class InitMessage(IMessage, ABC):
-    pass
+    @abstractmethod
+    def get_is_minimize(self) -> bool:
+        pass
+
+    @abstractmethod
+    def set_depth(self, depth: int) -> None:
+        pass
+
+    @abstractmethod
+    def get_depth(self) -> int:
+        pass
 
 
 class UpMessage(IMessage, ABC):

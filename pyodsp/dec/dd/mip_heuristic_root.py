@@ -27,7 +27,7 @@ class MipHeuristicRoot:
     def _create_master(self, model: ConcreteModel, solver: str, **kwargs):
         for obj in model.component_objects(Objective, active=True):
             raise ValueError("Objective should not be defined in coupling model")
-        if self.alg.is_minimize:
+        if self.alg.is_minimize():
             model._dd_obj = Objective(expr=0.0, sense=minimize)
         else:
             model._dd_obj = Objective(expr=0.0, sense=maximize)
@@ -70,7 +70,7 @@ class MipHeuristicRoot:
 
             obj = 0.0
             for j, cutinfo in enumerate(cutlist):
-                if self.alg.is_minimize:
+                if self.alg.is_minimize():
                     rhs = cutinfo.constraint.upper
                 else:
                     rhs = cutinfo.constraint.lower

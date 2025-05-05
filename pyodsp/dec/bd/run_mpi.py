@@ -6,6 +6,7 @@ from pyodsp.alg.const import *
 
 from .run import BdRun
 from ..node._node import INode, INodeLeaf, INodeInner
+from ..run._message import InitMessage
 
 
 class BdRunMpi(BdRun):
@@ -38,32 +39,26 @@ class BdRunMpi(BdRun):
 
         if self.rank == 0:
             assert self.root is not None
-            is_minimize = self.root.is_minimize()
             self.root.set_depth(0)
             self.root.set_logger()
-            self.comm.bcast(is_minimize, root=0)
-            depth = self.root.get_depth()
-            self.comm.bcast(depth, root=0)
+            init_message = self.root.get_init_message()
+            self.comm.bcast(init_message, root=0)
             for node in self.nodes.values():
-                self._init_leaf(node, is_minimize, depth + 1)
+                self._init_leaf(node, init_message)
             self._run_root(all_bounds)
         else:
-            is_minimize = None
-            is_minimize = self.comm.bcast(is_minimize, root=0)
-            depth = None
-            depth = self.comm.bcast(depth, root=0)
+            init_message = None
+            init_message = self.comm.bcast(init_message, root=0)
             for node in self.nodes.values():
-                self._init_leaf(node, is_minimize, depth + 1)
+                self._init_leaf(node, init_message)
             self._run_leaf()
 
         for node in self.nodes.values():
             node.save(self.filedir)
 
-    def _init_leaf(self, node: INode, is_minimize: bool, depth: int) -> None:
+    def _init_leaf(self, node: INode, init_message: InitMessage) -> None:
         if isinstance(node, INodeLeaf):
-            if node.is_minimize() != is_minimize:
-                raise ValueError("Inconsistent optimization sense")
-            node.set_depth(depth)
+            node.pass_init_message(init_message)
 
     def _run_root(self, all_bounds) -> None:
         assert self.root is not None

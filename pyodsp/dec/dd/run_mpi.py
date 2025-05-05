@@ -33,34 +33,25 @@ class DdRunMpi(DdRun):
             self.root.set_depth(0)
             self.root.set_logger()
             self._init_root()
-            is_minimize = self.root.is_minimize()
-            self.comm.bcast(is_minimize, root=0)
-            self.comm.bcast(self.root.get_depth(), root=0)
 
-            matrices = self._split_matrices()
+            init_messages = self._split_init_messages()
 
-            for target, matrix in matrices.items():
-                self.comm.send(matrix, dest=target, tag=0)
+            for target, init_message in init_messages.items():
+                self.comm.send(init_message, dest=target, tag=0)
 
-            if 0 in matrices:
-                matrix_info = matrices[0]
-                for node_id, matrix in matrix_info.items():
-                    self._init_leaf(
-                        node_id, matrix, is_minimize, self.root.get_depth() + 1
-                    )
+            if 0 in init_messages:
+                sub_init_messages = init_messages[0]
+                for node_id, init_message in sub_init_messages.items():
+                    self._init_leaf(node_id, init_message)
 
             self._run_root(init_solution)
 
             self._finalize_root()
         else:
-            is_minimize = None
-            is_minimize = self.comm.bcast(is_minimize, root=0)
-            depth = None
-            depth = self.comm.bcast(depth, root=0)
-            matrix_info = self.comm.recv(source=0, tag=0)
+            init_messages = self.comm.recv(source=0, tag=0)
 
-            for node_id, matrix in matrix_info.items():
-                self._init_leaf(node_id, matrix, is_minimize, depth + 1)
+            for node_id, init_message in init_messages.items():
+                self._init_leaf(node_id, init_message)
 
             self._run_leaf_mpi()
 
@@ -69,15 +60,17 @@ class DdRunMpi(DdRun):
         for node in self.nodes.values():
             node.save(self.filedir)
 
-    def _split_matrices(self) -> Dict[int, Dict[int, InitMessage]]:
-        matrices: Dict[int, Dict[int, InitMessage]] = {}
+    def _split_init_messages(self) -> Dict[int, Dict[int, InitMessage]]:
+        init_messages: Dict[int, Dict[int, InitMessage]] = {}
         assert self.root is not None
         for child_id in self.root.get_children():
             target = self.node_rank_map[child_id]
-            if target not in matrices:
-                matrices[target] = {}
-            matrices[target][child_id] = self.root.get_init_message(child_id=child_id)
-        return matrices
+            if target not in init_messages:
+                init_messages[target] = {}
+            init_messages[target][child_id] = self.root.get_init_message(
+                child_id=child_id
+            )
+        return init_messages
 
     def _run_root(self, init_solution: List[float] | None = None) -> None:
         assert self.root is not None

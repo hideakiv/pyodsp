@@ -28,6 +28,8 @@ class DdAlgLeafPyomo(DdAlgLeaf):
         self.solver.original_objective.deactivate()
 
     def pass_init_message(self, message: DdInitMessage) -> None:
+        if self.is_minimize() != message.get_is_minimize():
+            raise ValueError("Inconsistent optimization sense")
         coupling_matrix = message.get_coupling_matrix()
         self.set_coupling_matrix(coupling_matrix)
 

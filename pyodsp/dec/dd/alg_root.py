@@ -67,7 +67,9 @@ class DdAlgRoot(IAlgRoot, ABC):
 
     def get_init_message(self, **kwargs) -> DdInitMessage:
         child_id = kwargs["child_id"]
-        message = DdInitMessage(self.lagrangian_data.matrix[child_id])
+        message = DdInitMessage(
+            self.lagrangian_data.matrix[child_id], self.is_minimize()
+        )
         return message
 
     @abstractmethod

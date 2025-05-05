@@ -135,7 +135,9 @@ class DecNodeParent(INodeParent, DecNode):
         return self.alg_root.run_step(aggregate_cuts)
 
     def get_init_message(self, **kwargs) -> InitMessage:
-        return self.alg_root.get_init_message(**kwargs)
+        init_message = self.alg_root.get_init_message(**kwargs)
+        init_message.set_depth(self.get_depth())
+        return init_message
 
     def get_dn_message(self) -> DnMessage:
         return self.alg_root.get_dn_message()
@@ -151,9 +153,6 @@ class DecNodeParent(INodeParent, DecNode):
         node_dir = dir / f"node{self.idx}"
         create_directory(node_dir)
         self.alg_root.save(node_dir)
-
-    def is_minimize(self) -> bool:
-        return self.alg_root.is_minimize()
 
 
 DecNodeRoot = DecNodeParent
@@ -185,6 +184,7 @@ class DecNodeChild(INodeChild, DecNode):
         self.alg_leaf.build()
 
     def pass_init_message(self, message: InitMessage) -> None:
+        self.set_depth(message.get_depth() + 1)
         self.alg_leaf.pass_init_message(message)
 
     def pass_dn_message(self, message: DnMessage) -> None:
@@ -205,9 +205,6 @@ class DecNodeChild(INodeChild, DecNode):
         create_directory(node_dir)
         self.alg_leaf.save(node_dir)
 
-    def is_minimize(self) -> bool:
-        return self.alg_leaf.is_minimize()
-
 
 DecNodeLeaf = DecNodeChild
 
@@ -222,6 +219,3 @@ class DecNodeInner(INodeInner, DecNodeParent, DecNodeChild):
 
     def save(self, dir: Path):
         DecNodeParent.save(self, dir)
-
-    def is_minimize(self) -> bool:
-        return DecNodeParent.is_minimize(self)

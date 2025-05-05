@@ -4,7 +4,17 @@ from pyodsp.alg.cuts import Cut
 
 
 class BdInitMessage(InitMessage):
-    pass
+    def __init__(self, is_minimize: bool) -> None:
+        self.is_minimize = is_minimize
+
+    def get_is_minimize(self) -> bool:
+        return self.is_minimize
+
+    def set_depth(self, depth: int) -> None:
+        self.depth = depth
+
+    def get_depth(self) -> int:
+        return self.depth
 
 
 class BdUpMessage(UpMessage):

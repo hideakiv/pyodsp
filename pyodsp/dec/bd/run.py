@@ -38,11 +38,12 @@ class BdRun:
     def _run_check(self, node: INode) -> None:
         if isinstance(node, INodeRoot):
             node.set_logger()
+            init_message = node.get_init_message()
+
         for child_id in node.get_children():
             child = self.nodes[child_id]
-            child.set_depth(node.get_depth() + 1)
-            if child.is_minimize() != node.is_minimize():
-                raise ValueError("Inconsistent optimization sense")
+            assert isinstance(child, INodeLeaf)
+            child.pass_init_message(init_message)
             self._run_check(child)
 
     def _run_node(

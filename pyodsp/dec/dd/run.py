@@ -37,8 +37,6 @@ class DdRun:
                 self._init_leaf(
                     child_id,
                     self.root.get_init_message(child_id=child_id),
-                    self.root.is_minimize(),
-                    self.root.get_depth() + 1,
                 )
 
             self._run_root(init_solution)
@@ -58,14 +56,9 @@ class DdRun:
         self,
         node_id: int,
         message: InitMessage,
-        is_minimize: bool,
-        depth: int,
     ) -> None:
         node = self.nodes[node_id]
-        node.set_depth(depth)
         assert isinstance(node, INodeLeaf)
-        if node.is_minimize() != is_minimize:
-            raise ValueError("Inconsistent optimization sense")
         node.pass_init_message(message)
 
     def _run_root(self, init_solution: List[float] | None = None) -> None:

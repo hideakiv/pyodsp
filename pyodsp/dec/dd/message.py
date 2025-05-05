@@ -4,11 +4,23 @@ from pyodsp.alg.cuts import Cut
 
 
 class DdInitMessage(InitMessage):
-    def __init__(self, coupling_matrix: List[Dict[int, float]]) -> None:
+    def __init__(
+        self, coupling_matrix: List[Dict[int, float]], is_minimize: bool
+    ) -> None:
         self.coupling_matrix = coupling_matrix
+        self.is_minimize = is_minimize
 
     def get_coupling_matrix(self):
         return self.coupling_matrix
+
+    def get_is_minimize(self) -> bool:
+        return self.is_minimize
+
+    def set_depth(self, depth: int) -> None:
+        self.depth = depth
+
+    def get_depth(self) -> int:
+        return self.depth
 
 
 class DdUpMessage(UpMessage):

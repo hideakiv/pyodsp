@@ -43,7 +43,7 @@ class BdAlgRootBm(BdAlgRoot):
         return len(self.get_vars())
 
     def get_init_message(self, **kwargs) -> BdInitMessage:
-        raise NotImplementedError()
+        return BdInitMessage(self.is_minimize())
 
     def save(self, dir: Path) -> None:
         self.bm.save(dir)

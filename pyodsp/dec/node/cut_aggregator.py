@@ -13,7 +13,9 @@ class CutAggregator:
             [multipliers[idx] for idx in group] for group in groups
         ]
 
-    def get_aggregate_cuts(self, up_messages: Dict[int, UpMessage]) -> List[CutList]:
+    def get_aggregate_cuts(
+        self, up_messages: Dict[NodeIdx, UpMessage]
+    ) -> List[CutList]:
         aggregate_cuts = []
         for i, group in enumerate(self.groups):
             group_cut = []

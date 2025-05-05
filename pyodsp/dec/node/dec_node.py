@@ -127,7 +127,7 @@ class DecNodeParent(INodeParent, DecNode):
         self.alg_root.set_logger(self.idx, self.depth)
 
     def run_step(
-        self, up_messages: Dict[int, UpMessage] | None
+        self, up_messages: Dict[NodeIdx, UpMessage] | None
     ) -> Tuple[int, DnMessage]:
         if up_messages is None:
             return self.alg_root.run_step(None)

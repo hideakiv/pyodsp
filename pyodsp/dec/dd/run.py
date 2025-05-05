@@ -9,7 +9,7 @@ from .message import DdDnMessage
 from .mip_heuristic_root import MipHeuristicRoot
 from ..utils import create_directory
 from ..node._node import INode, INodeRoot, INodeLeaf
-from ..run._message import InitMessage, FinalMessage, DnMessage, UpMessage
+from ..run._message import InitMessage, FinalMessage, DnMessage, UpMessage, NodeIdx
 
 
 class DdRun:
@@ -77,7 +77,7 @@ class DdRun:
 
         self.logger.log_finaliziation()
 
-    def _run_leaf(self, message: DnMessage) -> Dict[int, UpMessage]:
+    def _run_leaf(self, message: DnMessage) -> Dict[NodeIdx, UpMessage]:
         up_messages = {}
         for node in self.nodes.values():
             if isinstance(node, INodeLeaf):

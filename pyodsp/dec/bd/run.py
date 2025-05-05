@@ -7,7 +7,7 @@ from pyodsp.alg.const import *
 from .logger import BdLogger
 from ..utils import create_directory
 from ..node._node import INode, INodeRoot, INodeLeaf, INodeInner
-from ..run._message import DnMessage, UpMessage
+from ..run._message import DnMessage, UpMessage, NodeIdx
 
 
 class BdRun:
@@ -91,7 +91,7 @@ class BdRun:
 
     def _get_up_messages(
         self, node: INode, dn_message: DnMessage
-    ) -> Dict[int, UpMessage]:
+    ) -> Dict[NodeIdx, UpMessage]:
         up_messages = {}
         for child in node.get_children():
             up_message = self._get_up_message(child, dn_message)

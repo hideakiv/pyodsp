@@ -83,7 +83,7 @@ class INodeParent(INode, ABC):
 
     @abstractmethod
     def run_step(
-        self, up_messages: Dict[int, UpMessage] | None
+        self, up_messages: Dict[NodeIdx, UpMessage] | None
     ) -> Tuple[int, DnMessage]:
         pass
 

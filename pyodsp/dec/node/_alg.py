@@ -43,7 +43,7 @@ class IAlgRoot(IAlg, ABC):
         pass
 
     @abstractmethod
-    def get_final_message(self) -> FinalMessage:
+    def get_final_message(self, **kwargs) -> FinalMessage:
         pass
 
     @abstractmethod

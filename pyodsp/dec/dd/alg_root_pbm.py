@@ -19,10 +19,13 @@ class DdAlgRootPbm(DdAlgRoot):
         coupling_model: ConcreteModel,
         is_minimize: bool,
         solver_config: SolverConfig,
+        final_solver_config: SolverConfig | None,
         vars_dn: Dict[int, List[ScalarVar]],
         max_iteration=1000,
     ) -> None:
-        super().__init__(coupling_model, is_minimize, solver_config, vars_dn)
+        super().__init__(
+            coupling_model, is_minimize, solver_config, final_solver_config, vars_dn
+        )
 
         self.pbm = ProximalBundleMethod(self.solver, max_iteration)
         self.step_time: List[float] = []
@@ -41,8 +44,12 @@ class DdAlgRootPbm(DdAlgRoot):
     def reset_iteration(self) -> None:
         self.pbm.reset_iteration()
 
-    def get_final_message(self) -> DdFinalMessage:
-        return DdFinalMessage([var.value for var in self.pbm.solver.vars])
+    def get_final_message(self, **kwargs) -> DdFinalMessage:
+        if self.final_solver_config is None:
+            return DdFinalMessage(None)
+        super().get_final_message(**kwargs)
+        node_id = kwargs["node_id"]
+        return self.final_solutions[node_id]
 
     def get_num_vars(self) -> int:
         return len(self.pbm.solver.vars)

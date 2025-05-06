@@ -123,16 +123,6 @@ class DdRunMpi(DdRun):
 
     def _finalize_root(self) -> None:
         assert self.root is not None
-        config = self.root.get_solver_config()
-        if config is None:
-            return
-        mip_heuristic = MipHeuristicRoot(
-            self.root.get_groups(),
-            self.root.get_alg_root(),
-            config,
-        )
-        mip_heuristic.build()
-        solutions = mip_heuristic.run()
 
         # split solutions
         solutions_dict: Dict[int, Dict[int, FinalMessage]] = {}
@@ -140,10 +130,13 @@ class DdRunMpi(DdRun):
             target = self.node_rank_map[child_id]
             if target not in solutions_dict:
                 solutions_dict[target] = {}
-            solutions_dict[target][child_id] = solutions[child_id]
+            message = self.root.get_final_message(
+                node_id=target, groups=self.root.get_groups()
+            )
+            solutions_dict[target][child_id] = message
 
-        for target, message in solutions_dict.items():
-            self.comm.send(message, dest=target, tag=1)
+        for target, messages in solutions_dict.items():
+            self.comm.send(messages, dest=target, tag=1)
 
         final_obj = 0.0
         if 0 in solutions_dict:

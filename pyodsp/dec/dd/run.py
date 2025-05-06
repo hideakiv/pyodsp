@@ -100,18 +100,11 @@ class DdRun:
 
     def _finalize_root(self) -> None:
         assert self.root is not None
-        config = self.root.get_solver_config()
-        if config is None:
-            return
-        mip_heuristic = MipHeuristicRoot(
-            self.root.get_groups(),
-            self.root.get_alg_root(),
-            config,
-        )
-        mip_heuristic.build()
-        solutions = mip_heuristic.run()
         final_obj = 0.0
-        for node_id, message in solutions.items():
+        for node_id in self.root.get_children():
+            message = self.root.get_final_message(
+                node_id=node_id, groups=self.root.get_groups()
+            )
             sub_obj = self._finalize_leaf(node_id, message)
             final_obj += sub_obj
         self.logger.log_completion(final_obj)

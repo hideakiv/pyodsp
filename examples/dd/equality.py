@@ -22,14 +22,14 @@ def create_master(solver="appsi_highs", pbm=False) -> DecNodeRoot:
 
     block.c1 = pyo.Constraint(expr=3 * block.x1 + 2 * block.x2 + 4 * block.x3 == 17)
 
+    final_config = SolverConfig(solver_name=solver)
     if pbm:
         alg_config = SolverConfig(solver_name="ipopt")
-        root_alg = DdAlgRootPbm(block, True, alg_config, vars_dn)
+        root_alg = DdAlgRootPbm(block, True, alg_config, final_config, vars_dn)
     else:
         alg_config = SolverConfig(solver_name=solver)
-        root_alg = DdAlgRootBm(block, True, alg_config, vars_dn)
-    config = SolverConfig(solver_name=solver)
-    root_node = DecNodeRoot(0, root_alg, solver_config=config)
+        root_alg = DdAlgRootBm(block, True, alg_config, final_config, vars_dn)
+    root_node = DecNodeRoot(0, root_alg)
     return root_node
 
 

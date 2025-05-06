@@ -3,6 +3,7 @@ from typing import List, Dict
 from pyomo.environ import (
     ConcreteModel,
     Var,
+    ScalarVar,
     Constraint,
     Objective,
     RangeSet,
@@ -11,21 +12,27 @@ from pyomo.environ import (
     maximize,
     value,
 )
-from .alg_root import DdAlgRoot
 from pyodsp.solver.pyomo_solver import PyomoSolver, SolverConfig
 from pyodsp.alg.cuts import OptimalityCut
+from pyodsp.alg.cuts_manager import CutInfo
 from .message import DdFinalMessage
 
 
 class MipHeuristicRoot:
     def __init__(
-        self, groups: List[List[int]], alg: DdAlgRoot, solver_config: SolverConfig
+        self,
+        groups: List[List[int]],
+        coupling_model: ConcreteModel,
+        solver_config: SolverConfig,
+        cuts: List[List[CutInfo]],
+        vars_dn: Dict[int, List[ScalarVar]],
+        is_minimize: bool,
     ):
-        self.alg = alg
-        self.is_minimize = alg.is_minimize()
-        self.coupling_model = self.alg.get_coupling_model()
+        self.cuts = cuts
+        self.vars_dn = vars_dn
+        self.is_minimize = is_minimize
         self.groups = groups
-        self.master = self._create_master(self.coupling_model, solver_config)
+        self.master = self._create_master(coupling_model, solver_config)
 
     def _create_master(self, model: ConcreteModel, solver_config: SolverConfig):
         for obj in model.component_objects(Objective, active=True):
@@ -37,12 +44,10 @@ class MipHeuristicRoot:
         return PyomoSolver(model, solver_config, [])
 
     def build(self) -> None:
-        cuts = self.alg.get_cuts()
-
-        for cutlist, group in zip(cuts, self.groups):
+        for cutlist, group in zip(self.cuts, self.groups):
             assert len(group) == 1
             idx = group[0]
-            vars = self.alg.get_vars_dn()[idx]
+            vars = self.vars_dn[idx]
 
             num_cuts = len(cutlist)
             minkowski_vars = Var(RangeSet(0, num_cuts - 1), domain=NonNegativeReals)
@@ -90,7 +95,7 @@ class MipHeuristicRoot:
         for group in self.groups:
             assert len(group) == 1
             idx = group[0]
-            solution = [value(var) for var in self.alg.get_vars_dn()[idx]]
+            solution = [value(var) for var in self.vars_dn[idx]]
             solutions[idx] = DdFinalMessage(solution)
 
         return solutions

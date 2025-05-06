@@ -39,6 +39,7 @@ class DdAlgLeafPyomo(DdAlgLeaf):
 
     def pass_final_message(self, message: DdFinalMessage) -> None:
         solution = message.get_solution()
+        assert solution is not None
         self.fix_variables_and_solve(solution)
 
     def _update_objective(self, coeffs: List[float]) -> None:

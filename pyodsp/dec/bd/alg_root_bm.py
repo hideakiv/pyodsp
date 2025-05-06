@@ -36,7 +36,7 @@ class BdAlgRootBm(BdAlgRoot):
     def reset_iteration(self) -> None:
         self.bm.reset_iteration()
 
-    def get_final_message(self) -> BdFinalMessage:
+    def get_final_message(self, **kwargs) -> BdFinalMessage:
         return BdFinalMessage([var.value for var in self.get_vars()])
 
     def get_num_vars(self) -> int:

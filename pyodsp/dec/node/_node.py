@@ -5,14 +5,8 @@ from typing import Any, List, Dict, Tuple
 from ._alg import IAlgRoot, IAlgLeaf
 from ..run._message import NodeIdx, InitMessage, FinalMessage, DnMessage, UpMessage
 
-from pyodsp.solver.pyomo_solver import SolverConfig
-
 
 class INode(ABC):
-    @abstractmethod
-    def get_solver_config(self) -> SolverConfig | None:
-        pass
-
     @abstractmethod
     def get_idx(self) -> NodeIdx:
         pass
@@ -98,7 +92,7 @@ class INodeParent(INode, ABC):
         pass
 
     @abstractmethod
-    def get_final_message(self) -> FinalMessage:
+    def get_final_message(self, **kwargs) -> FinalMessage:
         pass
 
     @abstractmethod

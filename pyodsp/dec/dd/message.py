@@ -40,8 +40,8 @@ class DdDnMessage(DnMessage):
 
 
 class DdFinalMessage(FinalMessage):
-    def __init__(self, solution: List[float]) -> None:
+    def __init__(self, solution: List[float] | None) -> None:
         self.solution = solution
 
-    def get_solution(self):
+    def get_solution(self) -> List[float] | None:
         return self.solution

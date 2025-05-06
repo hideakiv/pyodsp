@@ -2,8 +2,6 @@ from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Tuple
 from pathlib import Path
 
-from pyodsp.solver.pyomo_solver import SolverConfig
-
 from ._node import NodeIdx, INode, INodeParent, INodeChild, INodeInner
 from ._alg import IAlgRoot, IAlgLeaf
 from .cut_aggregator import CutAggregator
@@ -12,9 +10,7 @@ from ..utils import create_directory
 
 
 class DecNode(INode, ABC):
-    def __init__(
-        self, idx: NodeIdx, solver_config: SolverConfig | None = None, **kwargs
-    ) -> None:
+    def __init__(self, idx: NodeIdx, **kwargs) -> None:
         self.idx: NodeIdx = idx
         self.depth: int | None = None
 
@@ -24,12 +20,7 @@ class DecNode(INode, ABC):
         self.children_bounds: Dict[int, float] = {}
         self.groups = []
 
-        self.solver_config = solver_config
-
         self.built = False
-
-    def get_solver_config(self) -> SolverConfig | None:
-        return self.solver_config
 
     def get_idx(self) -> NodeIdx:
         return self.idx
@@ -64,11 +55,10 @@ class DecNodeParent(INodeParent, DecNode):
         self,
         idx: NodeIdx,
         alg_root: IAlgRoot,
-        solver_config: SolverConfig | None = None,
         **kwargs,
     ) -> None:
         self.alg_root = alg_root
-        super().__init__(idx, solver_config=solver_config, **kwargs)
+        super().__init__(idx, **kwargs)
 
     def get_alg_root(self) -> IAlgRoot:
         return self.alg_root
@@ -147,8 +137,8 @@ class DecNodeParent(INodeParent, DecNode):
         init_message.set_depth(self.get_depth())
         return init_message
 
-    def get_final_message(self) -> FinalMessage:
-        return self.alg_root.get_final_message()
+    def get_final_message(self, **kwargs) -> FinalMessage:
+        return self.alg_root.get_final_message(**kwargs)
 
     def get_num_vars(self) -> int:
         return self.alg_root.get_num_vars()
@@ -223,11 +213,8 @@ class DecNodeInner(INodeInner, DecNodeParent, DecNodeChild):
         idx: NodeIdx,
         alg_root: IAlgRoot,
         alg_leaf: IAlgLeaf,
-        solver_config: SolverConfig | None = None,
     ) -> None:
-        super().__init__(
-            idx=idx, solver_config=solver_config, alg_root=alg_root, alg_leaf=alg_leaf
-        )
+        super().__init__(idx=idx, alg_root=alg_root, alg_leaf=alg_leaf)
 
     def build_inner(self) -> None:
         DecNodeParent.build_inner(self)

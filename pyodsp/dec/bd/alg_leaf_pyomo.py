@@ -39,6 +39,7 @@ class BdAlgLeafPyomo(BdAlgLeaf):
 
     def pass_final_message(self, message: BdFinalMessage) -> None:
         solution = message.get_solution()
+        assert solution is not None
         self._fix_variables(solution)
         self.get_up_message()
 

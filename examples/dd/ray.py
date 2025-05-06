@@ -25,9 +25,9 @@ def create_master(solver="appsi_highs") -> DecNodeRoot:
     )
 
     alg_config = SolverConfig(solver_name=solver)
-    root_alg = DdAlgRootBm(block, True, alg_config, vars_dn)
-    config = SolverConfig(solver_name=solver)
-    root_node = DecNodeRoot(0, root_alg, solver_config=config)
+    final_config = SolverConfig(solver_name=solver)
+    root_alg = DdAlgRootBm(block, True, alg_config, final_config, vars_dn)
+    root_node = DecNodeRoot(0, root_alg)
     return root_node
 
 

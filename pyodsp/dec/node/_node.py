@@ -3,7 +3,7 @@ from pathlib import Path
 from typing import Any, List, Dict, Tuple
 
 from ._alg import IAlgRoot, IAlgLeaf
-from ..run._message import NodeIdx, InitMessage, FinalMessage, DnMessage, UpMessage
+from ._message import NodeIdx, InitMessage, FinalMessage, DnMessage, UpMessage
 
 
 class INode(ABC):

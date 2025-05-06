@@ -9,7 +9,7 @@ from .message import DdDnMessage
 from .mip_heuristic_root import MipHeuristicRoot
 from ..utils import create_directory
 from ..node._node import INode, INodeRoot, INodeLeaf
-from ..run._message import InitMessage, FinalMessage, DnMessage, UpMessage, NodeIdx
+from ..node._message import InitMessage, FinalMessage, DnMessage, UpMessage, NodeIdx
 
 
 class DdRun:

@@ -9,7 +9,7 @@ from pyomo.environ import (
 )
 
 from pyodsp.alg.cuts_manager import CutInfo
-from pyodsp.dec.run._message import FinalMessage
+from pyodsp.dec.node._message import FinalMessage
 from pyodsp.solver.pyomo_solver import SolverConfig
 
 from .message import DdInitMessage

@@ -7,7 +7,7 @@ from pyodsp.alg.const import *
 from .logger import BdLogger
 from ..utils import create_directory
 from ..node._node import INode, INodeRoot, INodeLeaf, INodeInner
-from ..run._message import DnMessage, UpMessage, NodeIdx
+from ..node._message import DnMessage, UpMessage, NodeIdx
 
 
 class BdRun:

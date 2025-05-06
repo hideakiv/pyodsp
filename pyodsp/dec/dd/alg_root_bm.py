@@ -5,7 +5,7 @@ import pandas as pd
 
 from pyomo.environ import ConcreteModel, ScalarVar
 
-from pyodsp.dec.run._message import FinalMessage
+from pyodsp.dec.node._message import FinalMessage
 
 from .message import DdDnMessage, DdFinalMessage
 from .alg_root import DdAlgRoot

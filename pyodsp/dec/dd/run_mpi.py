@@ -8,7 +8,7 @@ from .run import DdRun
 from .message import DdDnMessage
 from .mip_heuristic_root import MipHeuristicRoot
 from ..node._node import INode
-from ..run._message import InitMessage, FinalMessage, DnMessage, UpMessage
+from ..node._message import InitMessage, FinalMessage, DnMessage, UpMessage
 
 
 class DdRunMpi(DdRun):

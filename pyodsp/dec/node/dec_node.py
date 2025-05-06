@@ -5,7 +5,7 @@ from pathlib import Path
 from ._node import NodeIdx, INode, INodeParent, INodeChild, INodeInner
 from ._alg import IAlgRoot, IAlgLeaf
 from .cut_aggregator import CutAggregator
-from ..run._message import InitMessage, FinalMessage, DnMessage, UpMessage
+from ._message import InitMessage, FinalMessage, DnMessage, UpMessage
 from ..utils import create_directory
 
 

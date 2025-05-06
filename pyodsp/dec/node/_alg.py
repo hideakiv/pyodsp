@@ -4,7 +4,7 @@ from pathlib import Path
 
 from pyodsp.alg.cuts import Cut, CutList
 
-from ..run._message import NodeIdx, InitMessage, FinalMessage, DnMessage, UpMessage
+from ._message import NodeIdx, InitMessage, FinalMessage, DnMessage, UpMessage
 
 
 class IAlg(ABC):

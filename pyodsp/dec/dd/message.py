@@ -1,5 +1,5 @@
 from typing import List, Dict
-from ..run._message import InitMessage, FinalMessage, DnMessage, UpMessage
+from ..node._message import InitMessage, FinalMessage, DnMessage, UpMessage
 from pyodsp.alg.cuts import Cut
 
 

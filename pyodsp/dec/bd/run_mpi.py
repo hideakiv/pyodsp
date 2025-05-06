@@ -6,7 +6,7 @@ from pyodsp.alg.const import *
 
 from .run import BdRun
 from ..node._node import INode, INodeLeaf, INodeInner
-from ..run._message import InitMessage
+from ..node._message import InitMessage
 
 
 class BdRunMpi(BdRun):

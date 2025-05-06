@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pyomo.environ as pyo
 
-from pyodsp.solver.pyomo_solver import PyomoSolver
+from pyodsp.solver.pyomo_solver import PyomoSolver, SolverConfig
 
 from pyodsp.dec.node.dec_node import DecNodeRoot, DecNodeLeaf
 from pyodsp.dec.dd.alg_root_bm import DdAlgRootBm
@@ -23,10 +23,13 @@ def create_master(solver="appsi_highs", pbm=False) -> DecNodeRoot:
     block.c1 = pyo.Constraint(expr=3 * block.x1 + 2 * block.x2 + 4 * block.x3 == 17)
 
     if pbm:
-        root_alg = DdAlgRootPbm(block, True, "ipopt", vars_dn)
+        alg_config = SolverConfig(solver_name="ipopt")
+        root_alg = DdAlgRootPbm(block, True, alg_config, vars_dn)
     else:
-        root_alg = DdAlgRootBm(block, True, solver, vars_dn)
-    root_node = DecNodeRoot(0, root_alg, final_solver=solver)
+        alg_config = SolverConfig(solver_name=solver)
+        root_alg = DdAlgRootBm(block, True, alg_config, vars_dn)
+    config = SolverConfig(solver_name=solver)
+    root_node = DecNodeRoot(0, root_alg, solver_config=config)
     return root_node
 
 
@@ -40,7 +43,8 @@ def create_sub(i, solver="appsi_highs") -> DecNodeLeaf:
 
     block.obj = pyo.Objective(expr=cost[i] * block.x, sense=pyo.minimize)
 
-    sub_solver = PyomoSolver(block, solver, vars_up)
+    config = SolverConfig(solver_name=solver)
+    sub_solver = PyomoSolver(block, config, vars_up)
     sub_alg = DdAlgLeafPyomo(sub_solver)
     leaf_node = DecNodeLeaf(i, sub_alg)
     leaf_node.add_parent(0)

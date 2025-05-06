@@ -10,6 +10,7 @@ from .message import DdDnMessage, DdFinalMessage
 from pyodsp.alg.pbm.pbm import ProximalBundleMethod
 from pyodsp.alg.cuts import CutList
 from pyodsp.alg.cuts_manager import CutInfo
+from pyodsp.solver.pyomo_solver import SolverConfig
 
 
 class DdAlgRootPbm(DdAlgRoot):
@@ -17,12 +18,11 @@ class DdAlgRootPbm(DdAlgRoot):
         self,
         coupling_model: ConcreteModel,
         is_minimize: bool,
-        solver_name: str,
+        solver_config: SolverConfig,
         vars_dn: Dict[int, List[ScalarVar]],
         max_iteration=1000,
-        **kwargs,
     ) -> None:
-        super().__init__(coupling_model, is_minimize, solver_name, vars_dn, **kwargs)
+        super().__init__(coupling_model, is_minimize, solver_config, vars_dn)
 
         self.pbm = ProximalBundleMethod(self.solver, max_iteration)
         self.step_time: List[float] = []

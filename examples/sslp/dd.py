@@ -8,7 +8,7 @@ from pyodsp.dec.dd.alg_root_bm import DdAlgRootBm
 from pyodsp.dec.dd.alg_root_pbm import DdAlgRootPbm
 from pyodsp.dec.dd.alg_leaf_pyomo import DdAlgLeafPyomo
 from pyodsp.dec.dd.run import DdRun
-from pyodsp.solver.pyomo_solver import PyomoSolver
+from pyodsp.solver.pyomo_solver import PyomoSolver, SolverConfig
 
 
 def main(nI: int, nJ: int, nS: int, solver="appsi_highs"):
@@ -48,7 +48,8 @@ def create_master(nJ: int, nS: int, solver="appsi_highs", pbm=False) -> DecNodeR
         root_alg = DdAlgRootPbm(m, True, "ipopt", vars_dn)
     else:
         root_alg = DdAlgRootBm(m, True, solver, vars_dn)
-    root_node = DecNodeRoot(0, root_alg, final_solver=solver)
+    config = SolverConfig(solver_name=solver)
+    root_node = DecNodeRoot(0, root_alg, solver_config=config)
     return root_node
 
 
@@ -61,7 +62,8 @@ def create_sub(s: int, nI: int, nJ: int, nS: int, solver="appsi_highs") -> DecNo
 
     vars_up = [m.x[j] for j in range(1, nJ + 1)]
 
-    sub_solver = PyomoSolver(m, solver, vars_up)
+    config = SolverConfig(solver_name=solver)
+    sub_solver = PyomoSolver(m, config, vars_up)
     sub_alg = DdAlgLeafPyomo(sub_solver)
     leaf_node = DecNodeLeaf(s + 1, sub_alg)
     leaf_node.add_parent(0)

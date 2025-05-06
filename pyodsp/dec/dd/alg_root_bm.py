@@ -11,6 +11,7 @@ from pyodsp.alg.bm.bm import BundleMethod
 from pyodsp.alg.cuts import CutList
 from pyodsp.alg.cuts_manager import CutInfo
 from pyodsp.alg.params import BM_DUMMY_BOUND
+from pyodsp.solver.pyomo_solver import SolverConfig
 
 
 class DdAlgRootBm(DdAlgRoot):
@@ -18,12 +19,11 @@ class DdAlgRootBm(DdAlgRoot):
         self,
         coupling_model: ConcreteModel,
         is_minimize: bool,
-        solver_name: str,
+        solver_config: SolverConfig,
         vars_dn: Dict[int, List[ScalarVar]],
         max_iteration=1000,
-        **kwargs,
     ) -> None:
-        super().__init__(coupling_model, is_minimize, solver_name, vars_dn, **kwargs)
+        super().__init__(coupling_model, is_minimize, solver_config, vars_dn)
 
         self.bm = BundleMethod(self.solver, max_iteration)
         self.step_time: List[float] = []

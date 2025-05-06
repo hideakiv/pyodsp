@@ -8,7 +8,7 @@ from pyodsp.dec.node.dec_node import DecNodeRoot, DecNodeLeaf, DecNodeInner
 from pyodsp.dec.bd.alg_root_bm import BdAlgRootBm
 from pyodsp.dec.bd.alg_leaf_pyomo import BdAlgLeafPyomo
 from pyodsp.dec.bd.run import BdRun
-from pyodsp.solver.pyomo_solver import PyomoSolver
+from pyodsp.solver.pyomo_solver import PyomoSolver, SolverConfig
 
 
 def main(solver="appsi_highs", agg=False):
@@ -32,7 +32,8 @@ def create_root(idx, demand, solver_name, agg=False):
     model = pyo.ConcreteModel()
     first_stage(model, demand)
     coupling_dn = [model.next_inventory]
-    solver_root = PyomoSolver(model, solver_name, coupling_dn)
+    config = SolverConfig(solver_name=solver_name)
+    solver_root = PyomoSolver(model, config, coupling_dn)
     alg_root = BdAlgRootBm(solver_root)
     node = DecNodeRoot(idx, alg_root)
     node.add_child(1, multiplier=0.5)
@@ -49,9 +50,10 @@ def create_inner(idx, demand, solver_name, agg=False):
     model.obj = pyo.Objective(expr=model.obj_expr, sense=pyo.minimize)
     coupling_up = [model.prev_inventory]
     coupling_dn = [model.next_inventory]
-    solver_root = PyomoSolver(model, solver_name, coupling_dn)
+    config = SolverConfig(solver_name=solver_name)
+    solver_root = PyomoSolver(model, config, coupling_dn)
     alg_root = BdAlgRootBm(solver_root, max_iteration=1)
-    solver_leaf = PyomoSolver(model, solver_name, coupling_up)
+    solver_leaf = PyomoSolver(model, config, coupling_up)
     alg_leaf = BdAlgLeafPyomo(solver_leaf)
     parent = (idx - 1) // 2
     node = DecNodeInner(idx, alg_root, alg_leaf)
@@ -70,7 +72,8 @@ def create_leaf(idx, demand, solver_name):
     last_stage(model, model.prev_inventory, demand)
     model.obj = pyo.Objective(expr=model.obj_expr, sense=pyo.minimize)
     coupling_up = [model.prev_inventory]
-    solver_leaf = PyomoSolver(model, solver_name, coupling_up)
+    config = SolverConfig(solver_name=solver_name)
+    solver_leaf = PyomoSolver(model, config, coupling_up)
     alg_leaf = BdAlgLeafPyomo(solver_leaf)
     parent = (idx - 1) // 2
     node = DecNodeLeaf(idx, alg_leaf)

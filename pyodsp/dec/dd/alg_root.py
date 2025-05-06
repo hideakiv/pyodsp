@@ -9,6 +9,7 @@ from pyomo.environ import (
 )
 
 from pyodsp.alg.cuts_manager import CutInfo
+from pyodsp.solver.pyomo_solver import SolverConfig
 
 from .message import DdInitMessage
 from ..node._alg import IAlgRoot
@@ -20,14 +21,13 @@ class DdAlgRoot(IAlgRoot, ABC):
         self,
         coupling_model: ConcreteModel,
         is_minimize: bool,
-        solver_name: str,
+        solver_config: SolverConfig,
         vars_dn: Dict[int, List[ScalarVar]],
-        **kwargs,
     ) -> None:
         self.coupling_model = coupling_model
         self.vars_dn = vars_dn
         self._init_check()
-        mc = MasterCreator(coupling_model, is_minimize, solver_name, vars_dn, **kwargs)
+        mc = MasterCreator(coupling_model, is_minimize, solver_config, vars_dn)
         self.solver = mc.create()
         self.lagrangian_data = mc.lagrangian_data
         self.num_constrs = mc.num_constrs
@@ -71,6 +71,9 @@ class DdAlgRoot(IAlgRoot, ABC):
             self.lagrangian_data.matrix[child_id], self.is_minimize()
         )
         return message
+
+    def get_coupling_model(self) -> ConcreteModel:
+        return self.coupling_model
 
     @abstractmethod
     def get_cuts(self) -> List[List[CutInfo]]:

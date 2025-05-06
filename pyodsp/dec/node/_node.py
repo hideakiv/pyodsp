@@ -5,10 +5,12 @@ from typing import Any, List, Dict, Tuple
 from ._alg import IAlgRoot, IAlgLeaf
 from ..run._message import NodeIdx, InitMessage, FinalMessage, DnMessage, UpMessage
 
+from pyodsp.solver.pyomo_solver import SolverConfig
+
 
 class INode(ABC):
     @abstractmethod
-    def get_kwargs(self) -> Dict[str, Any]:
+    def get_solver_config(self) -> SolverConfig | None:
         pass
 
     @abstractmethod

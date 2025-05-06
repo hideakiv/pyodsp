@@ -100,8 +100,13 @@ class DdRun:
 
     def _finalize_root(self) -> None:
         assert self.root is not None
+        config = self.root.get_solver_config()
+        if config is None:
+            return
         mip_heuristic = MipHeuristicRoot(
-            self.root.get_groups(), self.root.get_alg_root(), **self.root.get_kwargs()
+            self.root.get_groups(),
+            self.root.get_alg_root(),
+            config,
         )
         mip_heuristic.build()
         solutions = mip_heuristic.run()

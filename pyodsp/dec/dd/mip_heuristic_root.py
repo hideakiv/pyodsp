@@ -12,26 +12,29 @@ from pyomo.environ import (
     value,
 )
 from .alg_root import DdAlgRoot
-from pyodsp.solver.pyomo_solver import PyomoSolver
+from pyodsp.solver.pyomo_solver import PyomoSolver, SolverConfig
 from pyodsp.alg.cuts import OptimalityCut
 from .message import DdFinalMessage
 
 
 class MipHeuristicRoot:
-    def __init__(self, groups: List[List[int]], alg: DdAlgRoot, **kwargs):
+    def __init__(
+        self, groups: List[List[int]], alg: DdAlgRoot, solver_config: SolverConfig
+    ):
         self.alg = alg
+        self.is_minimize = alg.is_minimize()
+        self.coupling_model = self.alg.get_coupling_model()
         self.groups = groups
-        solver = kwargs.pop("final_solver")
-        self.master = self._create_master(self.alg.coupling_model, solver, **kwargs)
+        self.master = self._create_master(self.coupling_model, solver_config)
 
-    def _create_master(self, model: ConcreteModel, solver: str, **kwargs):
+    def _create_master(self, model: ConcreteModel, solver_config: SolverConfig):
         for obj in model.component_objects(Objective, active=True):
             raise ValueError("Objective should not be defined in coupling model")
-        if self.alg.is_minimize():
+        if self.is_minimize:
             model._dd_obj = Objective(expr=0.0, sense=minimize)
         else:
             model._dd_obj = Objective(expr=0.0, sense=maximize)
-        return PyomoSolver(model, solver, [], **kwargs)
+        return PyomoSolver(model, solver_config, [])
 
     def build(self) -> None:
         cuts = self.alg.get_cuts()
@@ -70,7 +73,7 @@ class MipHeuristicRoot:
 
             obj = 0.0
             for j, cutinfo in enumerate(cutlist):
-                if self.alg.is_minimize():
+                if self.is_minimize:
                     rhs = cutinfo.constraint.upper
                 else:
                     rhs = cutinfo.constraint.lower

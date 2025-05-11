@@ -6,7 +6,6 @@ from pyodsp.alg.const import *
 
 from .run import DdRun
 from .message import DdDnMessage
-from .mip_heuristic_root import MipHeuristicRoot
 from ..node._node import INode
 from ..node._message import InitMessage, FinalMessage, DnMessage, UpMessage
 

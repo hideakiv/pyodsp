@@ -5,7 +5,7 @@ from pathlib import Path
 from ._node import NodeIdx, INode, INodeParent, INodeChild, INodeInner
 from ._alg import IAlgRoot, IAlgLeaf
 from .cut_aggregator import CutAggregator
-from ._message import InitDnMessage, FinalDnMessage, DnMessage, UpMessage
+from ._message import InitDnMessage, InitUpMessage, FinalDnMessage, DnMessage, UpMessage
 from ..utils import create_directory
 
 
@@ -132,10 +132,17 @@ class DecNodeParent(INodeParent, DecNode):
         aggregate_cuts = self.cut_aggregator.get_aggregate_cuts(up_messages)
         return self.alg_root.run_step(aggregate_cuts)
 
-    def get_init_message(self, **kwargs) -> InitDnMessage:
-        init_message = self.alg_root.get_init_message(**kwargs)
+    def get_init_dn_message(self, **kwargs) -> InitDnMessage:
+        init_message = self.alg_root.get_init_dn_message(**kwargs)
         init_message.set_depth(self.get_depth())
         return init_message
+
+    def pass_init_up_messages(self, messages: Dict[NodeIdx, InitUpMessage]) -> None:
+        for node_id, message in messages.items():
+            bound = message.get_bound()
+            if bound is None:
+                continue
+            self.set_child_bound(node_id, bound)
 
     def get_final_message(self, **kwargs) -> FinalDnMessage:
         return self.alg_root.get_final_message(**kwargs)
@@ -159,6 +166,7 @@ DecNodeRoot = DecNodeParent
 class DecNodeChild(INodeChild, DecNode):
     def __init__(self, idx: NodeIdx, alg_leaf: IAlgLeaf, **kwargs) -> None:
         self.alg_leaf = alg_leaf
+        self.bound = None
         super().__init__(idx, **kwargs)
 
     def get_alg_leaf(self) -> IAlgLeaf:
@@ -172,7 +180,7 @@ class DecNodeChild(INodeChild, DecNode):
     def set_bound(self, bound: float) -> None:
         self.bound = bound
 
-    def get_bound(self) -> float:
+    def get_bound(self) -> float | None:
         return self.bound
 
     def get_objective_value(self) -> float:
@@ -181,9 +189,14 @@ class DecNodeChild(INodeChild, DecNode):
     def build_inner(self) -> None:
         self.alg_leaf.build()
 
-    def pass_init_message(self, message: InitDnMessage) -> None:
+    def pass_init_dn_message(self, message: InitDnMessage) -> None:
         self.set_depth(message.get_depth() + 1)
-        self.alg_leaf.pass_init_message(message)
+        self.alg_leaf.pass_init_dn_message(message)
+
+    def get_init_up_message(self) -> InitUpMessage:
+        message = self.alg_leaf.get_init_up_message()
+        message.set_bound(self.bound)
+        return message
 
     def pass_dn_message(self, message: DnMessage) -> None:
         self.alg_leaf.pass_dn_message(message)

@@ -1,5 +1,11 @@
 from typing import List
-from ..node._message import InitDnMessage, FinalDnMessage, DnMessage, UpMessage
+from ..node._message import (
+    InitDnMessage,
+    InitUpMessage,
+    FinalDnMessage,
+    DnMessage,
+    UpMessage,
+)
 from pyodsp.alg.cuts import Cut
 
 
@@ -15,6 +21,17 @@ class BdInitDnMessage(InitDnMessage):
 
     def get_depth(self) -> int:
         return self.depth
+
+
+class BdInitUpMessage(InitUpMessage):
+    def __init__(self) -> None:
+        self.bound = None
+
+    def set_bound(self, bound: float | None) -> None:
+        self.bound = bound
+
+    def get_bound(self) -> float | None:
+        return self.bound
 
 
 class BdUpMessage(UpMessage):

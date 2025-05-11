@@ -38,12 +38,12 @@ class BdRun:
     def _run_init(self, node: INode) -> None:
         if isinstance(node, INodeRoot):
             node.set_logger()
-            init_message = node.get_init_message()
+            init_message = node.get_init_dn_message()
 
         for child_id in node.get_children():
             child = self.nodes[child_id]
             assert isinstance(child, INodeLeaf)
-            child.pass_init_message(init_message)
+            child.pass_init_dn_message(init_message)
             self._run_init(child)
 
     def _run_node(
@@ -108,7 +108,10 @@ class BdRun:
         return up_message
 
     def _set_bounds(self, node: INodeRoot) -> None:
+        messages = {}
         for child in node.get_children():
             child_node = self.nodes[child]
             assert isinstance(child_node, INodeLeaf)
-            node.set_child_bound(child, child_node.get_bound())
+            message = child_node.get_init_up_message()
+            messages[child] = message
+        node.pass_init_up_messages(messages)

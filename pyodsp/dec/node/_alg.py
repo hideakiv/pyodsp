@@ -4,7 +4,14 @@ from pathlib import Path
 
 from pyodsp.alg.cuts import CutList
 
-from ._message import NodeIdx, InitDnMessage, FinalDnMessage, DnMessage, UpMessage
+from ._message import (
+    NodeIdx,
+    InitDnMessage,
+    InitUpMessage,
+    FinalDnMessage,
+    DnMessage,
+    UpMessage,
+)
 
 
 class IAlg(ABC):
@@ -31,7 +38,7 @@ class IAlgRoot(IAlg, ABC):
         pass
 
     @abstractmethod
-    def get_init_message(self, **kwargs) -> InitDnMessage:
+    def get_init_dn_message(self, **kwargs) -> InitDnMessage:
         pass
 
     @abstractmethod
@@ -61,7 +68,11 @@ class IAlgLeaf(IAlg, ABC):
         pass
 
     @abstractmethod
-    def pass_init_message(self, message: InitDnMessage) -> None:
+    def pass_init_dn_message(self, message: InitDnMessage) -> None:
+        pass
+
+    @abstractmethod
+    def get_init_up_message(self) -> InitUpMessage:
         pass
 
     @abstractmethod

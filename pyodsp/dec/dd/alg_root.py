@@ -71,7 +71,7 @@ class DdAlgRoot(IAlgRoot, ABC):
     def is_minimize(self) -> bool:
         return self._is_minimize
 
-    def get_init_message(self, **kwargs) -> DdInitDnMessage:
+    def get_init_dn_message(self, **kwargs) -> DdInitDnMessage:
         child_id = kwargs["child_id"]
         message = DdInitDnMessage(
             self.lagrangian_data.matrix[child_id], self.is_minimize()

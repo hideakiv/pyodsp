@@ -35,7 +35,9 @@ class HubAndSpokeMpi(HubAndSpoke):
 
     def run(self, init_solution: DnMessage | None = None):
         if self.rank == 0:
-            self._run_init()
+            self.logger.log_initialization()
+            self._run_init_dn()
+            self._run_init_up()
             up_messages = self._run_main_preprocess(init_solution)
             self._run_main(up_messages)
             self.logger.log_finaliziation()
@@ -43,7 +45,8 @@ class HubAndSpokeMpi(HubAndSpoke):
             self.logger.log_completion(final_obj)
             self._save()
         else:
-            self._run_init_mpi()
+            self._run_init_dn_mpi()
+            self._run_init_up_mpi()
             self._run_main_preprocess_mpi()
             self._run_main_mpi()
             self._run_final_mpi()
@@ -60,19 +63,39 @@ class HubAndSpokeMpi(HubAndSpoke):
                 continue
             if target not in init_messages:
                 init_messages[target] = {}
-            init_messages[target][child_id] = self.root.get_init_message(
+            init_messages[target][child_id] = self.root.get_init_dn_message(
                 child_id=child_id
             )
 
         for target, init_message in init_messages.items():
             self.comm.send(init_message, dest=target, tag=0)
 
-    def _run_init_mpi(self) -> None:
+    def _run_init_dn_mpi(self) -> None:
         init_messages = self.comm.recv(source=0, tag=0)
 
         for leaf in self.leaves:
             init_message = init_messages[leaf.get_idx()]
             self._init_leaf(leaf, init_message)
+
+    def _run_init_up(self) -> None:
+        super()._run_init_up()
+        # gather messages
+        up_messages = None
+        all_up_messages = self.comm.gather(up_messages, root=0)
+        combined_up_messages = {}
+        for d in all_up_messages:
+            if d is None:
+                continue
+            combined_up_messages.update(d)
+        assert self.root is not None
+        self.root.pass_init_up_messages(combined_up_messages)
+
+    def _run_init_up_mpi(self) -> None:
+        up_messages = {}
+        for leaf in self.leaves:
+            init_message = leaf.get_init_up_message()
+            up_messages[leaf.get_idx()] = init_message
+        all_up_messages = self.comm.gather(up_messages, root=0)
 
     def _run_main_preprocess(
         self, init_solution: DnMessage | None

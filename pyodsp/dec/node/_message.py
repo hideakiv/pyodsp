@@ -24,6 +24,16 @@ class InitDnMessage(IMessage, ABC):
         pass
 
 
+class InitUpMessage(IMessage, ABC):
+    @abstractmethod
+    def set_bound(self, bound: float | None) -> None:
+        pass
+
+    @abstractmethod
+    def get_bound(self) -> float | None:
+        pass
+
+
 class UpMessage(IMessage, ABC):
     @abstractmethod
     def get_cut(self) -> Cut:

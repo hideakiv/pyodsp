@@ -42,7 +42,7 @@ class BdAlgRootBm(BdAlgRoot):
     def get_num_vars(self) -> int:
         return len(self.get_vars())
 
-    def get_init_message(self, **kwargs) -> BdInitDnMessage:
+    def get_init_dn_message(self, **kwargs) -> BdInitDnMessage:
         return BdInitDnMessage(self.is_minimize())
 
     def save(self, dir: Path) -> None:

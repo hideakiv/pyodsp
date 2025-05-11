@@ -3,7 +3,14 @@ from pathlib import Path
 from typing import List, Dict, Tuple
 
 from ._alg import IAlgRoot, IAlgLeaf
-from ._message import NodeIdx, InitDnMessage, FinalDnMessage, DnMessage, UpMessage
+from ._message import (
+    NodeIdx,
+    InitDnMessage,
+    InitUpMessage,
+    FinalDnMessage,
+    DnMessage,
+    UpMessage,
+)
 
 
 class INode(ABC):
@@ -84,7 +91,11 @@ class INodeParent(INode, ABC):
         pass
 
     @abstractmethod
-    def get_init_message(self, **kwargs) -> InitDnMessage:
+    def get_init_dn_message(self, **kwargs) -> InitDnMessage:
+        pass
+
+    @abstractmethod
+    def pass_init_up_messages(self, messages: Dict[NodeIdx, InitUpMessage]) -> None:
         pass
 
     @abstractmethod
@@ -117,7 +128,7 @@ class INodeChild(INode, ABC):
         pass
 
     @abstractmethod
-    def get_bound(self) -> float:
+    def get_bound(self) -> float | None:
         pass
 
     @abstractmethod
@@ -125,7 +136,11 @@ class INodeChild(INode, ABC):
         pass
 
     @abstractmethod
-    def pass_init_message(self, message: InitDnMessage) -> None:
+    def pass_init_dn_message(self, message: InitDnMessage) -> None:
+        pass
+
+    @abstractmethod
+    def get_init_up_message(self) -> InitUpMessage:
         pass
 
     @abstractmethod

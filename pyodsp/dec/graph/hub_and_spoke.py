@@ -36,7 +36,9 @@ class HubAndSpoke:
             raise ValueError(f"Unknown object of type {type(node)} detected")
 
     def run(self, init_solution: DnMessage | None = None):
-        self._run_init()
+        self.logger.log_initialization()
+        self._run_init_dn()
+        self._run_init_up()
         up_messages = self._run_main_preprocess(init_solution)
         self._run_main(up_messages)
         self.logger.log_finaliziation()
@@ -49,13 +51,12 @@ class HubAndSpoke:
             raise ValueError("root node not found")
         return self.root.get_num_vars()
 
-    def _run_init(self) -> None:
-        self.logger.log_initialization()
+    def _run_init_dn(self) -> None:
         if self.root is None:
             raise ValueError("root node not found")
         self._init_root()
         for leaf in self.leaves:
-            init_message = self.root.get_init_message(child_id=leaf.get_idx())
+            init_message = self.root.get_init_dn_message(child_id=leaf.get_idx())
             self._init_leaf(leaf, init_message)
 
     def _init_root(self) -> None:
@@ -65,8 +66,17 @@ class HubAndSpoke:
         self.root.set_logger()
         self.root.build()
 
+    def _run_init_up(self) -> None:
+        if self.root is None:
+            raise ValueError("root node not found")
+        messages = {}
+        for leaf in self.leaves:
+            init_message = leaf.get_init_up_message()
+            messages[leaf.get_idx()] = init_message
+        self.root.pass_init_up_messages(messages)
+
     def _init_leaf(self, node: INodeLeaf, message: InitDnMessage) -> None:
-        node.pass_init_message(message)
+        node.pass_init_dn_message(message)
 
     def _run_main_preprocess(
         self, init_solution: DnMessage | None

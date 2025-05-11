@@ -6,7 +6,7 @@ from pyodsp.alg.const import *
 
 from .run import BdRun
 from ..node._node import INode, INodeLeaf, INodeInner
-from ..node._message import InitMessage
+from ..node._message import InitDnMessage
 
 
 class BdRunMpi(BdRun):
@@ -41,7 +41,7 @@ class BdRunMpi(BdRun):
             assert self.root is not None
             self.root.set_depth(0)
             self.root.set_logger()
-            init_message = self.root.get_init_message()
+            init_message = self.root.get_init_dn_message()
             self.comm.bcast(init_message, root=0)
             for node in self.nodes.values():
                 self._init_leaf(node, init_message)
@@ -56,9 +56,9 @@ class BdRunMpi(BdRun):
         for node in self.nodes.values():
             node.save(self.filedir)
 
-    def _init_leaf(self, node: INode, init_message: InitMessage) -> None:
+    def _init_leaf(self, node: INode, init_message: InitDnMessage) -> None:
         if isinstance(node, INodeLeaf):
-            node.pass_init_message(init_message)
+            node.pass_init_dn_message(init_message)
 
     def _run_root(self, all_bounds) -> None:
         assert self.root is not None

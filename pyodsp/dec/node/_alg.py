@@ -2,9 +2,9 @@ from abc import ABC, abstractmethod
 from typing import List, Tuple
 from pathlib import Path
 
-from pyodsp.alg.cuts import Cut, CutList
+from pyodsp.alg.cuts import CutList
 
-from ._message import NodeIdx, InitMessage, FinalMessage, DnMessage, UpMessage
+from ._message import NodeIdx, InitDnMessage, FinalDnMessage, DnMessage, UpMessage
 
 
 class IAlg(ABC):
@@ -31,7 +31,7 @@ class IAlgRoot(IAlg, ABC):
         pass
 
     @abstractmethod
-    def get_init_message(self, **kwargs) -> InitMessage:
+    def get_init_message(self, **kwargs) -> InitDnMessage:
         pass
 
     @abstractmethod
@@ -43,7 +43,7 @@ class IAlgRoot(IAlg, ABC):
         pass
 
     @abstractmethod
-    def get_final_message(self, **kwargs) -> FinalMessage:
+    def get_final_message(self, **kwargs) -> FinalDnMessage:
         pass
 
     @abstractmethod
@@ -61,7 +61,7 @@ class IAlgLeaf(IAlg, ABC):
         pass
 
     @abstractmethod
-    def pass_init_message(self, message: InitMessage) -> None:
+    def pass_init_message(self, message: InitDnMessage) -> None:
         pass
 
     @abstractmethod
@@ -69,7 +69,7 @@ class IAlgLeaf(IAlg, ABC):
         pass
 
     @abstractmethod
-    def pass_final_message(self, message: FinalMessage) -> None:
+    def pass_final_message(self, message: FinalDnMessage) -> None:
         pass
 
     @abstractmethod

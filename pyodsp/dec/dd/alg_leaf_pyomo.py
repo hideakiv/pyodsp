@@ -6,7 +6,7 @@ import pandas as pd
 from pyodsp.alg.cuts import Cut, OptimalityCut, FeasibilityCut
 from pyodsp.alg.params import DEC_CUT_ABS_TOL
 
-from .message import DdInitMessage, DdFinalMessage, DdDnMessage, DdUpMessage
+from .message import DdInitDnMessage, DdFinalDnMessage, DdDnMessage, DdUpMessage
 from .alg_leaf import DdAlgLeaf
 from .coupling_manager import CouplingManager
 from pyodsp.solver.pyomo_solver import PyomoSolver
@@ -27,7 +27,7 @@ class DdAlgLeafPyomo(DdAlgLeaf):
     def build(self) -> None:
         self.solver.original_objective.deactivate()
 
-    def pass_init_message(self, message: DdInitMessage) -> None:
+    def pass_init_message(self, message: DdInitDnMessage) -> None:
         if self.is_minimize() != message.get_is_minimize():
             raise ValueError("Inconsistent optimization sense")
         coupling_matrix = message.get_coupling_matrix()
@@ -37,7 +37,7 @@ class DdAlgLeafPyomo(DdAlgLeaf):
         solution = message.get_solution()
         self._update_objective(solution)
 
-    def pass_final_message(self, message: DdFinalMessage) -> None:
+    def pass_final_message(self, message: DdFinalDnMessage) -> None:
         solution = message.get_solution()
         assert solution is not None
         self.fix_variables_and_solve(solution)

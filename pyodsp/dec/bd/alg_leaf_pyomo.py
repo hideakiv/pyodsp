@@ -6,7 +6,7 @@ import pandas as pd
 from pyomo.environ import Suffix
 from pyomo.core.base.constraint import ScalarConstraint
 
-from .message import BdInitMessage, BdFinalMessage, BdDnMessage, BdUpMessage
+from .message import BdInitDnMessage, BdFinalDnMessage, BdDnMessage, BdUpMessage
 from .alg_leaf import BdAlgLeaf
 from ..utils import CouplingData, get_nonzero_coefficients_from_model
 from pyodsp.alg.cuts import Cut, OptimalityCut, FeasibilityCut
@@ -29,7 +29,7 @@ class BdAlgLeafPyomo(BdAlgLeaf):
             coupling_data.constraint for coupling_data in self.coupling_info
         ]
 
-    def pass_init_message(self, message: BdInitMessage) -> None:
+    def pass_init_message(self, message: BdInitDnMessage) -> None:
         if self.is_minimize() != message.get_is_minimize():
             raise ValueError("Inconsistent optimization sense")
 
@@ -37,7 +37,7 @@ class BdAlgLeafPyomo(BdAlgLeaf):
         solution = message.get_solution()
         self._fix_variables(solution)
 
-    def pass_final_message(self, message: BdFinalMessage) -> None:
+    def pass_final_message(self, message: BdFinalDnMessage) -> None:
         solution = message.get_solution()
         assert solution is not None
         self._fix_variables(solution)

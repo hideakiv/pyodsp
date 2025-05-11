@@ -9,10 +9,10 @@ from pyomo.environ import (
 )
 
 from pyodsp.alg.cuts_manager import CutInfo
-from pyodsp.dec.node._message import FinalMessage
+from pyodsp.dec.node._message import FinalDnMessage
 from pyodsp.solver.pyomo_solver import SolverConfig
 
-from .message import DdInitMessage
+from .message import DdInitDnMessage
 from ..node._alg import IAlgRoot
 from .master_creator import MasterCreator
 from .mip_heuristic_root import MipHeuristicRoot
@@ -71,9 +71,9 @@ class DdAlgRoot(IAlgRoot, ABC):
     def is_minimize(self) -> bool:
         return self._is_minimize
 
-    def get_init_message(self, **kwargs) -> DdInitMessage:
+    def get_init_message(self, **kwargs) -> DdInitDnMessage:
         child_id = kwargs["child_id"]
-        message = DdInitMessage(
+        message = DdInitDnMessage(
             self.lagrangian_data.matrix[child_id], self.is_minimize()
         )
         return message
@@ -82,7 +82,7 @@ class DdAlgRoot(IAlgRoot, ABC):
         return self.coupling_model
 
     @abstractmethod
-    def get_final_message(self, **kwargs) -> FinalMessage:
+    def get_final_message(self, **kwargs) -> FinalDnMessage:
         if not self.is_finalized:
             groups = kwargs["groups"]
             assert self.final_solver_config is not None

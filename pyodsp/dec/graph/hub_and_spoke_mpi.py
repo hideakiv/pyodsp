@@ -5,7 +5,7 @@ from mpi4py import MPI
 from .hub_and_spoke import HubAndSpoke
 from ..node._logger import ILogger
 from ..node._node import INode
-from ..node._message import InitMessage, DnMessage, UpMessage, FinalMessage, NodeIdx
+from ..node._message import InitDnMessage, DnMessage, UpMessage, FinalDnMessage, NodeIdx
 
 from pyodsp.alg.const import STATUS_NOT_FINISHED
 
@@ -53,7 +53,7 @@ class HubAndSpokeMpi(HubAndSpoke):
         super()._init_root()
         assert self.root is not None
 
-        init_messages: Dict[int, Dict[NodeIdx, InitMessage]] = {}
+        init_messages: Dict[int, Dict[NodeIdx, InitDnMessage]] = {}
         for child_id in self.root.get_children():
             target = self.node_rank_map[child_id]
             if target == 0:
@@ -85,13 +85,18 @@ class HubAndSpokeMpi(HubAndSpoke):
         all_up_messages = self.comm.gather(up_messages, root=0)
         combined_up_messages = {}
         for d in all_up_messages:
+            if d is None:
+                continue
             combined_up_messages.update(d)
         return combined_up_messages
 
     def _run_main_preprocess_mpi(self) -> None:
         message: DnMessage = None
         message = self.comm.bcast(message, root=0)
-        up_messages = self._run_leaf(message)
+        if message is None:
+            up_messages = None
+        else:
+            up_messages = self._run_leaf(message)
         all_up_messages = self.comm.gather(up_messages, root=0)
 
     def _run_main(self, up_messages: Dict[NodeIdx, UpMessage] | None) -> None:
@@ -135,7 +140,7 @@ class HubAndSpokeMpi(HubAndSpoke):
             raise ValueError("root node not found")
 
         # split solutions
-        solutions_dict: Dict[int, Dict[int, FinalMessage]] = {}
+        solutions_dict: Dict[int, Dict[int, FinalDnMessage]] = {}
         for child_id in self.root.get_children():
             target = self.node_rank_map[child_id]
             if target not in solutions_dict:

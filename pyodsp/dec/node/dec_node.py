@@ -1,11 +1,11 @@
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Tuple
+from typing import Dict, List, Tuple
 from pathlib import Path
 
 from ._node import NodeIdx, INode, INodeParent, INodeChild, INodeInner
 from ._alg import IAlgRoot, IAlgLeaf
 from .cut_aggregator import CutAggregator
-from ._message import InitMessage, FinalMessage, DnMessage, UpMessage
+from ._message import InitDnMessage, FinalDnMessage, DnMessage, UpMessage
 from ..utils import create_directory
 
 
@@ -132,12 +132,12 @@ class DecNodeParent(INodeParent, DecNode):
         aggregate_cuts = self.cut_aggregator.get_aggregate_cuts(up_messages)
         return self.alg_root.run_step(aggregate_cuts)
 
-    def get_init_message(self, **kwargs) -> InitMessage:
+    def get_init_message(self, **kwargs) -> InitDnMessage:
         init_message = self.alg_root.get_init_message(**kwargs)
         init_message.set_depth(self.get_depth())
         return init_message
 
-    def get_final_message(self, **kwargs) -> FinalMessage:
+    def get_final_message(self, **kwargs) -> FinalDnMessage:
         return self.alg_root.get_final_message(**kwargs)
 
     def get_num_vars(self) -> int:
@@ -181,14 +181,14 @@ class DecNodeChild(INodeChild, DecNode):
     def build_inner(self) -> None:
         self.alg_leaf.build()
 
-    def pass_init_message(self, message: InitMessage) -> None:
+    def pass_init_message(self, message: InitDnMessage) -> None:
         self.set_depth(message.get_depth() + 1)
         self.alg_leaf.pass_init_message(message)
 
     def pass_dn_message(self, message: DnMessage) -> None:
         self.alg_leaf.pass_dn_message(message)
 
-    def pass_final_message(self, message: FinalMessage) -> None:
+    def pass_final_message(self, message: FinalDnMessage) -> None:
         return self.alg_leaf.pass_final_message(message)
 
     def get_up_message(self) -> UpMessage:

@@ -6,7 +6,7 @@ import pandas as pd
 from pyomo.environ import ConcreteModel, ScalarVar
 
 from .alg_root import DdAlgRoot
-from .message import DdDnMessage, DdFinalMessage
+from .message import DdDnMessage, DdFinalDnMessage
 from pyodsp.alg.pbm.pbm import ProximalBundleMethod
 from pyodsp.alg.cuts import CutList
 from pyodsp.alg.cuts_manager import CutInfo
@@ -44,9 +44,9 @@ class DdAlgRootPbm(DdAlgRoot):
     def reset_iteration(self) -> None:
         self.pbm.reset_iteration()
 
-    def get_final_message(self, **kwargs) -> DdFinalMessage:
+    def get_final_message(self, **kwargs) -> DdFinalDnMessage:
         if self.final_solver_config is None:
-            return DdFinalMessage(None)
+            return DdFinalDnMessage(None)
         super().get_final_message(**kwargs)
         node_id = kwargs["node_id"]
         return self.final_solutions[node_id]

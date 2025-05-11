@@ -5,7 +5,7 @@ from pyodsp.alg.cuts import OptimalityCut, FeasibilityCut
 
 from ..node._logger import ILogger
 from ..node._node import INode, INodeRoot, INodeLeaf, INodeInner
-from ..node._message import InitMessage, DnMessage, UpMessage, FinalMessage, NodeIdx
+from ..node._message import InitDnMessage, DnMessage, UpMessage, FinalDnMessage, NodeIdx
 from ..utils import create_directory
 
 from pyodsp.alg.const import STATUS_NOT_FINISHED
@@ -65,7 +65,7 @@ class HubAndSpoke:
         self.root.set_logger()
         self.root.build()
 
-    def _init_leaf(self, node: INodeLeaf, message: InitMessage) -> None:
+    def _init_leaf(self, node: INodeLeaf, message: InitDnMessage) -> None:
         node.pass_init_message(message)
 
     def _run_main_preprocess(
@@ -132,7 +132,7 @@ class HubAndSpoke:
     def _finalize_root(self) -> None:
         return
 
-    def _finalize_leaf(self, node: INodeLeaf, final_message: FinalMessage) -> float:
+    def _finalize_leaf(self, node: INodeLeaf, final_message: FinalDnMessage) -> float:
         node.pass_final_message(final_message)
         return node.get_objective_value()
 

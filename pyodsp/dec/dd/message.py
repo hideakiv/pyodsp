@@ -1,9 +1,9 @@
 from typing import List, Dict
-from ..node._message import InitMessage, FinalMessage, DnMessage, UpMessage
+from ..node._message import InitDnMessage, FinalDnMessage, DnMessage, UpMessage
 from pyodsp.alg.cuts import Cut
 
 
-class DdInitMessage(InitMessage):
+class DdInitDnMessage(InitDnMessage):
     def __init__(
         self, coupling_matrix: List[Dict[int, float]], is_minimize: bool
     ) -> None:
@@ -39,7 +39,7 @@ class DdDnMessage(DnMessage):
         return self.solution
 
 
-class DdFinalMessage(FinalMessage):
+class DdFinalDnMessage(FinalDnMessage):
     def __init__(self, solution: List[float] | None) -> None:
         self.solution = solution
 

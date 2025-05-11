@@ -10,7 +10,7 @@ class IMessage(ABC):
     pass
 
 
-class InitMessage(IMessage, ABC):
+class InitDnMessage(IMessage, ABC):
     @abstractmethod
     def get_is_minimize(self) -> bool:
         pass
@@ -34,5 +34,5 @@ class DnMessage(IMessage, ABC):
     pass
 
 
-class FinalMessage(IMessage, ABC):
+class FinalDnMessage(IMessage, ABC):
     pass

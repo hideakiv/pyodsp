@@ -15,7 +15,7 @@ from pyomo.environ import (
 from pyodsp.solver.pyomo_solver import PyomoSolver, SolverConfig
 from pyodsp.alg.cuts import OptimalityCut
 from pyodsp.alg.cuts_manager import CutInfo
-from .message import DdFinalMessage
+from .message import DdFinalDnMessage
 
 
 class MipHeuristicRoot:
@@ -88,7 +88,7 @@ class MipHeuristicRoot:
 
             self.master.model._dd_obj.expr += obj
 
-    def run(self) -> Dict[int, DdFinalMessage]:
+    def run(self) -> Dict[int, DdFinalDnMessage]:
         self.master.solve()
         solutions = {}
 
@@ -96,6 +96,6 @@ class MipHeuristicRoot:
             assert len(group) == 1
             idx = group[0]
             solution = [value(var) for var in self.vars_dn[idx]]
-            solutions[idx] = DdFinalMessage(solution)
+            solutions[idx] = DdFinalDnMessage(solution)
 
         return solutions

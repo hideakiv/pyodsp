@@ -1,9 +1,9 @@
 from typing import List
-from ..node._message import InitMessage, FinalMessage, DnMessage, UpMessage
+from ..node._message import InitDnMessage, FinalDnMessage, DnMessage, UpMessage
 from pyodsp.alg.cuts import Cut
 
 
-class BdInitMessage(InitMessage):
+class BdInitDnMessage(InitDnMessage):
     def __init__(self, is_minimize: bool) -> None:
         self.is_minimize = is_minimize
 
@@ -33,7 +33,7 @@ class BdDnMessage(DnMessage):
         return self.solution
 
 
-class BdFinalMessage(FinalMessage):
+class BdFinalDnMessage(FinalDnMessage):
     def __init__(self, solution: List[float] | None) -> None:
         self.solution = solution
 

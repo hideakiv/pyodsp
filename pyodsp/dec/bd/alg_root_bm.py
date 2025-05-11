@@ -5,7 +5,7 @@ import pandas as pd
 
 from pyomo.environ import ScalarVar
 
-from .message import BdInitMessage, BdDnMessage, BdFinalMessage
+from .message import BdInitDnMessage, BdDnMessage, BdFinalDnMessage
 from .alg_root import BdAlgRoot
 from pyodsp.solver.pyomo_solver import PyomoSolver
 from pyodsp.alg.bm.bm import BundleMethod
@@ -36,14 +36,14 @@ class BdAlgRootBm(BdAlgRoot):
     def reset_iteration(self) -> None:
         self.bm.reset_iteration()
 
-    def get_final_message(self, **kwargs) -> BdFinalMessage:
-        return BdFinalMessage([var.value for var in self.get_vars()])
+    def get_final_message(self, **kwargs) -> BdFinalDnMessage:
+        return BdFinalDnMessage([var.value for var in self.get_vars()])
 
     def get_num_vars(self) -> int:
         return len(self.get_vars())
 
-    def get_init_message(self, **kwargs) -> BdInitMessage:
-        return BdInitMessage(self.is_minimize())
+    def get_init_message(self, **kwargs) -> BdInitDnMessage:
+        return BdInitDnMessage(self.is_minimize())
 
     def save(self, dir: Path) -> None:
         self.bm.save(dir)

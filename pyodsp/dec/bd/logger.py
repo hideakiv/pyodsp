@@ -35,7 +35,6 @@ class BdLogger(ILogger):
     def log_finaliziation(self):
         self.logger.info("Finalizing Benders Decomposition")
 
-    def log_completion(self, iteration, objective_value):
+    def log_completion(self, objective_value):
         self.logger.info("Benders decomposition completed")
-        self.logger.info(f"Total iterations: {iteration}")
         self.logger.info(f"Final objective value: {objective_value}")

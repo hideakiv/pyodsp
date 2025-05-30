@@ -5,7 +5,14 @@ from pathlib import Path
 from ._node import NodeIdx, INode, INodeParent, INodeChild, INodeInner
 from ._alg import IAlgRoot, IAlgLeaf
 from .cut_aggregator import CutAggregator
-from ._message import InitDnMessage, InitUpMessage, FinalDnMessage, DnMessage, UpMessage
+from ._message import (
+    InitDnMessage,
+    InitUpMessage,
+    FinalDnMessage,
+    FinalUpMessage,
+    DnMessage,
+    UpMessage,
+)
 from ..utils import create_directory
 
 
@@ -114,7 +121,6 @@ class DecNodeParent(INodeParent, DecNode):
                     self.children_multipliers[member] * self.children_bounds[member]
                 )
             subobj_bounds.append(bound)
-
         self.alg_root.build(subobj_bounds)
 
     def reset(self) -> None:
@@ -144,8 +150,15 @@ class DecNodeParent(INodeParent, DecNode):
                 continue
             self.set_child_bound(node_id, bound)
 
-    def get_final_message(self, **kwargs) -> FinalDnMessage:
-        return self.alg_root.get_final_message(**kwargs)
+    def get_final_dn_message(self, **kwargs) -> FinalDnMessage:
+        return self.alg_root.get_final_dn_message(**kwargs)
+
+    def pass_final_up_message(self, messages: Dict[NodeIdx, FinalUpMessage]) -> float:
+        final_obj = 0.0
+        for node_id, message in messages.items():
+            obj = message.get_objective()
+            final_obj += self.get_multiplier(node_id) * obj
+        return final_obj
 
     def get_num_vars(self) -> int:
         return self.alg_root.get_num_vars()
@@ -183,9 +196,6 @@ class DecNodeChild(INodeChild, DecNode):
     def get_bound(self) -> float | None:
         return self.bound
 
-    def get_objective_value(self) -> float:
-        return self.alg_leaf.get_objective_value()
-
     def build_inner(self) -> None:
         self.alg_leaf.build()
 
@@ -201,11 +211,14 @@ class DecNodeChild(INodeChild, DecNode):
     def pass_dn_message(self, message: DnMessage) -> None:
         self.alg_leaf.pass_dn_message(message)
 
-    def pass_final_message(self, message: FinalDnMessage) -> None:
-        return self.alg_leaf.pass_final_message(message)
-
     def get_up_message(self) -> UpMessage:
         return self.alg_leaf.get_up_message()
+
+    def pass_final_dn_message(self, message: FinalDnMessage) -> None:
+        return self.alg_leaf.pass_final_dn_message(message)
+
+    def get_final_up_message(self) -> FinalUpMessage:
+        return self.alg_leaf.get_final_up_message()
 
     def solve(self, message: DnMessage) -> UpMessage:
         self.pass_dn_message(message)

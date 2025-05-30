@@ -82,7 +82,7 @@ class DdAlgRoot(IAlgRoot, ABC):
         return self.coupling_model
 
     @abstractmethod
-    def get_final_message(self, **kwargs) -> FinalDnMessage:
+    def get_final_dn_message(self, **kwargs) -> FinalDnMessage:
         if not self.is_finalized:
             groups = kwargs["groups"]
             assert self.final_solver_config is not None

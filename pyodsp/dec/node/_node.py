@@ -8,6 +8,7 @@ from ._message import (
     InitDnMessage,
     InitUpMessage,
     FinalDnMessage,
+    FinalUpMessage,
     DnMessage,
     UpMessage,
 )
@@ -103,7 +104,11 @@ class INodeParent(INode, ABC):
         pass
 
     @abstractmethod
-    def get_final_message(self, **kwargs) -> FinalDnMessage:
+    def get_final_dn_message(self, **kwargs) -> FinalDnMessage:
+        pass
+
+    @abstractmethod
+    def pass_final_up_message(self, messages: Dict[NodeIdx, FinalUpMessage]) -> float:
         pass
 
     @abstractmethod
@@ -132,10 +137,6 @@ class INodeChild(INode, ABC):
         pass
 
     @abstractmethod
-    def get_objective_value(self) -> float:
-        pass
-
-    @abstractmethod
     def pass_init_dn_message(self, message: InitDnMessage) -> None:
         pass
 
@@ -148,11 +149,15 @@ class INodeChild(INode, ABC):
         pass
 
     @abstractmethod
-    def pass_final_message(self, message: FinalDnMessage) -> None:
+    def get_up_message(self) -> UpMessage:
         pass
 
     @abstractmethod
-    def get_up_message(self) -> UpMessage:
+    def pass_final_dn_message(self, message: FinalDnMessage) -> None:
+        pass
+
+    @abstractmethod
+    def get_final_up_message(self) -> FinalUpMessage:
         pass
 
     @abstractmethod

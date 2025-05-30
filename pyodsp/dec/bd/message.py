@@ -3,6 +3,7 @@ from ..node._message import (
     InitDnMessage,
     InitUpMessage,
     FinalDnMessage,
+    FinalUpMessage,
     DnMessage,
     UpMessage,
 )
@@ -56,3 +57,11 @@ class BdFinalDnMessage(FinalDnMessage):
 
     def get_solution(self) -> List[float] | None:
         return self.solution
+
+
+class BdFinalUpMessage(FinalUpMessage):
+    def __init__(self, objective: float) -> None:
+        self.objective = objective
+
+    def get_objective(self) -> float:
+        return self.objective

@@ -5,7 +5,15 @@ from pyodsp.alg.cuts import OptimalityCut, FeasibilityCut
 
 from ..node._logger import ILogger
 from ..node._node import INode, INodeRoot, INodeLeaf, INodeInner
-from ..node._message import InitDnMessage, DnMessage, UpMessage, FinalDnMessage, NodeIdx
+from ..node._message import (
+    InitDnMessage,
+    InitUpMessage,
+    DnMessage,
+    UpMessage,
+    FinalDnMessage,
+    FinalUpMessage,
+    NodeIdx,
+)
 from ..utils import create_directory
 
 from pyodsp.alg.const import STATUS_NOT_FINISHED
@@ -64,9 +72,15 @@ class HubAndSpoke:
             raise ValueError("Root node not found")
         self.root.set_depth(0)
         self.root.set_logger()
-        self.root.build()
 
     def _run_init_up(self) -> None:
+        if self.root is None:
+            raise ValueError("root node not found")
+        messages = self._run_init_up_inner()
+        self.root.pass_init_up_messages(messages)
+        self.root.build()
+
+    def _run_init_up_inner(self) -> Dict[NodeIdx, InitUpMessage]:
         if self.root is None:
             raise ValueError("root node not found")
         messages = {}
@@ -74,6 +88,7 @@ class HubAndSpoke:
             init_message = leaf.get_init_up_message()
             messages[leaf.get_idx()] = init_message
         self.root.pass_init_up_messages(messages)
+        return messages
 
     def _init_leaf(self, node: INodeLeaf, message: InitDnMessage) -> None:
         node.pass_init_dn_message(message)
@@ -127,24 +142,33 @@ class HubAndSpoke:
     def _run_final(self) -> float:
         if self.root is None:
             raise ValueError("root node not found")
-        self._finalize_root()
 
-        final_obj = 0.0
-        for leaf in self.leaves:
-            message = self.root.get_final_message(
-                node_id=leaf.get_idx(), groups=self.root.get_groups()
-            )
-            sub_obj = self._finalize_leaf(leaf, message)
-            final_obj += sub_obj
+        up_messages = self._run_final_inner()
+        final_obj = self.root.pass_final_up_message(up_messages)
 
         return final_obj
+
+    def _run_final_inner(self) -> Dict[NodeIdx, FinalUpMessage]:
+        if self.root is None:
+            raise ValueError("root node not found")
+        self._finalize_root()
+        up_messages = {}
+        for leaf in self.leaves:
+            dn_message = self.root.get_final_dn_message(
+                node_id=leaf.get_idx(), groups=self.root.get_groups()
+            )
+            up_message = self._finalize_leaf(leaf, dn_message)
+            up_messages[leaf.get_idx()] = up_message
+        return up_messages
 
     def _finalize_root(self) -> None:
         return
 
-    def _finalize_leaf(self, node: INodeLeaf, final_message: FinalDnMessage) -> float:
-        node.pass_final_message(final_message)
-        return node.get_objective_value()
+    def _finalize_leaf(
+        self, node: INodeLeaf, final_message: FinalDnMessage
+    ) -> FinalUpMessage:
+        node.pass_final_dn_message(final_message)
+        return node.get_final_up_message()
 
     def _save(self) -> None:
         self._save_root()

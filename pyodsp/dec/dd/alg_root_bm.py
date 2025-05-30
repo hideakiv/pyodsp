@@ -49,10 +49,10 @@ class DdAlgRootBm(DdAlgRoot):
     def reset_iteration(self) -> None:
         self.bm.reset_iteration()
 
-    def get_final_message(self, **kwargs) -> DdFinalDnMessage:
+    def get_final_dn_message(self, **kwargs) -> DdFinalDnMessage:
         if self.final_solver_config is None:
             return DdFinalDnMessage(None)
-        super().get_final_message(**kwargs)
+        super().get_final_dn_message(**kwargs)
         node_id = kwargs["node_id"]
         return self.final_solutions[node_id]
 

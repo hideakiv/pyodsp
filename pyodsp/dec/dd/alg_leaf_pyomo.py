@@ -10,6 +10,7 @@ from .message import (
     DdInitDnMessage,
     DdInitUpMessage,
     DdFinalDnMessage,
+    DdFinalUpMessage,
     DdDnMessage,
     DdUpMessage,
 )
@@ -46,10 +47,13 @@ class DdAlgLeafPyomo(DdAlgLeaf):
         solution = message.get_solution()
         self._update_objective(solution)
 
-    def pass_final_message(self, message: DdFinalDnMessage) -> None:
+    def pass_final_dn_message(self, message: DdFinalDnMessage) -> None:
         solution = message.get_solution()
         assert solution is not None
         self.fix_variables_and_solve(solution)
+
+    def get_final_up_message(self) -> DdFinalUpMessage:
+        return DdFinalUpMessage(self.solver.get_objective_value())
 
     def _update_objective(self, coeffs: List[float]) -> None:
         self.primal_coeffs = self.cm.dual_times_matrix(coeffs)
@@ -109,9 +113,6 @@ class DdAlgLeafPyomo(DdAlgLeaf):
 
     def get_len_vars(self) -> int:
         return len(self.solver.vars)
-
-    def get_objective_value(self) -> float:
-        return self.solver.get_objective_value()
 
     def _get_ray(self) -> Tuple[List[float], float]:
         ray = self.solver.get_unbd_ray()

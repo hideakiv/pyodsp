@@ -5,7 +5,15 @@ from mpi4py import MPI
 from .hub_and_spoke import HubAndSpoke
 from ..node._logger import ILogger
 from ..node._node import INode
-from ..node._message import InitDnMessage, DnMessage, UpMessage, FinalDnMessage, NodeIdx
+from ..node._message import (
+    InitDnMessage,
+    InitUpMessage,
+    DnMessage,
+    UpMessage,
+    FinalDnMessage,
+    FinalUpMessage,
+    NodeIdx,
+)
 
 from pyodsp.alg.const import STATUS_NOT_FINISHED
 
@@ -77,18 +85,16 @@ class HubAndSpokeMpi(HubAndSpoke):
             init_message = init_messages[leaf.get_idx()]
             self._init_leaf(leaf, init_message)
 
-    def _run_init_up(self) -> None:
-        super()._run_init_up()
+    def _run_init_up_inner(self) -> Dict[NodeIdx, InitUpMessage]:
         # gather messages
-        up_messages = None
+        up_messages = super()._run_init_up_inner()
         all_up_messages = self.comm.gather(up_messages, root=0)
         combined_up_messages = {}
         for d in all_up_messages:
             if d is None:
                 continue
             combined_up_messages.update(d)
-        assert self.root is not None
-        self.root.pass_init_up_messages(combined_up_messages)
+        return combined_up_messages
 
     def _run_init_up_mpi(self) -> None:
         up_messages = {}
@@ -106,6 +112,8 @@ class HubAndSpokeMpi(HubAndSpoke):
 
         # gather cuts
         all_up_messages = self.comm.gather(up_messages, root=0)
+        if init_solution is None:
+            return None
         combined_up_messages = {}
         for d in all_up_messages:
             if d is None:
@@ -149,14 +157,15 @@ class HubAndSpokeMpi(HubAndSpoke):
             up_messages = self._run_leaf(message)
             all_up_messages = self.comm.gather(up_messages, root=0)
 
-    def _run_final(self) -> float:
-        final_obj = super()._run_final()
-
-        all_objs = self.comm.gather(final_obj, root=0)
-        total_obj = 0.0
-        for objval in all_objs:
-            total_obj += objval
-        return total_obj
+    def _run_final_inner(self) -> Dict[NodeIdx, FinalUpMessage]:
+        up_messages = super()._run_final_inner()
+        all_up_messages = self.comm.gather(up_messages, root=0)
+        combined_up_messages = {}
+        for d in all_up_messages:
+            if d is None:
+                continue
+            combined_up_messages.update(d)
+        return combined_up_messages
 
     def _finalize_root(self) -> None:
         if self.root is None:
@@ -168,7 +177,7 @@ class HubAndSpokeMpi(HubAndSpoke):
             target = self.node_rank_map[child_id]
             if target not in solutions_dict:
                 solutions_dict[target] = {}
-            message = self.root.get_final_message(
+            message = self.root.get_final_dn_message(
                 node_id=target, groups=self.root.get_groups()
             )
             solutions_dict[target][child_id] = message
@@ -178,12 +187,12 @@ class HubAndSpokeMpi(HubAndSpoke):
 
     def _run_final_mpi(self) -> None:
         messages = self.comm.recv(source=0, tag=1)
-        final_obj = 0.0
+        up_messages = {}
         for leaf in self.leaves:
-            message = messages[leaf.get_idx()]
-            sub_obj = self._finalize_leaf(leaf, message)
-            final_obj += sub_obj
-        all_objs = self.comm.gather(final_obj, root=0)
+            dn_message = messages[leaf.get_idx()]
+            up_message = self._finalize_leaf(leaf, dn_message)
+            up_messages[leaf.get_idx()] = up_message
+        all_objs = self.comm.gather(up_messages, root=0)
 
     def _save_mpi(self) -> None:
         for node in self.leaves:

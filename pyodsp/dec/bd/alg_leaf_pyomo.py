@@ -10,6 +10,7 @@ from .message import (
     BdInitDnMessage,
     BdInitUpMessage,
     BdFinalDnMessage,
+    BdFinalUpMessage,
     BdDnMessage,
     BdUpMessage,
 )
@@ -46,11 +47,14 @@ class BdAlgLeafPyomo(BdAlgLeaf):
         solution = message.get_solution()
         self._fix_variables(solution)
 
-    def pass_final_message(self, message: BdFinalDnMessage) -> None:
+    def pass_final_dn_message(self, message: BdFinalDnMessage) -> None:
         solution = message.get_solution()
         assert solution is not None
         self._fix_variables(solution)
         self.get_up_message()
+
+    def get_final_up_message(self) -> BdFinalUpMessage:
+        return BdFinalUpMessage(self.solver.get_objective_value())
 
     def _fix_variables(self, coupling_values: List[float]) -> None:
         """Fix the variables to a specified value
@@ -80,12 +84,9 @@ class BdAlgLeafPyomo(BdAlgLeaf):
         else:
             raise ValueError("Unknown solver status")
 
-    def get_objective_value(self) -> float:
-        return self.solver.get_objective_value()
-
     def _optimality_cut(self) -> OptimalityCut:
         pi = self.solver.get_dual(self.coupling_constraints)
-        objective = self.get_objective_value()
+        objective = self.solver.get_objective_value()
         coeff = [0.0 for _ in range(len(self.solver.vars))]
         rhs = objective
         for i, dual_var in enumerate(pi):

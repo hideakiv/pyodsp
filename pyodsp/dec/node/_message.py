@@ -46,3 +46,9 @@ class DnMessage(IMessage, ABC):
 
 class FinalDnMessage(IMessage, ABC):
     pass
+
+
+class FinalUpMessage(IMessage, ABC):
+    @abstractmethod
+    def get_objective(self) -> float:
+        pass

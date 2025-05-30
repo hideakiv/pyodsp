@@ -55,6 +55,10 @@ class IAlgRoot(IAlg, ABC):
         pass
 
     @abstractmethod
+    def process_children_obj(self, children_obj: float) -> float:
+        pass
+
+    @abstractmethod
     def get_num_vars(self) -> int:
         pass
 

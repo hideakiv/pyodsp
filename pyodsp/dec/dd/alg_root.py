@@ -98,6 +98,9 @@ class DdAlgRoot(IAlgRoot, ABC):
             self.final_solutions = mip_heuristic.run()
             self.is_finalized = True
 
+    def process_children_obj(self, children_obj: float) -> float:
+        return children_obj
+
     @abstractmethod
     def get_cuts(self) -> List[List[CutInfo]]:
         pass

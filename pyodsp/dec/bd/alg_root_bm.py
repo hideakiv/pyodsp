@@ -39,6 +39,9 @@ class BdAlgRootBm(BdAlgRoot):
     def get_final_dn_message(self, **kwargs) -> BdFinalDnMessage:
         return BdFinalDnMessage([var.value for var in self.get_vars()])
 
+    def process_children_obj(self, children_obj: float) -> float:
+        return self.bm.solver.get_original_objective_value() + children_obj
+
     def get_num_vars(self) -> int:
         return len(self.get_vars())
 

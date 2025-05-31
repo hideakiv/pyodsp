@@ -76,11 +76,11 @@ class HubAndSpoke:
     def _run_init_up(self) -> None:
         if self.root is None:
             raise ValueError("root node not found")
-        messages = self._run_init_up_inner()
+        messages = self._run_init_up_core()
         self.root.pass_init_up_messages(messages)
         self.root.build()
 
-    def _run_init_up_inner(self) -> Dict[NodeIdx, InitUpMessage]:
+    def _run_init_up_core(self) -> Dict[NodeIdx, InitUpMessage]:
         if self.root is None:
             raise ValueError("root node not found")
         messages = {}
@@ -143,12 +143,12 @@ class HubAndSpoke:
         if self.root is None:
             raise ValueError("root node not found")
 
-        up_messages = self._run_final_inner()
+        up_messages = self._run_final_core()
         final_obj = self.root.pass_final_up_message(up_messages)
 
         return final_obj
 
-    def _run_final_inner(self) -> Dict[NodeIdx, FinalUpMessage]:
+    def _run_final_core(self) -> Dict[NodeIdx, FinalUpMessage]:
         if self.root is None:
             raise ValueError("root node not found")
         self._finalize_root()

@@ -85,9 +85,9 @@ class HubAndSpokeMpi(HubAndSpoke):
             init_message = init_messages[leaf.get_idx()]
             self._init_leaf(leaf, init_message)
 
-    def _run_init_up_inner(self) -> Dict[NodeIdx, InitUpMessage]:
+    def _run_init_up_core(self) -> Dict[NodeIdx, InitUpMessage]:
         # gather messages
-        up_messages = super()._run_init_up_inner()
+        up_messages = super()._run_init_up_core()
         all_up_messages = self.comm.gather(up_messages, root=0)
         combined_up_messages = {}
         for d in all_up_messages:
@@ -157,8 +157,8 @@ class HubAndSpokeMpi(HubAndSpoke):
             up_messages = self._run_leaf(message)
             all_up_messages = self.comm.gather(up_messages, root=0)
 
-    def _run_final_inner(self) -> Dict[NodeIdx, FinalUpMessage]:
-        up_messages = super()._run_final_inner()
+    def _run_final_core(self) -> Dict[NodeIdx, FinalUpMessage]:
+        up_messages = super()._run_final_core()
         all_up_messages = self.comm.gather(up_messages, root=0)
         combined_up_messages = {}
         for d in all_up_messages:

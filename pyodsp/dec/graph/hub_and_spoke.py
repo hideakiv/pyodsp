@@ -87,7 +87,6 @@ class HubAndSpoke:
         for leaf in self.leaves:
             init_message = leaf.get_init_up_message()
             messages[leaf.get_idx()] = init_message
-        self.root.pass_init_up_messages(messages)
         return messages
 
     def _init_leaf(self, node: INodeLeaf, message: InitDnMessage) -> None:

@@ -108,7 +108,9 @@ class INodeParent(INode, ABC):
         pass
 
     @abstractmethod
-    def pass_final_up_message(self, messages: Dict[NodeIdx, FinalUpMessage]) -> float:
+    def pass_final_up_message(
+        self, messages: Dict[NodeIdx, FinalUpMessage]
+    ) -> FinalUpMessage:
         pass
 
     @abstractmethod

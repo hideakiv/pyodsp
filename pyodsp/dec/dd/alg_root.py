@@ -12,7 +12,7 @@ from pyodsp.alg.cuts_manager import CutInfo
 from pyodsp.dec.node._message import FinalDnMessage
 from pyodsp.solver.pyomo_solver import SolverConfig
 
-from .message import DdInitDnMessage
+from .message import DdInitDnMessage, DdFinalUpMessage
 from ..node._alg import IAlgRoot
 from .master_creator import MasterCreator
 from .mip_heuristic_root import MipHeuristicRoot
@@ -98,8 +98,8 @@ class DdAlgRoot(IAlgRoot, ABC):
             self.final_solutions = mip_heuristic.run()
             self.is_finalized = True
 
-    def process_children_obj(self, children_obj: float) -> float:
-        return children_obj
+    def pass_final_up_message(self, children_obj: float) -> DdFinalUpMessage:
+        return DdFinalUpMessage(children_obj)
 
     @abstractmethod
     def get_cuts(self) -> List[List[CutInfo]]:

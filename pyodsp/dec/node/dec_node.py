@@ -153,13 +153,14 @@ class DecNodeParent(INodeParent, DecNode):
     def get_final_dn_message(self, **kwargs) -> FinalDnMessage:
         return self.alg_root.get_final_dn_message(**kwargs)
 
-    def pass_final_up_message(self, messages: Dict[NodeIdx, FinalUpMessage]) -> float:
+    def pass_final_up_message(
+        self, messages: Dict[NodeIdx, FinalUpMessage]
+    ) -> FinalUpMessage:
         children_obj = 0.0
         for node_id, message in messages.items():
             obj = message.get_objective()
             children_obj += self.get_multiplier(node_id) * obj
-        final_obj = self.alg_root.process_children_obj(children_obj)
-        return final_obj
+        return self.alg_root.pass_final_up_message(children_obj)
 
     def get_num_vars(self) -> int:
         return self.alg_root.get_num_vars()

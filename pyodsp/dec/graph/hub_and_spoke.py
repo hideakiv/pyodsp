@@ -141,9 +141,9 @@ class HubAndSpoke:
             raise ValueError("root node not found")
 
         up_messages = self._run_final_core()
-        final_obj = self.root.pass_final_up_message(up_messages)
+        final_message = self.root.pass_final_up_message(up_messages)
 
-        return final_obj
+        return final_message.get_objective()
 
     def _run_final_core(self) -> Dict[NodeIdx, FinalUpMessage]:
         if self.root is None:

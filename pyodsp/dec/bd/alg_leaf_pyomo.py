@@ -54,7 +54,7 @@ class BdAlgLeafPyomo(BdAlgLeaf):
         self.get_up_message()
 
     def get_final_up_message(self) -> BdFinalUpMessage:
-        return BdFinalUpMessage(self.solver.get_objective_value())
+        return BdFinalUpMessage(self.solver.get_original_objective_value())
 
     def _fix_variables(self, coupling_values: List[float]) -> None:
         """Fix the variables to a specified value

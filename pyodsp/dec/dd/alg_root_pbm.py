@@ -6,9 +6,11 @@ import pandas as pd
 from pyomo.environ import ConcreteModel, ScalarVar
 
 from .alg_root import DdAlgRoot
+from .message import DdDnMessage, DdFinalDnMessage
 from pyodsp.alg.pbm.pbm import ProximalBundleMethod
 from pyodsp.alg.cuts import CutList
 from pyodsp.alg.cuts_manager import CutInfo
+from pyodsp.solver.pyomo_solver import SolverConfig
 
 
 class DdAlgRootPbm(DdAlgRoot):
@@ -16,12 +18,14 @@ class DdAlgRootPbm(DdAlgRoot):
         self,
         coupling_model: ConcreteModel,
         is_minimize: bool,
-        solver_name: str,
+        solver_config: SolverConfig,
+        final_solver_config: SolverConfig | None,
         vars_dn: Dict[int, List[ScalarVar]],
         max_iteration=1000,
-        **kwargs,
     ) -> None:
-        super().__init__(coupling_model, is_minimize, solver_name, vars_dn, **kwargs)
+        super().__init__(
+            coupling_model, is_minimize, solver_config, final_solver_config, vars_dn
+        )
 
         self.pbm = ProximalBundleMethod(self.solver, max_iteration)
         self.step_time: List[float] = []
@@ -31,17 +35,21 @@ class DdAlgRootPbm(DdAlgRoot):
         self.pbm.set_init_solution([0.0 for _ in range(num_cuts)])
         self.pbm.build(num_cuts)
 
-    def run_step(self, cuts_list: List[CutList] | None) -> Tuple[int, List[float]]:
+    def run_step(self, cuts_list: List[CutList] | None) -> Tuple[int, DdDnMessage]:
         start = time.time()
         status, solution = self.pbm.run_step(cuts_list)
         self.step_time.append(time.time() - start)
-        return status, solution
+        return status, DdDnMessage(solution)
 
     def reset_iteration(self) -> None:
         self.pbm.reset_iteration()
 
-    def get_solution_dn(self) -> List[float]:
-        return [var.value for var in self.pbm.solver.vars]
+    def get_final_dn_message(self, **kwargs) -> DdFinalDnMessage:
+        if self.final_solver_config is None:
+            return DdFinalDnMessage(None)
+        super().get_final_dn_message(**kwargs)
+        node_id = kwargs["node_id"]
+        return self.final_solutions[node_id]
 
     def get_num_vars(self) -> int:
         return len(self.pbm.solver.vars)

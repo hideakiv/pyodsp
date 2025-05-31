@@ -3,10 +3,17 @@ from pathlib import Path
 import time
 import pandas as pd
 
-from pyodsp.alg.cuts import Cut, OptimalityCut, FeasibilityCut
+from pyodsp.alg.cuts import OptimalityCut, FeasibilityCut
 from pyodsp.alg.params import DEC_CUT_ABS_TOL
-from pyodsp.dec.run._message import DdInitMessage, DdFinalMessage
 
+from .message import (
+    DdInitDnMessage,
+    DdInitUpMessage,
+    DdFinalDnMessage,
+    DdFinalUpMessage,
+    DdDnMessage,
+    DdUpMessage,
+)
 from .alg_leaf import DdAlgLeaf
 from .coupling_manager import CouplingManager
 from pyodsp.solver.pyomo_solver import PyomoSolver
@@ -27,16 +34,26 @@ class DdAlgLeafPyomo(DdAlgLeaf):
     def build(self) -> None:
         self.solver.original_objective.deactivate()
 
-    def pass_init_message(self, message: DdInitMessage) -> None:
+    def pass_init_dn_message(self, message: DdInitDnMessage) -> None:
+        if self.is_minimize() != message.get_is_minimize():
+            raise ValueError("Inconsistent optimization sense")
         coupling_matrix = message.get_coupling_matrix()
         self.set_coupling_matrix(coupling_matrix)
 
-    def pass_solution(self, solution: List[float]) -> None:
+    def get_init_up_message(self) -> DdInitUpMessage:
+        return DdInitUpMessage()
+
+    def pass_dn_message(self, message: DdDnMessage) -> None:
+        solution = message.get_solution()
         self._update_objective(solution)
 
-    def pass_final_message(self, message: DdFinalMessage) -> None:
+    def pass_final_dn_message(self, message: DdFinalDnMessage) -> None:
         solution = message.get_solution()
+        assert solution is not None
         self.fix_variables_and_solve(solution)
+
+    def get_final_up_message(self) -> DdFinalUpMessage:
+        return DdFinalUpMessage(self.solver.get_objective_value())
 
     def _update_objective(self, coeffs: List[float]) -> None:
         self.primal_coeffs = self.cm.dual_times_matrix(coeffs)
@@ -44,7 +61,7 @@ class DdAlgLeafPyomo(DdAlgLeaf):
             self.solver, self.primal_coeffs, self.solver.vars
         )
 
-    def get_subgradient(self) -> Cut:
+    def get_up_message(self) -> DdUpMessage:
         is_optimal, solution, obj = self.get_solution_or_ray()
         if is_optimal:
             dual_coeffs = self.cm.matrix_times_primal(solution)
@@ -55,12 +72,13 @@ class DdAlgLeafPyomo(DdAlgLeaf):
                 for j, val in enumerate(dual_coeffs)
                 if abs(val) > DEC_CUT_ABS_TOL
             }
-            return OptimalityCut(
+            cut = OptimalityCut(
                 coeffs=sparse_coeff,
                 rhs=rhs,
                 objective_value=obj,
                 info={"solution": solution},
             )
+            return DdUpMessage(cut)
         else:
             dual_coeffs = self.cm.matrix_times_primal(solution)
             product = self.cm.inner_product(self.primal_coeffs, solution)
@@ -70,9 +88,10 @@ class DdAlgLeafPyomo(DdAlgLeaf):
                 for j, val in enumerate(dual_coeffs)
                 if abs(val) > DEC_CUT_ABS_TOL
             }
-            return FeasibilityCut(
+            cut = FeasibilityCut(
                 coeffs=sparse_coeff, rhs=rhs, info={"solution": solution}
             )
+            return DdUpMessage(cut)
 
     def get_solution_or_ray(self) -> Tuple[bool, List[float], float]:
         start = time.time()
@@ -94,9 +113,6 @@ class DdAlgLeafPyomo(DdAlgLeaf):
 
     def get_len_vars(self) -> int:
         return len(self.solver.vars)
-
-    def get_objective_value(self) -> float:
-        return self.solver.get_objective_value()
 
     def _get_ray(self) -> Tuple[List[float], float]:
         ray = self.solver.get_unbd_ray()

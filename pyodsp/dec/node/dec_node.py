@@ -1,13 +1,18 @@
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Tuple
+from typing import Dict, List, Tuple
 from pathlib import Path
-
-from pyodsp.alg.cuts import Cut
 
 from ._node import NodeIdx, INode, INodeParent, INodeChild, INodeInner
 from ._alg import IAlgRoot, IAlgLeaf
 from .cut_aggregator import CutAggregator
-from ..run._message import IMessage
+from ._message import (
+    InitDnMessage,
+    InitUpMessage,
+    FinalDnMessage,
+    FinalUpMessage,
+    DnMessage,
+    UpMessage,
+)
 from ..utils import create_directory
 
 
@@ -22,12 +27,7 @@ class DecNode(INode, ABC):
         self.children_bounds: Dict[int, float] = {}
         self.groups = []
 
-        self.kwargs = kwargs
-
         self.built = False
-
-    def get_kwargs(self) -> Dict[str, Any]:
-        return self.kwargs
 
     def get_idx(self) -> NodeIdx:
         return self.idx
@@ -58,7 +58,12 @@ class DecNode(INode, ABC):
 
 
 class DecNodeParent(INodeParent, DecNode):
-    def __init__(self, idx: NodeIdx, alg_root: IAlgRoot, **kwargs) -> None:
+    def __init__(
+        self,
+        idx: NodeIdx,
+        alg_root: IAlgRoot,
+        **kwargs,
+    ) -> None:
         self.alg_root = alg_root
         super().__init__(idx, **kwargs)
 
@@ -116,7 +121,6 @@ class DecNodeParent(INodeParent, DecNode):
                     self.children_multipliers[member] * self.children_bounds[member]
                 )
             subobj_bounds.append(bound)
-
         self.alg_root.build(subobj_bounds)
 
     def reset(self) -> None:
@@ -126,32 +130,49 @@ class DecNodeParent(INodeParent, DecNode):
         assert self.depth is not None
         self.alg_root.set_logger(self.idx, self.depth)
 
-    def run_step(self, cuts: Dict[int, Cut] | None) -> Tuple[int, List[float]]:
-        if cuts is None:
+    def run_step(
+        self, up_messages: Dict[NodeIdx, UpMessage] | None
+    ) -> Tuple[int, DnMessage]:
+        if up_messages is None:
             return self.alg_root.run_step(None)
-        aggregate_cuts = self.cut_aggregator.get_aggregate_cuts(cuts)
+        aggregate_cuts = self.cut_aggregator.get_aggregate_cuts(up_messages)
         return self.alg_root.run_step(aggregate_cuts)
 
-    def get_init_message(self, **kwargs) -> IMessage:
-        return self.alg_root.get_init_message(**kwargs)
+    def get_init_dn_message(self, **kwargs) -> InitDnMessage:
+        init_message = self.alg_root.get_init_dn_message(**kwargs)
+        init_message.set_depth(self.get_depth())
+        return init_message
 
-    def get_solution_dn(self) -> List[float]:
-        return self.alg_root.get_solution_dn()
+    def pass_init_up_messages(self, messages: Dict[NodeIdx, InitUpMessage]) -> None:
+        for node_id, message in messages.items():
+            bound = message.get_bound()
+            if bound is None:
+                continue
+            self.set_child_bound(node_id, bound)
+
+    def get_final_dn_message(self, **kwargs) -> FinalDnMessage:
+        return self.alg_root.get_final_dn_message(**kwargs)
+
+    def pass_final_up_message(
+        self, messages: Dict[NodeIdx, FinalUpMessage]
+    ) -> FinalUpMessage:
+        children_obj = 0.0
+        for node_id, message in messages.items():
+            obj = message.get_objective()
+            children_obj += self.get_multiplier(node_id) * obj
+        return self.alg_root.pass_final_up_message(children_obj)
 
     def get_num_vars(self) -> int:
         return self.alg_root.get_num_vars()
 
-    def add_cuts(self, cuts: Dict[int, Cut]) -> None:
-        aggregate_cuts = self.cut_aggregator.get_aggregate_cuts(cuts)
+    def add_cuts(self, up_messages: Dict[int, UpMessage]) -> None:
+        aggregate_cuts = self.cut_aggregator.get_aggregate_cuts(up_messages)
         self.alg_root.add_cuts(aggregate_cuts)
 
     def save(self, dir: Path) -> None:
         node_dir = dir / f"node{self.idx}"
         create_directory(node_dir)
         self.alg_root.save(node_dir)
-
-    def is_minimize(self) -> bool:
-        return self.alg_root.is_minimize()
 
 
 DecNodeRoot = DecNodeParent
@@ -160,6 +181,7 @@ DecNodeRoot = DecNodeParent
 class DecNodeChild(INodeChild, DecNode):
     def __init__(self, idx: NodeIdx, alg_leaf: IAlgLeaf, **kwargs) -> None:
         self.alg_leaf = alg_leaf
+        self.bound = None
         super().__init__(idx, **kwargs)
 
     def get_alg_leaf(self) -> IAlgLeaf:
@@ -173,45 +195,53 @@ class DecNodeChild(INodeChild, DecNode):
     def set_bound(self, bound: float) -> None:
         self.bound = bound
 
-    def get_bound(self) -> float:
+    def get_bound(self) -> float | None:
         return self.bound
-
-    def get_objective_value(self) -> float:
-        return self.alg_leaf.get_objective_value()
 
     def build_inner(self) -> None:
         self.alg_leaf.build()
 
-    def pass_init_message(self, message: IMessage) -> None:
-        self.alg_leaf.pass_init_message(message)
+    def pass_init_dn_message(self, message: InitDnMessage) -> None:
+        self.set_depth(message.get_depth() + 1)
+        self.alg_leaf.pass_init_dn_message(message)
 
-    def pass_solution(self, solution: List[float]) -> None:
-        self.alg_leaf.pass_solution(solution)
+    def get_init_up_message(self) -> InitUpMessage:
+        message = self.alg_leaf.get_init_up_message()
+        message.set_bound(self.bound)
+        return message
 
-    def pass_final_message(self, message: IMessage) -> None:
-        return self.alg_leaf.pass_final_message(message)
+    def pass_dn_message(self, message: DnMessage) -> None:
+        self.alg_leaf.pass_dn_message(message)
 
-    def get_subgradient(self) -> Cut:
-        return self.alg_leaf.get_subgradient()
+    def get_up_message(self) -> UpMessage:
+        return self.alg_leaf.get_up_message()
 
-    def solve(self, solution: List[float]) -> Cut:
-        self.pass_solution(solution)
-        return self.get_subgradient()
+    def pass_final_dn_message(self, message: FinalDnMessage) -> None:
+        return self.alg_leaf.pass_final_dn_message(message)
+
+    def get_final_up_message(self) -> FinalUpMessage:
+        return self.alg_leaf.get_final_up_message()
+
+    def solve(self, message: DnMessage) -> UpMessage:
+        self.pass_dn_message(message)
+        return self.get_up_message()
 
     def save(self, dir: Path) -> None:
         node_dir = dir / f"node{self.idx}"
         create_directory(node_dir)
         self.alg_leaf.save(node_dir)
 
-    def is_minimize(self) -> bool:
-        return self.alg_leaf.is_minimize()
-
 
 DecNodeLeaf = DecNodeChild
 
 
 class DecNodeInner(INodeInner, DecNodeParent, DecNodeChild):
-    def __init__(self, idx: NodeIdx, alg_root: IAlgRoot, alg_leaf: IAlgLeaf) -> None:
+    def __init__(
+        self,
+        idx: NodeIdx,
+        alg_root: IAlgRoot,
+        alg_leaf: IAlgLeaf,
+    ) -> None:
         super().__init__(idx=idx, alg_root=alg_root, alg_leaf=alg_leaf)
 
     def build_inner(self) -> None:
@@ -220,6 +250,3 @@ class DecNodeInner(INodeInner, DecNodeParent, DecNodeChild):
 
     def save(self, dir: Path):
         DecNodeParent.save(self, dir)
-
-    def is_minimize(self) -> bool:
-        return DecNodeParent.is_minimize(self)

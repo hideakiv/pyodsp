@@ -1,10 +1,18 @@
 from abc import ABC, abstractmethod
-from typing import List, Tuple
+from typing import List, Dict, Tuple
 from pathlib import Path
 
-from pyodsp.alg.cuts import Cut, CutList
+from pyodsp.alg.cuts import CutList
 
-from ..run._message import NodeIdx, IMessage
+from ._message import (
+    NodeIdx,
+    InitDnMessage,
+    InitUpMessage,
+    FinalDnMessage,
+    FinalUpMessage,
+    DnMessage,
+    UpMessage,
+)
 
 
 class IAlg(ABC):
@@ -27,11 +35,11 @@ class IAlgRoot(IAlg, ABC):
         pass
 
     @abstractmethod
-    def run_step(self, cuts_list: List[CutList] | None) -> Tuple[int, List[float]]:
+    def run_step(self, cuts_list: List[CutList] | None) -> Tuple[int, DnMessage]:
         pass
 
     @abstractmethod
-    def get_init_message(self, **kwargs) -> IMessage:
+    def get_init_dn_message(self, **kwargs) -> InitDnMessage:
         pass
 
     @abstractmethod
@@ -43,7 +51,11 @@ class IAlgRoot(IAlg, ABC):
         pass
 
     @abstractmethod
-    def get_solution_dn(self) -> List[float]:
+    def get_final_dn_message(self, **kwargs) -> FinalDnMessage:
+        pass
+
+    @abstractmethod
+    def pass_final_up_message(self, children_obj: float) -> FinalUpMessage:
         pass
 
     @abstractmethod
@@ -57,21 +69,25 @@ class IAlgLeaf(IAlg, ABC):
         pass
 
     @abstractmethod
-    def get_objective_value(self) -> float:
+    def pass_init_dn_message(self, message: InitDnMessage) -> None:
         pass
 
     @abstractmethod
-    def pass_init_message(self, message: IMessage) -> None:
+    def get_init_up_message(self) -> InitUpMessage:
         pass
 
     @abstractmethod
-    def pass_solution(self, solution: List[float]) -> None:
+    def pass_dn_message(self, message: DnMessage) -> None:
         pass
 
     @abstractmethod
-    def pass_final_message(self, message: IMessage) -> None:
+    def pass_final_dn_message(self, message: FinalDnMessage) -> None:
         pass
 
     @abstractmethod
-    def get_subgradient(self) -> Cut:
+    def get_final_up_message(self) -> FinalUpMessage:
+        pass
+
+    @abstractmethod
+    def get_up_message(self) -> UpMessage:
         pass

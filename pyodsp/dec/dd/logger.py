@@ -1,7 +1,9 @@
 import logging
 
+from ..node._logger import ILogger
 
-class DdLogger:
+
+class DdLogger(ILogger):
     def __init__(self):
         # Create a logger object
         self.logger = logging.getLogger("Dual Decomposition")

@@ -14,7 +14,7 @@ from pyomo.environ import (
 )
 
 from pyodsp.dec.utils import get_nonzero_coefficients_group
-from pyodsp.solver.pyomo_solver import PyomoSolver
+from pyodsp.solver.pyomo_solver import PyomoSolver, SolverConfig
 from pyodsp.alg.params import DEC_CUT_ABS_TOL
 
 
@@ -23,15 +23,13 @@ class MasterCreator:
         self,
         coupling_model: ConcreteModel,
         is_minimize: bool,
-        solver_name: str,
+        solver_config: SolverConfig,
         vars_dn: Dict[int, List[ScalarVar]],
-        **kwargs,
     ) -> None:
         self.lagrangian_data = get_nonzero_coefficients_group(coupling_model, vars_dn)
         self.num_constrs = len(self.lagrangian_data.constraints)
         self.is_minimize = is_minimize
-        self.solver_name = solver_name
-        self.kwargs = kwargs
+        self.solver_config = solver_config
 
     def create(self) -> PyomoSolver:
         master: ConcreteModel = ConcreteModel()
@@ -76,4 +74,4 @@ class MasterCreator:
         lagrangian_duals: List[ScalarVar] = [
             master.ld[i] for i in range(self.num_constrs)
         ]
-        return PyomoSolver(master, self.solver_name, lagrangian_duals, **self.kwargs)
+        return PyomoSolver(master, self.solver_config, lagrangian_duals)

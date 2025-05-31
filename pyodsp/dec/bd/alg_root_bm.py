@@ -5,8 +5,7 @@ import pandas as pd
 
 from pyomo.environ import ScalarVar
 
-from pyodsp.dec.run._message import BdInitMessage
-
+from .message import BdInitDnMessage, BdDnMessage, BdFinalDnMessage, BdFinalUpMessage
 from .alg_root import BdAlgRoot
 from pyodsp.solver.pyomo_solver import PyomoSolver
 from pyodsp.alg.bm.bm import BundleMethod
@@ -25,11 +24,11 @@ class BdAlgRootBm(BdAlgRoot):
         num_cuts = len(subobj_bounds)
         self.bm.build(num_cuts, subobj_bounds)
 
-    def run_step(self, cuts_list: List[CutList] | None) -> Tuple[int, List[float]]:
+    def run_step(self, cuts_list: List[CutList] | None) -> Tuple[int, BdDnMessage]:
         start = time.time()
         status, solution = self.bm.run_step(cuts_list)
         self.step_time.append(time.time() - start)
-        return status, solution
+        return status, BdDnMessage(solution)
 
     def add_cuts(self, cuts_list: List[CutList]) -> None:
         self.bm.add_cuts(cuts_list)
@@ -37,14 +36,18 @@ class BdAlgRootBm(BdAlgRoot):
     def reset_iteration(self) -> None:
         self.bm.reset_iteration()
 
-    def get_solution_dn(self) -> List[float]:
-        return [var.value for var in self.get_vars()]
+    def get_final_dn_message(self, **kwargs) -> BdFinalDnMessage:
+        return BdFinalDnMessage([var.value for var in self.get_vars()])
+
+    def pass_final_up_message(self, children_obj: float) -> BdFinalUpMessage:
+        obj = self.bm.solver.get_original_objective_value() + children_obj
+        return BdFinalUpMessage(obj)
 
     def get_num_vars(self) -> int:
         return len(self.get_vars())
 
-    def get_init_message(self, **kwargs) -> BdInitMessage:
-        raise NotImplementedError()
+    def get_init_dn_message(self, **kwargs) -> BdInitDnMessage:
+        return BdInitDnMessage(self.is_minimize())
 
     def save(self, dir: Path) -> None:
         self.bm.save(dir)

@@ -6,8 +6,14 @@ import pandas as pd
 from pyomo.environ import Suffix
 from pyomo.core.base.constraint import ScalarConstraint
 
-from pyodsp.dec.run._message import BdInitMessage, BdFinalMessage
-
+from .message import (
+    BdInitDnMessage,
+    BdInitUpMessage,
+    BdFinalDnMessage,
+    BdFinalUpMessage,
+    BdDnMessage,
+    BdUpMessage,
+)
 from .alg_leaf import BdAlgLeaf
 from ..utils import CouplingData, get_nonzero_coefficients_from_model
 from pyodsp.alg.cuts import Cut, OptimalityCut, FeasibilityCut
@@ -30,14 +36,25 @@ class BdAlgLeafPyomo(BdAlgLeaf):
             coupling_data.constraint for coupling_data in self.coupling_info
         ]
 
-    def pass_init_message(self, message: BdInitMessage) -> None:
-        pass
+    def pass_init_dn_message(self, message: BdInitDnMessage) -> None:
+        if self.is_minimize() != message.get_is_minimize():
+            raise ValueError("Inconsistent optimization sense")
 
-    def pass_solution(self, solution: List[float]) -> None:
+    def get_init_up_message(self) -> BdInitUpMessage:
+        return BdInitUpMessage()
+
+    def pass_dn_message(self, message: BdDnMessage) -> None:
+        solution = message.get_solution()
         self._fix_variables(solution)
 
-    def pass_final_message(self, message: BdFinalMessage) -> None:
-        pass
+    def pass_final_dn_message(self, message: BdFinalDnMessage) -> None:
+        solution = message.get_solution()
+        assert solution is not None
+        self._fix_variables(solution)
+        self.get_up_message()
+
+    def get_final_up_message(self) -> BdFinalUpMessage:
+        return BdFinalUpMessage(self.solver.get_original_objective_value())
 
     def _fix_variables(self, coupling_values: List[float]) -> None:
         """Fix the variables to a specified value
@@ -50,12 +67,12 @@ class BdAlgLeafPyomo(BdAlgLeaf):
         for i, var in enumerate(self.solver.vars):
             var.fix(coupling_values[i])
 
-    def get_subgradient(self) -> Cut:
+    def get_up_message(self) -> BdUpMessage:
         start = time.time()
         self.solver.solve()
         cut = self._get_subgradient_inner()
         self.step_time.append(time.time() - start)
-        return cut
+        return BdUpMessage(cut)
 
     def _get_subgradient_inner(self) -> Cut:
         if self.solver.is_optimal():
@@ -67,12 +84,9 @@ class BdAlgLeafPyomo(BdAlgLeaf):
         else:
             raise ValueError("Unknown solver status")
 
-    def get_objective_value(self) -> float:
-        return self.solver.get_objective_value()
-
     def _optimality_cut(self) -> OptimalityCut:
         pi = self.solver.get_dual(self.coupling_constraints)
-        objective = self.get_objective_value()
+        objective = self.solver.get_objective_value()
         coeff = [0.0 for _ in range(len(self.solver.vars))]
         rhs = objective
         for i, dual_var in enumerate(pi):

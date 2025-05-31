@@ -1,7 +1,9 @@
 import logging
 
+from ..node._logger import ILogger
 
-class BdLogger:
+
+class BdLogger(ILogger):
     def __init__(self):
         # Create a logger object
         self.logger = logging.getLogger("Benders Decomposition")
@@ -30,7 +32,9 @@ class BdLogger:
     def log_sub_problem(self, idx, cut_type: str, coefficients, constant):
         self.logger.debug(f"\t{idx}\t{cut_type}\t{coefficients}\t{constant}")
 
-    def log_completion(self, iteration, objective_value):
+    def log_finaliziation(self):
+        self.logger.info("Finalizing Benders Decomposition")
+
+    def log_completion(self, objective_value):
         self.logger.info("Benders decomposition completed")
-        self.logger.info(f"Total iterations: {iteration}")
         self.logger.info(f"Final objective value: {objective_value}")

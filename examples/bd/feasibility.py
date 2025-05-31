@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pyomo.environ as pyo
 
-from pyodsp.solver.pyomo_solver import PyomoSolver
+from pyodsp.solver.pyomo_solver import PyomoSolver, SolverConfig
 
 from pyodsp.dec.node.dec_node import DecNodeRoot, DecNodeLeaf
 from pyodsp.dec.bd.alg_root_bm import BdAlgRootBm
@@ -21,21 +21,22 @@ def create_root_node(solver="appsi_highs"):
     model1.obj = pyo.Objective(expr=3 * model1.x1 + 2 * model1.x2, sense=pyo.minimize)
 
     coupling_dn = [model1.x1, model1.x2]
-    first_stage_solver = PyomoSolver(model1, solver, coupling_dn)
+    config = SolverConfig(solver_name=solver)
+    first_stage_solver = PyomoSolver(model1, config, coupling_dn)
     first_stage_alg = BdAlgRootBm(first_stage_solver)
     root_node = DecNodeRoot(0, first_stage_alg)
     return root_node
 
 
-xi1 = {1: 6, 2: 4}
-xi2 = {1: 8, 2: 4}
+xi1 = {1: 4, 2: 6}
+xi2 = {1: 4, 2: 8}
 p = {1: 0.5, 2: 0.5}
 
 
 def create_leaf_node(i, solver="appsi_highs"):
     block = pyo.ConcreteModel()
-    block.x1 = pyo.Var(within=pyo.Reals)
-    block.x2 = pyo.Var(within=pyo.Reals)
+    block.x1 = pyo.Var(within=pyo.NonNegativeReals)
+    block.x2 = pyo.Var(within=pyo.NonNegativeReals)
 
     block.y1 = pyo.Var(within=pyo.NonNegativeReals)
     block.y2 = pyo.Var(within=pyo.NonNegativeReals)
@@ -50,7 +51,8 @@ def create_leaf_node(i, solver="appsi_highs"):
     block.obj = pyo.Objective(expr=-15 * block.y1 - 12 * block.y2, sense=pyo.minimize)
 
     coupling_up = [block.x1, block.x2]
-    second_stage_solver = PyomoSolver(block, solver, coupling_up)
+    config = SolverConfig(solver_name=solver)
+    second_stage_solver = PyomoSolver(block, config, coupling_up)
     second_stage_alg = BdAlgLeafPyomo(second_stage_solver)
     leaf_node = DecNodeLeaf(i, second_stage_alg)
     leaf_node.set_bound(-1000.0)

@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pyomo.environ as pyo
 
-from pyodsp.solver.pyomo_solver import PyomoSolver
+from pyodsp.solver.pyomo_solver import PyomoSolver, SolverConfig
 
 from pyodsp.dec.node.dec_node import DecNodeRoot, DecNodeLeaf
 from pyodsp.dec.bd.alg_root_bm import BdAlgRootBm
@@ -44,7 +44,8 @@ def objective_rule(model):
 model.objective = pyo.Objective(rule=objective_rule, sense=pyo.maximize)
 
 coupling_dn = [model.DevotedAcreage[crop] for crop in CROPS]
-first_stage_solver = PyomoSolver(model, "appsi_highs", coupling_dn)
+config = SolverConfig(solver_name="appsi_highs")
+first_stage_solver = PyomoSolver(model, config, coupling_dn)
 first_stage_alg = BdAlgRootBm(first_stage_solver)
 root_node = DecNodeRoot(0, first_stage_alg)
 
@@ -135,7 +136,8 @@ for scenario, block in second_stage.items():
 second_stage_solver = {}
 for scenario, block in second_stage.items():
     coupling_vars_up = [block.DevotedAcreage[crop] for crop in CROPS]
-    second_stage_solver[scenario] = PyomoSolver(block, "appsi_highs", coupling_vars_up)
+    config = SolverConfig(solver_name="appsi_highs")
+    second_stage_solver[scenario] = PyomoSolver(block, config, coupling_vars_up)
 
 
 leaf_nodes = {}

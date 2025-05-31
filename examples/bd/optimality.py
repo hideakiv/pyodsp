@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pyomo.environ as pyo
 
-from pyodsp.solver.pyomo_solver import PyomoSolver
+from pyodsp.solver.pyomo_solver import PyomoSolver, SolverConfig
 
 from pyodsp.dec.node.dec_node import DecNodeRoot, DecNodeLeaf
 from pyodsp.dec.bd.alg_root_bm import BdAlgRootBm
@@ -27,7 +27,8 @@ def create_root_node(solver="appsi_highs"):
     )
 
     coupling_dn = [model1.x1, model1.x2]
-    first_stage_solver = PyomoSolver(model1, solver, coupling_dn)
+    config = SolverConfig(solver_name=solver)
+    first_stage_solver = PyomoSolver(model1, config, coupling_dn)
     first_stage_alg = BdAlgRootBm(first_stage_solver)
     root_node = DecNodeRoot(0, first_stage_alg)
     return root_node
@@ -58,7 +59,8 @@ def create_leaf_node(i, solver="appsi_highs"):
     )
 
     coupling_up = [block.x1, block.x2]
-    second_stage_solver = PyomoSolver(block, solver, coupling_up)
+    config = SolverConfig(solver_name=solver)
+    second_stage_solver = PyomoSolver(block, config, coupling_up)
     second_stage_alg = BdAlgLeafPyomo(second_stage_solver)
     leaf_node = DecNodeLeaf(i, second_stage_alg)
     leaf_node.set_bound(-30000.0)

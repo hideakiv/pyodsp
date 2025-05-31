@@ -1,4 +1,6 @@
-from typing import List
+from dataclasses import dataclass, field
+
+from typing import List, Dict, Any
 from pathlib import Path
 
 import pandas as pd
@@ -10,11 +12,20 @@ from pyomo.opt import TerminationCondition
 from .solver import Solver
 
 
+@dataclass
+class SolverConfig:
+    solver_name: str
+    kwargs: Dict[str, Any] = field(default_factory=dict)
+
+
 class PyomoSolver(Solver):
     """Base class for solvers using Pyomo"""
 
     def __init__(
-        self, model: pyo.ConcreteModel, solver: str, vars: List[pyo.ScalarVar], **kwargs
+        self,
+        model: pyo.ConcreteModel,
+        solver_config: SolverConfig,
+        vars: List[pyo.ScalarVar],
     ):
         """Initialize the subsolver.
 
@@ -23,10 +34,10 @@ class PyomoSolver(Solver):
             solver: The solver to use.
             vars: The variables in focus
         """
-        self.solver = pyo.SolverFactory(solver)
+        self.solver = pyo.SolverFactory(solver_config.solver_name)
         self.model = model
         self.vars = vars
-        self._solver_kwargs = kwargs
+        self._solver_kwargs = solver_config.kwargs
 
         self.original_objective = self._get_objective()
 

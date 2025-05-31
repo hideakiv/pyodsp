@@ -1,18 +1,20 @@
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Any, List, Dict, Tuple
-
-from pyodsp.alg.cuts import Cut
+from typing import List, Dict, Tuple
 
 from ._alg import IAlgRoot, IAlgLeaf
-from ..run._message import NodeIdx, IMessage
+from ._message import (
+    NodeIdx,
+    InitDnMessage,
+    InitUpMessage,
+    FinalDnMessage,
+    FinalUpMessage,
+    DnMessage,
+    UpMessage,
+)
 
 
 class INode(ABC):
-    @abstractmethod
-    def get_kwargs(self) -> Dict[str, Any]:
-        pass
-
     @abstractmethod
     def get_idx(self) -> NodeIdx:
         pass
@@ -39,10 +41,6 @@ class INode(ABC):
 
     @abstractmethod
     def save(self, dir: Path) -> None:
-        pass
-
-    @abstractmethod
-    def is_minimize(self) -> bool:
         pass
 
 
@@ -88,19 +86,31 @@ class INodeParent(INode, ABC):
         pass
 
     @abstractmethod
-    def run_step(self, cuts: Dict[int, Cut] | None) -> Tuple[int, List[float]]:
+    def run_step(
+        self, up_messages: Dict[NodeIdx, UpMessage] | None
+    ) -> Tuple[int, DnMessage]:
         pass
 
     @abstractmethod
-    def get_init_message(self, **kwargs) -> IMessage:
+    def get_init_dn_message(self, **kwargs) -> InitDnMessage:
         pass
 
     @abstractmethod
-    def add_cuts(self, cuts: Dict[int, Cut]) -> None:
+    def pass_init_up_messages(self, messages: Dict[NodeIdx, InitUpMessage]) -> None:
         pass
 
     @abstractmethod
-    def get_solution_dn(self) -> List[float]:
+    def add_cuts(self, cuts: Dict[int, UpMessage]) -> None:
+        pass
+
+    @abstractmethod
+    def get_final_dn_message(self, **kwargs) -> FinalDnMessage:
+        pass
+
+    @abstractmethod
+    def pass_final_up_message(
+        self, messages: Dict[NodeIdx, FinalUpMessage]
+    ) -> FinalUpMessage:
         pass
 
     @abstractmethod
@@ -125,31 +135,35 @@ class INodeChild(INode, ABC):
         pass
 
     @abstractmethod
-    def get_bound(self) -> float:
+    def get_bound(self) -> float | None:
         pass
 
     @abstractmethod
-    def get_objective_value(self) -> float:
+    def pass_init_dn_message(self, message: InitDnMessage) -> None:
         pass
 
     @abstractmethod
-    def pass_init_message(self, message: IMessage) -> None:
+    def get_init_up_message(self) -> InitUpMessage:
         pass
 
     @abstractmethod
-    def pass_solution(self, solution: List[float]) -> None:
+    def pass_dn_message(self, message: DnMessage) -> None:
         pass
 
     @abstractmethod
-    def pass_final_message(self, message: IMessage) -> None:
+    def get_up_message(self) -> UpMessage:
         pass
 
     @abstractmethod
-    def get_subgradient(self) -> Cut:
+    def pass_final_dn_message(self, message: FinalDnMessage) -> None:
         pass
 
     @abstractmethod
-    def solve(self, solution: List[float]) -> Cut:
+    def get_final_up_message(self) -> FinalUpMessage:
+        pass
+
+    @abstractmethod
+    def solve(self, message: DnMessage) -> UpMessage:
         pass
 
 

@@ -81,8 +81,6 @@ class HubAndSpoke:
         self.root.build()
 
     def _run_init_up_core(self) -> Dict[NodeIdx, InitUpMessage]:
-        if self.root is None:
-            raise ValueError("root node not found")
         messages = {}
         for leaf in self.leaves:
             init_message = leaf.get_init_up_message()

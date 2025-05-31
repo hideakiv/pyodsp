@@ -28,15 +28,15 @@ def create_root_node(solver="appsi_highs"):
     return root_node
 
 
-xi1 = {1: 6, 2: 4}
-xi2 = {1: 8, 2: 4}
+xi1 = {1: 4, 2: 6}
+xi2 = {1: 4, 2: 8}
 p = {1: 0.5, 2: 0.5}
 
 
 def create_leaf_node(i, solver="appsi_highs"):
     block = pyo.ConcreteModel()
-    block.x1 = pyo.Var(within=pyo.Reals)
-    block.x2 = pyo.Var(within=pyo.Reals)
+    block.x1 = pyo.Var(within=pyo.NonNegativeReals)
+    block.x2 = pyo.Var(within=pyo.NonNegativeReals)
 
     block.y1 = pyo.Var(within=pyo.NonNegativeReals)
     block.y2 = pyo.Var(within=pyo.NonNegativeReals)

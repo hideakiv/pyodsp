@@ -4,7 +4,7 @@ import time
 
 import pandas as pd
 
-from pyomo.environ import Var, Constraint, Reals, RangeSet
+from pyomo.environ import Var, Constraint, Reals, RangeSet, value
 
 from pyodsp.solver.pyomo_solver import PyomoSolver
 from pyodsp.solver.pyomo_utils import add_terms_to_objective
@@ -38,6 +38,7 @@ class BundleMethod:
     def build(self, num_cuts: int, subobj_bounds: List[float] | None) -> None:
         self.num_cuts = num_cuts
         assert subobj_bounds is not None
+        self.subobj_bounds = subobj_bounds
         assert self.num_cuts == len(subobj_bounds)
         self._update_objective(subobj_bounds)
         self.cuts_manager.build(self.num_cuts)
@@ -116,6 +117,11 @@ class BundleMethod:
             or self.obj_bound[-1] is None
         ):
             return False
+
+        for i in range(self.num_cuts):
+            bound_gap = abs(value(self.solver.model._theta[i]) - self.subobj_bounds[i])
+            if bound_gap < BM_ABS_TOLERANCE:
+                return False
 
         gap = abs(self.obj_bound[-1] - self.obj_val[-1]) / abs(self.obj_val[-1])
 

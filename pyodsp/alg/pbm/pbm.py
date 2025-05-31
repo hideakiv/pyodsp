@@ -3,7 +3,7 @@ from pathlib import Path
 import time
 
 import pandas as pd
-from pyomo.environ import Var, Reals, RangeSet
+from pyomo.environ import Var, Reals, RangeSet, value
 
 from pyodsp.alg.cuts import CutList
 
@@ -40,6 +40,7 @@ class ProximalBundleMethod(BundleMethod):
 
     def build(self, num_cuts: int, subobj_bounds: List[float] | None = None) -> None:
         self.num_cuts = num_cuts
+        self.subobj_bounds = subobj_bounds
         if subobj_bounds is not None:
             assert self.num_cuts == len(subobj_bounds)
         self._update_objective(subobj_bounds)
@@ -113,6 +114,14 @@ class ProximalBundleMethod(BundleMethod):
 
         if len(self.center_val) == 0 or self.center_val[-1] is None:
             return False
+
+        if self.subobj_bounds is not None:
+            for i in range(self.num_cuts):
+                bound_gap = abs(
+                    value(self.solver.model._theta[i]) - self.subobj_bounds[i]
+                )
+                if bound_gap < BM_ABS_TOLERANCE:
+                    return False
 
         gap = abs(self.obj_bound[-1] - self.center_val[-1]) / abs(self.center_val[-1])
 

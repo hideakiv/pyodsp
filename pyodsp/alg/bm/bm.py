@@ -4,7 +4,7 @@ import time
 
 import pandas as pd
 
-from pyomo.environ import Var, Constraint, Reals, RangeSet, value
+from pyomo.environ import Var, ScalarVar, Constraint, Reals, RangeSet, value
 
 from pyodsp.solver.pyomo_solver import PyomoSolver
 from pyodsp.solver.pyomo_utils import add_terms_to_objective
@@ -72,6 +72,21 @@ class BundleMethod:
         self.iteration = i
         self.status = STATUS_NOT_FINISHED
         self.start_time = time.time()
+
+    def is_minimize(self) -> bool:
+        return self.solver.is_minimize()
+
+    def get_cuts(self) -> List[List[CutInfo]]:
+        return self.cuts_manager.get_cuts()
+
+    def get_vars(self) -> List[ScalarVar]:
+        return self.solver.get_vars()
+
+    def get_num_vars(self) -> int:
+        return len(self.get_vars())
+
+    def get_original_objective_value(self) -> float:
+        return self.solver.get_original_objective_value()
 
     def _solve(self) -> None:
         self.solver.solve()
@@ -181,7 +196,7 @@ class BundleMethod:
         theta = self.solver.model._theta[idx]
         theta_val = theta.value
         cut_num = self.cuts_manager.get_num_optimality(idx)
-        vars = self.solver.vars
+        vars = self.get_vars()
 
         if self.solver.is_minimize():
             # Minimization
@@ -220,7 +235,7 @@ class BundleMethod:
 
     def _add_feasibility_cut(self, idx: int, cut: FeasibilityCut) -> bool:
         cut_num = self.cuts_manager.get_num_feasibility(idx)
-        vars = self.solver.vars
+        vars = self.get_vars()
 
         if self.solver.is_minimize():
             # Minimization

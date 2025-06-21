@@ -52,13 +52,13 @@ class DdAlgRootPbm(DdAlgRoot):
         return self.final_solutions[node_id]
 
     def get_num_vars(self) -> int:
-        return len(self.pbm.solver.vars)
+        return self.pbm.get_num_vars()
 
     def add_cuts(self, cuts_list: List[CutList]) -> None:
         self.pbm.add_cuts(cuts_list)
 
     def get_cuts(self) -> List[List[CutInfo]]:
-        return self.pbm.cuts_manager.get_cuts()
+        return self.pbm.get_cuts()
 
     def save(self, dir: Path) -> None:
         self.pbm.save(dir)

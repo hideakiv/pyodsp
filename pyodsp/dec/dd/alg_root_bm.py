@@ -57,13 +57,13 @@ class DdAlgRootBm(DdAlgRoot):
         return self.final_solutions[node_id]
 
     def get_num_vars(self) -> int:
-        return len(self.bm.solver.vars)
+        return self.bm.get_num_vars()
 
     def add_cuts(self, cuts_list: List[CutList]) -> None:
         self.bm.add_cuts(cuts_list)
 
     def get_cuts(self) -> List[List[CutInfo]]:
-        return self.bm.cuts_manager.get_cuts()
+        return self.bm.get_cuts()
 
     def save(self, dir: Path) -> None:
         self.bm.save(dir)

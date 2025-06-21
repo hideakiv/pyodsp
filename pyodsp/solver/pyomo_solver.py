@@ -71,6 +71,9 @@ class PyomoSolver(Solver):
         """Get the objective value of the model"""
         return pyo.value(self.original_objective)
 
+    def get_vars(self) -> List[pyo.ScalarVar]:
+        return self.vars
+
     def activate_original_objective(self) -> None:
         """Activate the original objective"""
         current_obj = self._get_objective()

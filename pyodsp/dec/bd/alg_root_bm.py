@@ -18,7 +18,7 @@ class BdAlgRootBm(BdAlgRoot):
         self.step_time: List[float] = []
 
     def get_vars(self) -> List[ScalarVar]:
-        return self.bm.solver.vars
+        return self.bm.get_vars()
 
     def build(self, subobj_bounds: List[float]) -> None:
         num_cuts = len(subobj_bounds)
@@ -40,7 +40,7 @@ class BdAlgRootBm(BdAlgRoot):
         return BdFinalDnMessage([var.value for var in self.get_vars()])
 
     def pass_final_up_message(self, children_obj: float) -> BdFinalUpMessage:
-        obj = self.bm.solver.get_original_objective_value() + children_obj
+        obj = self.bm.get_original_objective_value() + children_obj
         return BdFinalUpMessage(obj)
 
     def get_num_vars(self) -> int:
@@ -56,7 +56,7 @@ class BdAlgRootBm(BdAlgRoot):
         df.to_csv(path, index=False)
 
     def is_minimize(self) -> bool:
-        return self.bm.solver.is_minimize()
+        return self.bm.is_minimize()
 
     def set_logger(self, node_id: int, depth: int) -> None:
         self.bm.set_logger(node_id, depth)

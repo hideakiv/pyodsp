@@ -107,7 +107,7 @@ def create_params(num_seg: int, seed: int) -> UcParams:
 def create_params_dict(num_gens: int, num_seg: int, seed) -> dict[int, UcParams]:
     params = {}
 
-    for k in range(1, num_gens):
+    for k in range(1, num_gens + 1):
         params[k] = create_params(num_seg, seed + k)
 
     return params

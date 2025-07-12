@@ -1,5 +1,5 @@
 import pyomo.environ as pyo
-from .params import UcParams
+from params import UcParams
 
 
 def balance(
@@ -11,7 +11,7 @@ def balance(
     model.p = pyo.Var(model.K, model.T, domain=pyo.NonNegativeReals)
 
     def rule_balance(model: pyo.ConcreteModel, t: int):
-        return sum(model.p[k, t] for t in model.K) == demand[t - 1]
+        return sum(model.p[k, t] for k in model.K) == demand[t - 1]
 
     model.balance = pyo.Constraint(model.T, rule=rule_balance)
 
@@ -46,12 +46,14 @@ def single_generator(block: pyo.Block, num_time: int, params: UcParams):
 
     block.u0 = pyo.Constraint(expr=block.u[0] == u0)
     block.p0 = pyo.Constraint(expr=block.p[0] == p0)
-    block.init_up = pyo.Constraint(
-        expr=sum(block.u[i] for i in range(1, InitU + 1)) == InitU
-    )
-    block.init_dn = pyo.Constraint(
-        expr=sum(block.u[i] for i in range(1, InitD + 1)) == 0
-    )
+    if InitU > 0:
+        block.init_up = pyo.Constraint(
+            expr=sum(block.u[i] for i in range(1, InitU + 1)) == InitU
+        )
+    if InitD > 0:
+        block.init_dn = pyo.Constraint(
+            expr=sum(block.u[i] for i in range(1, InitD + 1)) == 0
+        )
 
     # min up/dn
     UT = params.UT
@@ -126,11 +128,11 @@ def single_generator(block: pyo.Block, num_time: int, params: UcParams):
     def rule_mode(b, t):
         return b.delta_hot[t] + b.delta_cold[t] == b.v[t]
 
-    block.hot_start = pyo.Constraint(block.T, rule=rule_hot_start)
+    block.hot_start = pyo.Constraint(range(DT_cold, num_time + 1), rule=rule_hot_start)
     block.mode = pyo.Constraint(block.T, rule=rule_mode)
 
     start_cost = sum(
-        c_hot * block.delta_hot[t] + c_cold * block.delta_cold
+        c_hot * block.delta_hot[t] + c_cold * block.delta_cold[t]
         for t in range(1, num_time + 1)
     )
 

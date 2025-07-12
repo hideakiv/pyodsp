@@ -2,6 +2,7 @@ from pathlib import Path
 from mpi4py import MPI
 
 from dd import create_master, create_sub
+from params import UcParams
 from pyodsp.dec.dd.run_mpi import DdRunMpi
 
 """
@@ -13,7 +14,7 @@ def main(
     num_time: int,
     num_gens: int,
     demand: list[float],
-    params: dict[int, dict],
+    params: dict[int, UcParams],
     solver="appsi_highs",
 ):
     comm = MPI.COMM_WORLD

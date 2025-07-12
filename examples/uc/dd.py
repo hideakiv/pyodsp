@@ -2,6 +2,7 @@ from pathlib import Path
 import pyomo.environ as pyo
 
 from uc import balance, single_generator
+from params import UcParams
 
 from pyodsp.dec.node.dec_node import DecNodeRoot, DecNodeLeaf
 from pyodsp.dec.dd.alg_root_bm import DdAlgRootBm
@@ -15,7 +16,7 @@ def main(
     num_time: int,
     num_gens: int,
     demand: list[float],
-    params: dict[int, dict],
+    params: dict[int, UcParams],
     solver="appsi_highs",
 ):
     nodes = []
@@ -62,7 +63,7 @@ def create_master(
 
 
 def create_sub(
-    k: int, num_time: int, params: dict[int, dict], solver="appsi_highs"
+    k: int, num_time: int, params: dict[int, UcParams], solver="appsi_highs"
 ) -> DecNodeLeaf:
     model = pyo.ConcreteModel()
     single_generator(model, num_time, params[k])

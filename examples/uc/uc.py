@@ -1,4 +1,5 @@
 import pyomo.environ as pyo
+from .params import UcParams
 
 
 def balance(
@@ -10,13 +11,13 @@ def balance(
     model.p = pyo.Var(model.K, model.T, domain=pyo.NonNegativeReals)
 
     def rule_balance(model: pyo.ConcreteModel, t: int):
-        return sum(model.p[k, t] for t in model.K) == demand[t]
+        return sum(model.p[k, t] for t in model.K) == demand[t - 1]
 
     model.balance = pyo.Constraint(model.T, rule=rule_balance)
 
 
-def single_generator(block: pyo.Block, num_time: int, params: dict):
-    num_seg = len(params["lp"])
+def single_generator(block: pyo.Block, num_time: int, params: UcParams):
+    num_seg = len(params.lp)
     # Sets
     block.T = pyo.RangeSet(num_time)
     block.T0 = pyo.RangeSet(0, num_time)
@@ -38,10 +39,10 @@ def single_generator(block: pyo.Block, num_time: int, params: dict):
     block.garver_3bin = pyo.Constraint(block.T, rule=rule_garver_3bin)
 
     # initial
-    u0 = params["u0"]
-    p0 = params["p0"]
-    InitU = min(params["InitU"], num_time)
-    InitD = min(params["InitD"], num_time)
+    u0 = params.u0
+    p0 = params.p0
+    InitU = min(params.InitU, num_time)
+    InitD = min(params.InitD, num_time)
 
     block.u0 = pyo.Constraint(expr=block.u[0] == u0)
     block.p0 = pyo.Constraint(expr=block.p[0] == p0)
@@ -53,8 +54,8 @@ def single_generator(block: pyo.Block, num_time: int, params: dict):
     )
 
     # min up/dn
-    UT = params["UT"]
-    DT = params["DT"]
+    UT = params.UT
+    DT = params.DT
 
     def rule_min_up(b, t):
         return sum(b.v[tt] for tt in range(t - UT + 1, t + 1)) <= b.u[t]
@@ -66,8 +67,8 @@ def single_generator(block: pyo.Block, num_time: int, params: dict):
     block.min_dn = pyo.Constraint(range(DT, num_time + 1), rule=rule_min_dn)
 
     # generation limits
-    P_up = params["P_up"]
-    P_dn = params["P_dn"]
+    P_up = params.P_up
+    P_dn = params.P_dn
 
     def rule_limit_up(b, t):
         return b.p[t] <= P_up * b.u[t]
@@ -79,10 +80,10 @@ def single_generator(block: pyo.Block, num_time: int, params: dict):
     block.limit_dn = pyo.Constraint(block.T, rule=rule_limit_dn)
 
     # ramp up/dn
-    RU = params["RU"]
-    SU = params["SU"]
-    RD = params["RD"]
-    SD = params["SD"]
+    RU = params.RU
+    SU = params.SU
+    RD = params.RD
+    SD = params.SD
 
     def rule_ramp_up(b, t):
         return b.p[t] - b.p[t - 1] <= RU * b.u[t - 1] + SU * b.v[t]
@@ -94,8 +95,8 @@ def single_generator(block: pyo.Block, num_time: int, params: dict):
     block.ramp_dn = pyo.Constraint(block.T, rule=rule_ramp_dn)
 
     # power cost
-    cp = params["cp"]
-    lp = params["lp"]
+    cp = params.cp
+    lp = params.lp
 
     def rule_segments(b, l, t):
         if l == 1:
@@ -115,9 +116,9 @@ def single_generator(block: pyo.Block, num_time: int, params: dict):
     )
 
     # startup cost
-    c_hot = params["c_hot"]
-    c_cold = params["c_cold"]
-    DT_cold = params["DT_cold"]
+    c_hot = params.c_hot
+    c_cold = params.c_cold
+    DT_cold = params.DT_cold
 
     def rule_hot_start(b, t):
         return b.delta_hot[t] <= sum(b.w[t - i] for i in range(DT, DT_cold))
@@ -134,11 +135,11 @@ def single_generator(block: pyo.Block, num_time: int, params: dict):
     )
 
     # running cost
-    c_run = params["c_run"]
+    c_run = params.c_run
     running_cost = sum(c_run * block.u[t] for t in range(1, num_time + 1))
 
     # shutdown cost
-    c_shut = params["c_shut"]
+    c_shut = params.c_shut
     shutdown_cost = sum(c_shut * block.w[t] for t in range(1, num_time + 1))
 
     # total

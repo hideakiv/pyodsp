@@ -1,16 +1,19 @@
 import pyomo.environ as pyo
 
 from uc import balance, single_generator
+from params import UcParams
 
 
-def main(num_time: int, num_gens: int, demand: list[float], params: dict[int, dict]):
+def main(
+    num_time: int, num_gens: int, demand: list[float], params: dict[int, UcParams]
+):
     model = extended_form(num_time, num_gens, demand, params)
     solver = pyo.SolverFactory("appsi_highs")
     solver.solve(model, tee=True)
 
 
 def extended_form(
-    num_time: int, num_gens: int, demand: list[float], params: dict[int, dict]
+    num_time: int, num_gens: int, demand: list[float], params: dict[int, UcParams]
 ):
     model = pyo.ConcreteModel()
 

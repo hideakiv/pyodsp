@@ -1,7 +1,9 @@
 import pyomo.environ as pyo
 
 
-def balance(model: pyo.ConcreteModel, num_time: int, num_gens: int, demand: list[int]):
+def balance(
+    model: pyo.ConcreteModel, num_time: int, num_gens: int, demand: list[float]
+):
     model.T = pyo.RangeSet(num_time)
     model.K = pyo.RangeSet(num_gens)
 

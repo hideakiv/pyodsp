@@ -32,7 +32,7 @@ class DdAlgRootPbm(DdAlgRoot):
 
     def build(self, bounds: List[float | None]) -> None:
         num_cuts = len(bounds)
-        self.pbm.set_init_solution([0.0 for _ in range(num_cuts)])
+        self.pbm.set_init_solution([0.0 for _ in range(self.num_constrs)])
         self.pbm.build(num_cuts)
 
     def run_step(self, cuts_list: List[CutList] | None) -> Tuple[int, DdDnMessage]:

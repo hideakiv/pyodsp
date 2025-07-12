@@ -123,7 +123,12 @@ class ProximalBundleMethod(BundleMethod):
                 if bound_gap < BM_ABS_TOLERANCE:
                     return False
 
-        gap = abs(self.obj_bound[-1] - self.center_val[-1]) / abs(self.center_val[-1])
+        if abs(self.center_val[-1]) < BM_ABS_TOLERANCE:
+            gap = abs(self.obj_bound[-1] - self.center_val[-1]) / BM_ABS_TOLERANCE
+        else:
+            gap = abs(self.obj_bound[-1] - self.center_val[-1]) / abs(
+                self.center_val[-1]
+            )
 
         if gap < BM_REL_TOLERANCE:
             if len(self.obj_bound) > len(self.center_val):

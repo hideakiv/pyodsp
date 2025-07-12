@@ -55,10 +55,10 @@ def single_generator(block: pyo.Block, num_time: int, params: dict):
     DT = params["DT"]
 
     def rule_min_up(b, t):
-        return sum(b.v[tt] for tt in range(t - UT + 1, t)) <= b.u[t]
+        return sum(b.v[tt] for tt in range(t - UT + 1, t + 1)) <= b.u[t]
 
     def rule_min_dn(b, t):
-        return sum(b.w[tt] for tt in range(t - DT + 1, t)) <= 1 - b.u[t]
+        return sum(b.w[tt] for tt in range(t - DT + 1, t + 1)) <= 1 - b.u[t]
 
     block.min_up = pyo.Constraint(range(UT, num_time + 1), rule=rule_min_up)
     block.min_dn = pyo.Constraint(range(DT, num_time + 1), rule=rule_min_dn)
@@ -108,7 +108,8 @@ def single_generator(block: pyo.Block, num_time: int, params: dict):
     block.p_tot = pyo.Constraint(block.T, rule=rule_p_tot)
 
     p_cost = sum(
-        sum(cp[l] * block.pl[l + 1, t] for l in range(num_seg)) for t in range(num_time)
+        sum(cp[l - 1] * block.pl[l, t] for l in range(1, num_seg + 1))
+        for t in range(1, num_time + 1)
     )
 
     # startup cost
@@ -117,7 +118,7 @@ def single_generator(block: pyo.Block, num_time: int, params: dict):
     DT_cold = params["DT_cold"]
 
     def rule_hot_start(b, t):
-        return b.delta_hot[t] <= sum(b.w[t - i] for i in range(DT, DT_cold - 1))
+        return b.delta_hot[t] <= sum(b.w[t - i] for i in range(DT, DT_cold))
 
     def rule_mode(b, t):
         return b.delta_hot[t] + b.delta_cold[t] == b.v[t]
@@ -126,16 +127,17 @@ def single_generator(block: pyo.Block, num_time: int, params: dict):
     block.mode = pyo.Constraint(block.T, rule=rule_mode)
 
     start_cost = sum(
-        c_hot * block.delta_hot[t] + c_cold * block.delta_cold for t in range(num_time)
+        c_hot * block.delta_hot[t] + c_cold * block.delta_cold
+        for t in range(1, num_time + 1)
     )
 
     # running cost
     c_run = params["c_run"]
-    running_cost = sum(c_run * block.u[t] for t in range(num_time))
+    running_cost = sum(c_run * block.u[t] for t in range(1, num_time + 1))
 
     # shutdown cost
     c_shut = params["c_shut"]
-    shutdown_cost = sum(c_shut * block.w[t] for t in range(num_time))
+    shutdown_cost = sum(c_shut * block.w[t] for t in range(1, num_time + 1))
 
     # total
     block.objexpr = p_cost + start_cost + running_cost + shutdown_cost

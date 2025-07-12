@@ -1,7 +1,7 @@
 import pyomo.environ as pyo
 
 from uc import balance, single_generator
-from params import UcParams
+from params import UcParams, create_random
 
 
 def main(
@@ -38,4 +38,8 @@ def extended_form(
 
 
 if __name__ == "__main__":
-    pass
+    num_day = 1
+    num_gens = 2
+    num_seg = 5
+    num_time, demand, params = create_random(num_day, num_gens, num_seg)
+    main(num_time, num_gens, demand, params)

@@ -2,7 +2,7 @@ from pathlib import Path
 import pyomo.environ as pyo
 
 from uc import balance, single_generator
-from params import UcParams
+from params import UcParams, create_random
 
 from pyodsp.dec.node.dec_node import DecNodeRoot, DecNodeLeaf
 from pyodsp.dec.dd.alg_root_bm import DdAlgRootBm
@@ -24,7 +24,7 @@ def main(
 
     nodes.append(master)
 
-    for k in range(1, num_gens):
+    for k in range(1, num_gens + 1):
         sub = create_sub(k, num_time, params, solver)
         master.add_child(k)
         nodes.append(sub)
@@ -83,4 +83,8 @@ def create_sub(
 
 
 if __name__ == "__main__":
-    pass
+    num_day = 1
+    num_gens = 2
+    num_seg = 5
+    num_time, demand, params = create_random(num_day, num_gens, num_seg)
+    main(num_time, num_gens, demand, params)

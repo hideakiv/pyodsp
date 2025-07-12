@@ -57,11 +57,11 @@ def create_params(num_seg: int, seed: int) -> UcParams:
         p0 = round(random.uniform(P_dn, P_up), 2)
     # Ramp up/down (less than P_up - P_dn)
     ramp_limit = P_up - P_dn
-    RU = round(random.uniform(1, ramp_limit), 2)
-    RD = round(random.uniform(1, ramp_limit), 2)
+    RU = round(random.uniform(ramp_limit / 3, ramp_limit), 2)
+    RD = round(random.uniform(ramp_limit / 3, ramp_limit), 2)
     # Start up/shut down (less than P_up)
-    SU = round(random.uniform(1, P_up - 1), 2)
-    SD = round(random.uniform(1, P_up - 1), 2)
+    SU = round(random.uniform((P_up - 1) / 2, P_up - 1), 2)
+    SD = round(random.uniform((P_up - 1) / 2, P_up - 1), 2)
     # Cost segments (strictly increasing)
     cp = []
     last_cp = random.uniform(10, 30)
@@ -121,25 +121,46 @@ def create_demand(
     # Simulate weather: 0 = clear (more solar), 1 = cloudy (less solar)
     weather = random.choices([0, 1], weights=[0.6, 0.4], k=num_day)
     # Get total max power from all generators
-    total_pmax = sum(p.P_up for p in params.values())
+    total_pmax = sum(p.P_up for p in params.values()) * 0.8
     demand = []
     for d in range(num_day):
         for t in range(48):
-            # Night: 0-12, 36-47 (0:00-6:00, 18:00-24:00)
-            if t < 12 or t >= 36:
-                base = random.uniform(0.35, 0.5) * total_pmax
-            # Morning ramp: 12-20 (6:00-10:00)
-            elif t < 20:
-                base = random.uniform(0.5, 0.7) * total_pmax
-            # Day: 20-36 (10:00-18:00)
+            # --- Initial time slots: consider initial state and ramping ---
+            if d == 0 and t < 4:
+                # Estimate initial available power from units that are ON
+                p_init = sum(p.p0 for p in params.values() if p.u0 == 1)
+                # Estimate max ramp up from all units
+                ramp_up = sum(p.RU for p in params.values())
+                # For t=0, demand cannot exceed p_init + small noise
+                if t == 0:
+                    base = p_init + random.uniform(-0.01, 0.01) * total_pmax
+                else:
+                    # For t>0, demand cannot exceed p_init + t * ramp_up
+                    base = p_init + t * ramp_up
+                    # But also respect the time-of-day profile
+                    if t < 12:
+                        base = min(base, random.uniform(0.35, 0.5) * total_pmax)
+                    elif t < 20:
+                        base = min(base, random.uniform(0.5, 0.7) * total_pmax)
+                    else:
+                        base = min(base, random.uniform(0.7, 0.9) * total_pmax)
+                base = max(base, 0.0)
             else:
-                base = random.uniform(0.7, 0.9) * total_pmax
-            # Solar effect: reduce load during day if clear weather
-            if 20 <= t < 36 and weather[d] == 0:
-                # Solar reduces load by 10-25%
-                base *= random.uniform(0.75, 0.9)
-            # Add some random noise
-            base += random.uniform(-0.03, 0.03) * total_pmax
+                # Night: 0-12, 36-47 (0:00-6:00, 18:00-24:00)
+                if t < 12 or t >= 36:
+                    base = random.uniform(0.35, 0.5) * total_pmax
+                # Morning ramp: 12-20 (6:00-10:00)
+                elif t < 20:
+                    base = random.uniform(0.5, 0.7) * total_pmax
+                # Day: 20-36 (10:00-18:00)
+                else:
+                    base = random.uniform(0.7, 0.9) * total_pmax
+                # Solar effect: reduce load during day if clear weather
+                if 20 <= t < 36 and weather[d] == 0:
+                    # Solar reduces load by 10-25%
+                    base *= random.uniform(0.75, 0.9)
+                # Add some random noise
+                base += random.uniform(-0.03, 0.03) * total_pmax
             demand.append(round(max(base, 0.0), 2))
     return num_time, demand
 

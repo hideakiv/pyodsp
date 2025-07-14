@@ -2,6 +2,7 @@ from typing import List, Tuple
 from pathlib import Path
 import time
 
+import numpy as np
 import pandas as pd
 from pyomo.environ import Var, Reals, RangeSet, value
 
@@ -9,7 +10,15 @@ from pyodsp.alg.cuts import CutList
 
 from .logger import PbmLogger
 from ..bm.bm import BundleMethod
-from ..params import BM_ABS_TOLERANCE, BM_REL_TOLERANCE, BM_TIME_LIMIT
+from ..params import (
+    BM_ABS_TOLERANCE,
+    BM_REL_TOLERANCE,
+    BM_TIME_LIMIT,
+    PBM_ML,
+    PBM_MR,
+    PBM_U_MIN,
+    PBM_E_S,
+)
 from ..const import *
 from pyodsp.solver.pyomo_solver import PyomoSolver
 from pyodsp.solver.pyomo_utils import (
@@ -18,7 +27,6 @@ from pyodsp.solver.pyomo_utils import (
 )
 
 """
-TODO: As of now this is just a regularized method. Update alg to:
 Kiwiel, K. C. (1990). 
 Proximity control in bundle methods for convex nondifferentiable minimization. 
 Mathematical programming, 46(1), 105-122.
@@ -31,6 +39,9 @@ class ProximalBundleMethod(BundleMethod):
         super().__init__(solver, max_iteration)
         self.penalty = penalty
         self.center_val = []
+        self.iter_since_update = 0
+        self.e_v = np.inf
+        self.alpha = 0.0
 
     def set_logger(self, node_id: int, depth: int) -> None:
         self.logger = PbmLogger(node_id, depth)
@@ -59,11 +70,14 @@ class ProximalBundleMethod(BundleMethod):
                 self.obj_val.append(None)
 
             if no_cuts or self._improved():
-                self._update_center(self.current_solution)
+                # serious step
+                self._serious_step_penalty_update()
                 self.center_val.append(self.obj_val[-1])
             elif len(self.center_val) == 0:
                 self.center_val.append(self.obj_val[-1])
             else:
+                self._set_alpha(cuts_list)
+                self._null_step_penalty_update()
                 self.center_val.append(self.center_val[-1])
         else:
             self.obj_val.append(None)
@@ -156,13 +170,17 @@ class ProximalBundleMethod(BundleMethod):
     def _improved(self) -> bool:
         if len(self.center_val) == 0 or self.center_val[-1] is None:
             return False
+        obj_val = self.obj_val[-1]
+        center_val = self.center_val[-1]
+        approx_val = self.solver.get_objective_value()
+        predicted_diff = approx_val - center_val
 
         if self.solver.is_minimize():
             # Minimization
-            return self.obj_val[-1] <= self.center_val[-1]
+            return obj_val <= center_val + PBM_ML * predicted_diff
         else:
             # Maximization
-            return self.obj_val[-1] >= self.center_val[-1]
+            return obj_val >= center_val + PBM_ML * predicted_diff
 
     def _update_objective(self, subobj_bounds: List[float] | None):
         def theta_bounds(model, i):
@@ -192,3 +210,64 @@ class ProximalBundleMethod(BundleMethod):
         update_quad_terms_in_objective(
             self.solver, self.solver.vars, self.center, self.penalty
         )
+
+    def _serious_step_penalty_update(self):
+        obj_val = self.obj_val[-1]
+        center_val = self.center_val[-1]
+        approx_val = self.solver.get_objective_value()
+        predicted_diff = approx_val - center_val
+        if self.solver.is_minimize():
+            penalty_too_large = obj_val <= center_val + PBM_MR * predicted_diff
+        else:
+            penalty_too_large = obj_val >= center_val + PBM_MR * predicted_diff
+
+        if penalty_too_large and self.iter_since_update > 0:
+            u = 2 * self.penalty * (1 - (obj_val - center_val) / predicted_diff)
+        elif self.iter_since_update > 3:
+            u = self.penalty / 2
+        
+        newu = max(u, self.penalty / 10, PBM_U_MIN)
+        self.e_v = max(self.e_v, abs(2 * predicted_diff))
+        self.iter_since_update = max(self.iter_since_update + 1, 1)
+        if abs(newu - self.penalty) > BM_ABS_TOLERANCE:
+            self.penalty = newu
+            self.iter_since_update = 1
+            self._update_center(self.current_solution)
+    
+    def _set_alpha(self, cuts_list: List[CutList]) -> None:
+        for idx, cuts in enumerate(cuts_list):
+            for cut in cuts:
+                found_cut = False
+                if isinstance(cut, OptimalityCut):
+                    found_cut = self._add_optimality_cut(idx, cut)
+                    obj_val += cut.objective_value
+                elif isinstance(cut, FeasibilityCut):
+                    found_cut = self._add_feasibility_cut(idx, cut)
+                    self.feasible = False
+                found_cuts[idx] = found_cut or found_cuts[idx]
+
+    def _null_step_penalty_update(self):
+        obj_val = self.obj_val[-1]
+        center_val = self.center_val[-1]
+        approx_val = self.solver.get_objective_value()
+        predicted_diff = approx_val - center_val
+        
+        p = np.linalg.norm(
+            -self.penalty * np.array(self.current_solution) - np.array(self.center),
+            ord=1
+        )
+        if self.is_minimize():
+            alpha_tilde = -p**2 / self.penalty - predicted_diff
+        else:
+            alpha_tilde = p**2 / self.penalty - predicted_diff
+
+        self.e_v = min(self.e_v, p + abs(alpha_tilde))
+        if self.alpha > max(self.e_v, abs(10 * predicted_diff)) and self.iter_since_update < -3
+            u = 2 * self.penalty * (1 - (obj_val - center_val) / predicted_diff)
+
+        newu = min(u, 10 * self.penalty)
+        self.iter_since_update = min(self.iter_since_update - 1, -1)
+        if abs(newu - self.penalty) > BM_ABS_TOLERANCE:
+            self.penalty = newu
+            self.iter_since_update = -1
+            self._update_center(self.center)

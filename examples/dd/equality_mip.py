@@ -9,6 +9,7 @@ from pyodsp.dec.dd.alg_root_bm import DdAlgRootBm
 from pyodsp.dec.dd.alg_root_pbm import DdAlgRootPbm
 from pyodsp.dec.dd.alg_leaf_pyomo import DdAlgLeafPyomo
 from pyodsp.dec.dd.run import DdRun
+from pyodsp.dec.dd.mip_heuristic_root import MipHeuristicRoot
 
 from utils import get_args, assert_approximately_equal
 
@@ -23,12 +24,13 @@ def create_master(solver="appsi_highs", pbm=False) -> DecNodeRoot:
     block.c1 = pyo.Constraint(expr=3 * block.x1 + 2 * block.x2 + 4 * block.x3 == 15)
 
     final_config = SolverConfig(solver_name=solver)
+    heuristic = MipHeuristicRoot(final_config)
     if pbm:
         alg_config = SolverConfig(solver_name="ipopt")
-        root_alg = DdAlgRootPbm(block, True, alg_config, final_config, vars_dn)
+        root_alg = DdAlgRootPbm(block, True, alg_config, vars_dn, heuristic)
     else:
         alg_config = SolverConfig(solver_name=solver)
-        root_alg = DdAlgRootBm(block, True, alg_config, final_config, vars_dn)
+        root_alg = DdAlgRootBm(block, True, alg_config, vars_dn, heuristic)
     root_node = DecNodeRoot(0, root_alg)
     return root_node
 

@@ -37,4 +37,5 @@ class DdLogger(ILogger):
 
     def log_completion(self, objective_value):
         self.logger.info("Dual decomposition completed")
-        self.logger.info(f"Final objective value: {objective_value}")
+        if objective_value is not None:
+            self.logger.info(f"Final objective value: {objective_value}")

@@ -55,7 +55,7 @@ class IAlgRoot(IAlg, ABC):
         pass
 
     @abstractmethod
-    def pass_final_up_message(self, children_obj: float) -> FinalUpMessage:
+    def pass_final_up_message(self, children_obj: float | None) -> FinalUpMessage:
         pass
 
     @abstractmethod

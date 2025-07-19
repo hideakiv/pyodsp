@@ -1,7 +1,8 @@
-from abc import ABC, abstractmethod
 from typing import List, Dict
 
+from uc import UcParams, single_generator
 from pyomo.environ import (
+    Block,
     ConcreteModel,
     Var,
     ScalarVar,
@@ -16,22 +17,17 @@ from pyomo.environ import (
 from pyodsp.solver.pyomo_solver import PyomoSolver, SolverConfig
 from pyodsp.alg.cuts import OptimalityCut
 from pyodsp.alg.cuts_manager import CutInfo
-from .message import DdFinalDnMessage
+from pyodsp.dec.dd.message import DdFinalDnMessage
+from pyodsp.dec.dd.mip_heuristic_root import IMipHeuristicRoot
 
 
-class IMipHeuristicRoot(ABC):
-    @abstractmethod
-    def build(self, **kwargs) -> None:
-        pass
-
-    @abstractmethod
-    def run(self) -> Dict[int, DdFinalDnMessage]:
-        pass
-
-
-class MipHeuristicRoot(IMipHeuristicRoot):
-    def __init__(self, solver_config: SolverConfig):
+class UcHeuristicRoot(IMipHeuristicRoot):
+    def __init__(
+        self, solver_config: SolverConfig, params: dict[int, UcParams], num_time: int
+    ):
         self.solver_config = solver_config
+        self.params = params
+        self.num_time = num_time
 
     def _create_master(self, model: ConcreteModel, solver_config: SolverConfig):
         for obj in model.component_objects(Objective, active=True):
@@ -53,48 +49,41 @@ class MipHeuristicRoot(IMipHeuristicRoot):
             assert len(group) == 1
             idx = group[0]
             vars = self.vars_dn[idx]
+            param = self.params[idx]
+
+            block = Block()
+            self.master.model.add_component(f"_block_{idx}", block)
+            single_generator(block, self.num_time, param)
 
             num_cuts = len(cutlist)
             minkowski_vars = Var(RangeSet(0, num_cuts - 1), domain=NonNegativeReals)
             self.master.model.add_component(f"_vars_{idx}", minkowski_vars)
 
             def equality_rule(m, i):
-                lhs = 0.0
-                for j, cutinfo in enumerate(cutlist):
-                    lhs += minkowski_vars[j] * cutinfo.cut.info["solution"][i]
-                return lhs == vars[i]
+                return block.p[i + 1] == vars[i]
 
             self.master.model.add_component(
                 f"_equality_{idx}",
                 Constraint(RangeSet(0, len(vars) - 1), rule=equality_rule),
             )
 
+            def u_rule(m, i):
+                lhs = 0.0
+                for j, cutinfo in enumerate(cutlist):
+                    if cutinfo.cut.info["solution"][i] > 1e-9:
+                        lhs += minkowski_vars[j]
+                return lhs == block.u[i + 1]
+
             self.master.model.add_component(
-                f"_convexity_{idx}",
-                Constraint(
-                    expr=sum(
-                        minkowski_vars[i]
-                        for i in range(num_cuts)
-                        if isinstance(cutlist[i].cut, OptimalityCut)
-                    )
-                    == 1
-                ),
+                f"_u_equality_{idx}",
+                Constraint(RangeSet(0, len(vars) - 1), rule=u_rule),
             )
 
-            obj = 0.0
-            for j, cutinfo in enumerate(cutlist):
-                if self.is_minimize:
-                    rhs = cutinfo.constraint.upper
-                else:
-                    rhs = cutinfo.constraint.lower
-                assert rhs is not None
-
-                obj += rhs * minkowski_vars[j]
-
-            self.master.model._dd_obj.expr += obj
+            self.master.model._dd_obj.expr += block.objexpr
 
     def run(self) -> Dict[int, DdFinalDnMessage]:
         self.master.solve()
+
         if self.master.is_optimal():
             solutions = {}
             for group in self.groups:

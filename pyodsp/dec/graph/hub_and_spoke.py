@@ -136,7 +136,7 @@ class HubAndSpoke:
             )
         return up_message
 
-    def _run_final(self) -> float:
+    def _run_final(self) -> float | None:
         if self.root is None:
             raise ValueError("root node not found")
 

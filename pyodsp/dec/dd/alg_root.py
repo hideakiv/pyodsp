@@ -9,13 +9,12 @@ from pyomo.environ import (
 )
 
 from pyodsp.alg.cuts_manager import CutInfo
-from pyodsp.dec.node._message import FinalDnMessage
 from pyodsp.solver.pyomo_solver import SolverConfig
 
-from .message import DdInitDnMessage, DdFinalUpMessage
+from .message import DdInitDnMessage, DdFinalUpMessage, DdFinalDnMessage
 from ..node._alg import IAlgRoot
 from .master_creator import MasterCreator
-from .mip_heuristic_root import MipHeuristicRoot
+from .mip_heuristic_root import IMipHeuristicRoot
 
 
 class DdAlgRoot(IAlgRoot, ABC):
@@ -24,8 +23,8 @@ class DdAlgRoot(IAlgRoot, ABC):
         coupling_model: ConcreteModel,
         is_minimize: bool,
         solver_config: SolverConfig,
-        final_solver_config: SolverConfig | None,
         vars_dn: Dict[int, List[ScalarVar]],
+        heuristic: IMipHeuristicRoot | None = None,
     ) -> None:
         self.coupling_model = coupling_model
         self.vars_dn = vars_dn
@@ -35,8 +34,8 @@ class DdAlgRoot(IAlgRoot, ABC):
         self.lagrangian_data = mc.lagrangian_data
         self.num_constrs = mc.num_constrs
         self._is_minimize = is_minimize
+        self.heuristic = heuristic
 
-        self.final_solver_config = final_solver_config
         self.is_finalized = False
 
     def get_vars_dn(self) -> Dict[int, List[ScalarVar]]:
@@ -82,23 +81,22 @@ class DdAlgRoot(IAlgRoot, ABC):
         return self.coupling_model
 
     @abstractmethod
-    def get_final_dn_message(self, **kwargs) -> FinalDnMessage:
+    def get_final_dn_message(self, **kwargs) -> DdFinalDnMessage:
+        if self.heuristic is None:
+            return DdFinalDnMessage(None)
         if not self.is_finalized:
             groups = kwargs["groups"]
-            assert self.final_solver_config is not None
-            mip_heuristic = MipHeuristicRoot(
-                groups,
-                self.coupling_model,
-                self.final_solver_config,
-                self.get_cuts(),
-                self.get_vars_dn(),
-                self.is_minimize(),
+            self.heuristic.build(
+                groups=groups,
+                coupling_model=self.coupling_model,
+                cuts=self.get_cuts(),
+                vars_dn=self.get_vars_dn(),
+                is_minimize=self.is_minimize(),
             )
-            mip_heuristic.build()
-            self.final_solutions = mip_heuristic.run()
+            self.final_solutions = self.heuristic.run()
             self.is_finalized = True
 
-    def pass_final_up_message(self, children_obj: float) -> DdFinalUpMessage:
+    def pass_final_up_message(self, children_obj: float | None) -> DdFinalUpMessage:
         return DdFinalUpMessage(children_obj)
 
     @abstractmethod

@@ -18,15 +18,17 @@ def balance(
 
 def single_generator(block: pyo.Block, num_time: int, params: UcParams):
     num_seg = len(params.lp)
+    neg = -max(params.DT_cold, params.UT)
     # Sets
+    block.Tneg = pyo.RangeSet(neg, num_time)
     block.T = pyo.RangeSet(num_time)
     block.T0 = pyo.RangeSet(0, num_time)
     block.L = pyo.RangeSet(num_seg)
 
     # Variables
-    block.u = pyo.Var(block.T0, domain=pyo.Binary)
-    block.v = pyo.Var(block.T, domain=pyo.Binary)
-    block.w = pyo.Var(block.T, domain=pyo.Binary)
+    block.u = pyo.Var(block.Tneg, domain=pyo.Binary)
+    block.v = pyo.Var(block.Tneg, domain=pyo.Binary)
+    block.w = pyo.Var(block.Tneg, domain=pyo.Binary)
     block.p = pyo.Var(block.T0, domain=pyo.NonNegativeReals)
     block.pl = pyo.Var(block.L, block.T, domain=pyo.NonNegativeReals)
     block.delta_hot = pyo.Var(block.T, domain=pyo.Binary)
@@ -41,19 +43,24 @@ def single_generator(block: pyo.Block, num_time: int, params: UcParams):
     # initial
     u0 = params.u0
     p0 = params.p0
-    InitU = min(params.InitU, num_time)
-    InitD = min(params.InitD, num_time)
 
     block.u0 = pyo.Constraint(expr=block.u[0] == u0)
     block.p0 = pyo.Constraint(expr=block.p[0] == p0)
-    if InitU > 0:
-        block.init_up = pyo.Constraint(
-            expr=sum(block.u[i] for i in range(1, InitU + 1)) == InitU
-        )
-    if InitD > 0:
-        block.init_dn = pyo.Constraint(
-            expr=sum(block.u[i] for i in range(1, InitD + 1)) == 0
-        )
+
+    def rule_init_v(b, t):
+        if u0 == 1 and t == params.last_dn + 1:
+            return b.v[t] == 1
+        else:
+            return b.v[t] == 0
+
+    def rule_init_w(b, t):
+        if u0 == 0 and t == params.last_up + 1:
+            return b.w[t] == 1
+        else:
+            return b.w[t] == 0
+
+    block.init_v = pyo.Constraint(range(neg, 0), rule=rule_init_v)
+    block.init_w = pyo.Constraint(range(neg, 0), rule=rule_init_w)
 
     # min up/dn
     UT = params.UT
@@ -65,8 +72,8 @@ def single_generator(block: pyo.Block, num_time: int, params: UcParams):
     def rule_min_dn(b, t):
         return sum(b.w[tt] for tt in range(t - DT + 1, t + 1)) <= 1 - b.u[t]
 
-    block.min_up = pyo.Constraint(range(UT, num_time + 1), rule=rule_min_up)
-    block.min_dn = pyo.Constraint(range(DT, num_time + 1), rule=rule_min_dn)
+    block.min_up = pyo.Constraint(block.T, rule=rule_min_up)
+    block.min_dn = pyo.Constraint(block.T, rule=rule_min_dn)
 
     # generation limits
     P_up = params.P_up
@@ -128,7 +135,7 @@ def single_generator(block: pyo.Block, num_time: int, params: UcParams):
     def rule_mode(b, t):
         return b.delta_hot[t] + b.delta_cold[t] == b.v[t]
 
-    block.hot_start = pyo.Constraint(range(DT_cold, num_time + 1), rule=rule_hot_start)
+    block.hot_start = pyo.Constraint(block.T, rule=rule_hot_start)
     block.mode = pyo.Constraint(block.T, rule=rule_mode)
 
     start_cost = sum(

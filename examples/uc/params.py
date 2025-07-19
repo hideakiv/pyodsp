@@ -6,8 +6,8 @@ import random
 class UcParams:
     u0: int  # state at time 0. 0: off, 1: on.
     p0: float  # power at time 0.
-    InitU: int  # number of time it needs to be on after t = 1.
-    InitD: int  # number of time it needs to be off after t = 1.
+    last_up: int  # last time unit was up or 0 if u0 == 1
+    last_dn: int  # last time unit was dn or 0 if u0 == 0
 
     UT: int  # minimum up time.
     DT: int  # minimum down time.
@@ -39,13 +39,15 @@ def create_params(num_seg: int, seed: int) -> UcParams:
     # Minimum up/down times (2-6)
     UT = random.randint(2, 6)
     DT = random.randint(2, 6)
+    # DT_cold > DT
+    DT_cold = DT + random.randint(1, 5)
     # Initial up/down times: InitU in [0, UT] if u0==1, else 0; InitD in [0, DT] if u0==0, else 0
     if u0 == 0:
-        InitU = 0
-        InitD = random.randint(0, DT)
+        last_up = -random.randint(1, DT * 2)
+        last_dn = 0
     else:
-        InitU = random.randint(0, UT)
-        InitD = 0
+        last_up = 0
+        last_dn = -random.randint(1, UT * 2)
     # Power limits
     P_dn = round(random.uniform(10, 30), 2)
     P_up = round(P_dn + random.uniform(20, 70), 2)
@@ -76,16 +78,14 @@ def create_params(num_seg: int, seed: int) -> UcParams:
     # Startup costs
     c_hot = round(random.uniform(10, 100), 2)
     c_cold = round(c_hot + random.uniform(10, 100), 2)
-    # DT_cold > DT
-    DT_cold = DT + random.randint(1, 5)
     # Running/shutdown costs
     c_run = round(random.uniform(5, 20), 2)
     c_shut = round(random.uniform(5, 20), 2)
     return UcParams(
         u0=u0,
         p0=p0,
-        InitU=InitU,
-        InitD=InitD,
+        last_up=last_up,
+        last_dn=last_dn,
         UT=UT,
         DT=DT,
         P_up=P_up,

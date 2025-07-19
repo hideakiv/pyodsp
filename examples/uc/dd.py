@@ -2,6 +2,7 @@ from pathlib import Path
 import pyomo.environ as pyo
 
 from uc import balance, single_generator
+from heuristics import UcHeuristicRoot
 from params import UcParams, create_random
 
 from pyodsp.dec.node.dec_node import DecNodeRoot, DecNodeLeaf
@@ -9,6 +10,7 @@ from pyodsp.dec.dd.alg_root_bm import DdAlgRootBm
 from pyodsp.dec.dd.alg_root_pbm import DdAlgRootPbm
 from pyodsp.dec.dd.alg_leaf_pyomo import DdAlgLeafPyomo
 from pyodsp.dec.dd.run import DdRun
+from pyodsp.dec.dd.mip_heuristic_root import MipHeuristicRoot
 from pyodsp.solver.pyomo_solver import PyomoSolver, SolverConfig
 
 
@@ -20,7 +22,7 @@ def main(
     solver="appsi_highs",
 ):
     nodes = []
-    master = create_master(num_time, num_gens, demand, solver, pbm=True)
+    master = create_master(num_time, num_gens, demand, params, solver, pbm=True)
 
     nodes.append(master)
 
@@ -37,6 +39,7 @@ def create_master(
     num_time: int,
     num_gens: int,
     demand: list[float],
+    params: dict[int, UcParams],
     solver="appsi_highs",
     pbm=False,
 ) -> DecNodeRoot:
@@ -51,12 +54,15 @@ def create_master(
             xs.append(model.p[k, t])
         vars_dn[k] = xs
 
+    final_config = SolverConfig(solver_name=solver, kwargs={"tee": True})
+    heuristics = UcHeuristicRoot(final_config, params, num_time)
+
     if pbm:
         alg_config = SolverConfig(solver_name="ipopt")
-        root_alg = DdAlgRootPbm(model, True, alg_config, vars_dn)
+        root_alg = DdAlgRootPbm(model, True, alg_config, vars_dn, heuristics)
     else:
         alg_config = SolverConfig(solver_name=solver)
-        root_alg = DdAlgRootBm(model, True, alg_config, vars_dn)
+        root_alg = DdAlgRootBm(model, True, alg_config, vars_dn, heuristics)
     root_node = DecNodeRoot(0, root_alg)
     return root_node
 
@@ -83,7 +89,7 @@ def create_sub(
 
 if __name__ == "__main__":
     num_day = 1
-    num_gens = 2
+    num_gens = 20
     num_seg = 5
     num_time, demand, params = create_random(num_day, num_gens, num_seg)
     main(num_time, num_gens, demand, params)

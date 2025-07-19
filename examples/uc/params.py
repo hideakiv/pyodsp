@@ -49,7 +49,7 @@ def create_params(num_seg: int, seed: int) -> UcParams:
         last_up = 0
         last_dn = -random.randint(1, UT * 2)
     # Power limits
-    P_dn = round(random.uniform(10, 30), 2)
+    P_dn = round(random.uniform(10, 20), 2)
     P_up = round(P_dn + random.uniform(20, 70), 2)
 
     # Power at time 0: if off, 0; if on, between P_dn and P_up

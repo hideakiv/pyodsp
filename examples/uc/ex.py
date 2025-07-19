@@ -39,7 +39,7 @@ def extended_form(
 
 if __name__ == "__main__":
     num_day = 1
-    num_gens = 2
+    num_gens = 20
     num_seg = 5
     num_time, demand, params = create_random(num_day, num_gens, num_seg)
     main(num_time, num_gens, demand, params)

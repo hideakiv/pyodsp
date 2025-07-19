@@ -25,6 +25,7 @@ class DdAlgLeafPyomo(DdAlgLeaf):
         self.solver = solver
         self.step_time: List[float] = []
         self._is_minimize = self.solver.is_minimize()
+        self.received_final_dn_message = False
 
     def set_coupling_matrix(self, coupling_matrix: List[Dict[int, float]]) -> None:
         self.cm = CouplingManager(
@@ -49,11 +50,15 @@ class DdAlgLeafPyomo(DdAlgLeaf):
 
     def pass_final_dn_message(self, message: DdFinalDnMessage) -> None:
         solution = message.get_solution()
-        assert solution is not None
-        self.fix_variables_and_solve(solution)
+        if solution is not None:
+            self.received_final_dn_message = True
+            self.fix_variables_and_solve(solution)
 
     def get_final_up_message(self) -> DdFinalUpMessage:
-        return DdFinalUpMessage(self.solver.get_objective_value())
+        if self.received_final_dn_message:
+            return DdFinalUpMessage(self.solver.get_objective_value())
+        else:
+            return DdFinalUpMessage(None)
 
     def _update_objective(self, coeffs: List[float]) -> None:
         self.primal_coeffs = self.cm.dual_times_matrix(coeffs)

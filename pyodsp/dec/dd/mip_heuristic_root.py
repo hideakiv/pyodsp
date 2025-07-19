@@ -1,3 +1,4 @@
+from abc import ABC, abstractmethod
 from typing import List, Dict
 
 from pyomo.environ import (
@@ -18,21 +19,19 @@ from pyodsp.alg.cuts_manager import CutInfo
 from .message import DdFinalDnMessage
 
 
-class MipHeuristicRoot:
-    def __init__(
-        self,
-        groups: List[List[int]],
-        coupling_model: ConcreteModel,
-        solver_config: SolverConfig,
-        cuts: List[List[CutInfo]],
-        vars_dn: Dict[int, List[ScalarVar]],
-        is_minimize: bool,
-    ):
-        self.cuts = cuts
-        self.vars_dn = vars_dn
-        self.is_minimize = is_minimize
-        self.groups = groups
-        self.master = self._create_master(coupling_model, solver_config)
+class IMipHeuristicRoot(ABC):
+    @abstractmethod
+    def build(self, **kwargs) -> None:
+        pass
+
+    @abstractmethod
+    def run(self) -> Dict[int, DdFinalDnMessage]:
+        pass
+
+
+class MipHeuristicRoot(IMipHeuristicRoot):
+    def __init__(self, solver_config: SolverConfig):
+        self.solver_config = solver_config
 
     def _create_master(self, model: ConcreteModel, solver_config: SolverConfig):
         for obj in model.component_objects(Objective, active=True):
@@ -43,7 +42,13 @@ class MipHeuristicRoot:
             model._dd_obj = Objective(expr=0.0, sense=maximize)
         return PyomoSolver(model, solver_config, [])
 
-    def build(self) -> None:
+    def build(self, **kwargs) -> None:
+        self.groups: List[List[int]] = kwargs["groups"]
+        coupling_model: ConcreteModel = kwargs["coupling_model"]
+        self.cuts: List[List[CutInfo]] = kwargs["cuts"]
+        self.vars_dn: Dict[int, List[ScalarVar]] = kwargs["vars_dn"]
+        self.is_minimize: bool = kwargs["is_minimize"]
+        self.master = self._create_master(coupling_model, self.solver_config)
         for cutlist, group in zip(self.cuts, self.groups):
             assert len(group) == 1
             idx = group[0]
@@ -90,12 +95,22 @@ class MipHeuristicRoot:
 
     def run(self) -> Dict[int, DdFinalDnMessage]:
         self.master.solve()
-        solutions = {}
+        if self.master.is_optimal():
+            solutions = {}
+            for group in self.groups:
+                assert len(group) == 1
+                idx = group[0]
+                solution = [value(var) for var in self.vars_dn[idx]]
+                solutions[idx] = DdFinalDnMessage(solution)
 
-        for group in self.groups:
-            assert len(group) == 1
-            idx = group[0]
-            solution = [value(var) for var in self.vars_dn[idx]]
-            solutions[idx] = DdFinalDnMessage(solution)
+            return solutions
+        else:
+            # TODO: use logging
+            print("WARNING: Unable to find heuristic solution.")
+            solutions = {}
+            for group in self.groups:
+                assert len(group) == 1
+                idx = group[0]
+                solutions[idx] = DdFinalDnMessage(None)
 
-        return solutions
+            return solutions

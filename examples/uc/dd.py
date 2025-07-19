@@ -51,13 +51,12 @@ def create_master(
             xs.append(model.p[k, t])
         vars_dn[k] = xs
 
-    final_config = SolverConfig(solver_name=solver, kwargs={"tee": True})
     if pbm:
         alg_config = SolverConfig(solver_name="ipopt")
-        root_alg = DdAlgRootPbm(model, True, alg_config, final_config, vars_dn)
+        root_alg = DdAlgRootPbm(model, True, alg_config, vars_dn)
     else:
         alg_config = SolverConfig(solver_name=solver)
-        root_alg = DdAlgRootBm(model, True, alg_config, final_config, vars_dn)
+        root_alg = DdAlgRootBm(model, True, alg_config, vars_dn)
     root_node = DecNodeRoot(0, root_alg)
     return root_node
 

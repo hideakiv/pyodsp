@@ -1,12 +1,12 @@
 from pathlib import Path
 from mpi4py import MPI
 
-from dd import create_master, create_sub
+from dp_dd import create_master, create_sub
 from params import McspParams, create_single, create_random
 from pyodsp.dec.dd.run_mpi import DdRunMpi
 
 """
-mpiexec -n 6 python dd_mpi.py
+mpiexec -n 6 python dp_dd_mpi.py
 """
 
 
@@ -34,7 +34,7 @@ def main(param: McspParams, solver="appsi_highs"):
         k = rank - 1
         node = create_sub(k, N[k], P, L[k], c[k], l, solver)
 
-    dd_run = DdRunMpi([node], Path("output/mcsp/dd_mpi"))
+    dd_run = DdRunMpi([node], Path("output/mcsp_dp/dd_mpi"))
     dd_run.run()
 
 

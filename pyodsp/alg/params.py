@@ -10,6 +10,7 @@ BM_MAX_CUT_AGE = 10
 BM_CUT_SIM_TOLERANCE = 1e-12
 BM_PURGE_FREQ = 1
 BM_DUMMY_BOUND = 1e9
+BM_LAMBDA_BOUND = 1e6
 DEC_CUT_ABS_TOL = 1e-9
 
 
@@ -24,6 +25,7 @@ def load_params_from_file(file_path):
         BM_CUT_SIM_TOLERANCE, \
         BM_PURGE_FREQ, \
         BM_DUMMY_BOUND, \
+        BM_LAMBDA_BOUND, \
         DEC_CUT_ABS_TOL
     try:
         with open(file_path, "r") as f:
@@ -38,6 +40,7 @@ def load_params_from_file(file_path):
             )
             BM_PURGE_FREQ = params.get("BM_PURGE_FREQ", BM_PURGE_FREQ)
             BM_DUMMY_BOUND = params.get("BM_DUMMY_BOUND", BM_DUMMY_BOUND)
+            BM_LAMBDA_BOUND = params.get("BM_LAMBDA_BOUND", BM_LAMBDA_BOUND)
             DEC_CUT_ABS_TOL = params.get("DEC_CUT_ABS_TOL", DEC_CUT_ABS_TOL)
     except FileNotFoundError:
         print(f"Parameter file {file_path} not found. Using default values.")

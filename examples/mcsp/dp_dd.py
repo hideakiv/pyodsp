@@ -1,7 +1,8 @@
 from pathlib import Path
 import pyomo.environ as pyo
 
-from mcsp import master_problem, sub_problem
+from mcsp import master_problem
+from dp_mcsp import dp_sub_problem, DpHeuristic
 from params import McspParams, create_single, create_random
 
 from pyodsp.dec.node.dec_node import DecNodeRoot, DecNodeLeaf
@@ -9,7 +10,6 @@ from pyodsp.dec.dd.alg_root_bm import DdAlgRootBm
 from pyodsp.dec.dd.alg_root_pbm import DdAlgRootPbm
 from pyodsp.dec.dd.alg_leaf_pyomo import DdAlgLeafPyomo
 from pyodsp.dec.dd.run import DdRun
-from pyodsp.dec.dd.mip_heuristic_root import MipHeuristicRoot
 from pyodsp.solver.pyomo_solver import PyomoSolver, SolverConfig
 
 
@@ -22,7 +22,7 @@ def main(param: McspParams, solver="appsi_highs"):
     c = param.c
     l = param.l
     nodes = []
-    master = create_master(N, P, d, solver, pbm=True)
+    master = create_master(N, P, d, solver, pbm=False)
 
     nodes.append(master)
 
@@ -33,7 +33,7 @@ def main(param: McspParams, solver="appsi_highs"):
         master.add_child(k + 1)
         nodes.append(sub)
 
-    dd_run = DdRun(nodes, Path("output/mcsp/dd"))
+    dd_run = DdRun(nodes, Path("output/mcsp_dp/dd"))
     dd_run.run()
 
 
@@ -56,7 +56,7 @@ def create_master(
         vars_dn[k + 1] = xs
 
     final_config = SolverConfig(solver_name=solver, kwargs={"tee": True})
-    heuristic = MipHeuristicRoot(final_config)
+    heuristic = DpHeuristic(final_config, N)
     if pbm:
         alg_config = SolverConfig(solver_name="ipopt")
         root_alg = DdAlgRootPbm(m, True, alg_config, vars_dn, heuristic)
@@ -71,7 +71,7 @@ def create_sub(
     k: int, N: int, P: int, L: int, c: float, l: list[int], solver="appsi_highs"
 ) -> DecNodeLeaf:
     m = pyo.ConcreteModel()
-    sub_problem(m, N, P, L, c, l)
+    dp_sub_problem(m, N, P, L, c, l)
     m.obj = pyo.Objective(expr=m.objexpr, sense=pyo.minimize)
 
     vars_up = []

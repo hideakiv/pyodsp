@@ -50,11 +50,6 @@ def sub_problem(model: pyo.Block, N: int, P: int, L: int, c: float, l: list[int]
 
     model.pattern = pyo.Constraint(range(N), rule=rule_pattern)
 
-    # def rule_symmetry(model, n):
-    #     return model.y[n] >= model.y[n + 1]
-
-    # model.symmetry = pyo.Constraint(range(N - 1), rule=rule_symmetry)
-
     def rule_total(model, p):
         return sum(model.x[n, p] for n in range(N)) == model.xtot[p]
 

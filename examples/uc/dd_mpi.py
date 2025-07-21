@@ -27,7 +27,7 @@ def main(
     assert size == num_gens + 1
 
     if rank == 0:
-        node = create_master(num_time, num_gens, demand, params, solver, pbm=True)
+        node = create_master(num_time, num_gens, demand, params, solver, pbm=False)
         for k in range(1, num_gens + 1):
             node.add_child(k)
     else:

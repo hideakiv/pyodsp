@@ -22,7 +22,7 @@ def main(param: McspParams, solver="appsi_highs"):
     c = param.c
     l = param.l
     nodes = []
-    master = create_master(N, P, d, solver, pbm=True)
+    master = create_master(N, P, d, solver, pbm=False)
 
     nodes.append(master)
 
@@ -61,7 +61,9 @@ def create_master(
         alg_config = SolverConfig(solver_name="ipopt")
         root_alg = DdAlgRootPbm(m, True, alg_config, vars_dn, heuristic)
     else:
-        alg_config = SolverConfig(solver_name=solver)
+        alg_config = SolverConfig(
+            solver_name=solver, kwargs={"options": {"threads": 1}}
+        )
         root_alg = DdAlgRootBm(m, True, alg_config, vars_dn, heuristic)
     root_node = DecNodeRoot(0, root_alg)
     return root_node

@@ -37,8 +37,9 @@ def create_random(K: int, P: int, seed=42):
     - l: list[int], length of each piece (size: P)
     """
     random.seed(seed)
-    N = [random.randint(500, 3000) for _ in range(K)]
-    d = [random.randint(50, 2500) for _ in range(P)]
+    scale = 1  # 50
+    N = [random.randint(2 * P * scale, 6 * P * scale) for _ in range(K)]
+    d = [random.randint(K * scale, 10 * K * scale) for _ in range(P)]
     L = [random.randint(80, 200) for _ in range(K)]
     c = [round(random.uniform(0.5, 3.0), 2) for _ in range(K)]
     l = [random.randint(20, 80) for _ in range(P)]

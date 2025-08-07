@@ -1,4 +1,3 @@
-from abc import ABC, abstractmethod
 from typing import List, Dict
 
 from pyomo.environ import (
@@ -9,6 +8,7 @@ from pyomo.environ import (
     Objective,
     RangeSet,
     NonNegativeReals,
+    NonNegativeIntegers,
     minimize,
     maximize,
     value,
@@ -16,22 +16,35 @@ from pyomo.environ import (
 from pyodsp.solver.pyomo_solver import PyomoSolver, SolverConfig
 from pyodsp.alg.cuts import OptimalityCut
 from pyodsp.alg.cuts_manager import CutInfo
-from .message import DdFinalDnMessage
+from pyodsp.dec.dd.message import DdFinalDnMessage
+from pyodsp.dec.dd.mip_heuristic_root import IMipHeuristicRoot
 
 
-class IMipHeuristicRoot(ABC):
-    @abstractmethod
-    def build(self, **kwargs) -> None:
-        pass
-
-    @abstractmethod
-    def run(self) -> Dict[int, DdFinalDnMessage]:
-        pass
+import pyomo.environ as pyo
 
 
-class MipHeuristicRoot(IMipHeuristicRoot):
-    def __init__(self, solver_config: SolverConfig):
+def dp_sub_problem(model: pyo.Block, N: int, P: int, L: int, c: float, l: list[int]):
+    model.x = pyo.Var(range(P), domain=pyo.NonNegativeIntegers)
+    model.y = pyo.Var(domain=pyo.Binary)
+    model.xtot = pyo.Var(range(P), domain=pyo.NonNegativeIntegers)
+
+    def rule_pattern(model):
+        return sum(l[p] * model.x[p] for p in range(P)) <= L * model.y
+
+    model.pattern = pyo.Constraint(rule=rule_pattern)
+
+    def rule_total(model, p):
+        return N * model.x[p] == model.xtot[p]
+
+    model.total = pyo.Constraint(range(P), rule=rule_total)
+
+    model.objexpr = c * N * model.y
+
+
+class DpHeuristic(IMipHeuristicRoot):
+    def __init__(self, solver_config: SolverConfig, N: list[int]):
         self.solver_config = solver_config
+        self.N = N
 
     def _create_master(self, model: ConcreteModel, solver_config: SolverConfig):
         for obj in model.component_objects(Objective, active=True):
@@ -52,6 +65,7 @@ class MipHeuristicRoot(IMipHeuristicRoot):
         for cutlist, group in zip(self.cuts, self.groups):
             assert len(group) == 1
             idx = group[0]
+            N = self.N[idx - 1]
             vars = self.vars_dn[idx]
 
             num_cuts = len(cutlist)
@@ -81,6 +95,17 @@ class MipHeuristicRoot(IMipHeuristicRoot):
                 ),
             )
 
+            integer_vars = Var(RangeSet(0, num_cuts - 1), domain=NonNegativeIntegers)
+            self.master.model.add_component(f"_integer_vars_{idx}", integer_vars)
+
+            def integer_rule(m, j):
+                return integer_vars[j] == N * minkowski_vars[j]
+
+            self.master.model.add_component(
+                f"_integer_{idx}",
+                Constraint(RangeSet(0, num_cuts - 1), rule=integer_rule),
+            )
+
             obj = 0.0
             for j, cutinfo in enumerate(cutlist):
                 if self.is_minimize:
@@ -95,22 +120,29 @@ class MipHeuristicRoot(IMipHeuristicRoot):
 
     def run(self) -> Dict[int, DdFinalDnMessage]:
         self.master.solve()
-        if self.master.is_optimal():
-            solutions = {}
-            for group in self.groups:
-                assert len(group) == 1
-                idx = group[0]
-                solution = [value(var) for var in self.vars_dn[idx]]
-                solutions[idx] = DdFinalDnMessage(solution)
 
-            return solutions
-        else:
-            # TODO: use logging
-            print("WARNING: Unable to find heuristic solution.")
-            solutions = {}
-            for group in self.groups:
-                assert len(group) == 1
-                idx = group[0]
-                solutions[idx] = DdFinalDnMessage(None)
+        for cutlist, group in zip(self.cuts, self.groups):
+            assert len(group) == 1
+            idx = group[0]
+            N = self.N[idx - 1]
 
-            return solutions
+            num_cuts = len(cutlist)
+            xs = self.master.model.component(f"_integer_vars_{idx}")
+            for j in range(num_cuts):
+                cutinfo = cutlist[j]
+                x = int(value(xs[j]))
+                pattern = [round(sol / N) for sol in cutinfo.cut.info["solution"]]
+                print(
+                    f"group {idx}: ",
+                    f"{x}\t x pattern:",
+                    pattern,
+                )
+
+        # pass nothing to children
+        solutions = {}
+        for group in self.groups:
+            assert len(group) == 1
+            idx = group[0]
+            solutions[idx] = DdFinalDnMessage(None)
+
+        return solutions

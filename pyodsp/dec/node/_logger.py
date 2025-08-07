@@ -20,5 +20,5 @@ class ILogger(ABC):
         pass
 
     @abstractmethod
-    def log_completion(self, objective_value: float):
+    def log_completion(self, objective_value: float | None):
         pass

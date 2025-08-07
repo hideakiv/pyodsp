@@ -137,8 +137,10 @@ class BundleMethod:
             bound_gap = abs(value(self.solver.model._theta[i]) - self.subobj_bounds[i])
             if bound_gap < BM_ABS_TOLERANCE:
                 return False
-
-        gap = abs(self.obj_bound[-1] - self.obj_val[-1]) / abs(self.obj_val[-1])
+        if abs(self.obj_val[-1]) < BM_ABS_TOLERANCE:
+            gap = abs(self.obj_bound[-1] - self.obj_val[-1]) / BM_ABS_TOLERANCE
+        else:
+            gap = abs(self.obj_bound[-1] - self.obj_val[-1]) / abs(self.obj_val[-1])
 
         if gap < BM_REL_TOLERANCE:
             self.status = STATUS_OPTIMAL

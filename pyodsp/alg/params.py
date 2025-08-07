@@ -14,6 +14,7 @@ PBM_ML = 0.1
 PBM_MR = 0.5
 PBM_U_MIN = 1e-10
 PBM_E_S = 1e-6
+BM_LAMBDA_BOUND = 1e6
 DEC_CUT_ABS_TOL = 1e-9
 
 
@@ -32,6 +33,7 @@ def load_params_from_file(file_path):
         PBM_MR, \
         PBM_U_MIN, \
         PBM_E_S, \
+        BM_LAMBDA_BOUND, \
         DEC_CUT_ABS_TOL
     try:
         with open(file_path, "r") as f:
@@ -50,6 +52,7 @@ def load_params_from_file(file_path):
             PBM_MR = params.get("PBM_MR", PBM_MR)
             PBM_U_MIN = params.get("PBM_U_MIN", PBM_U_MIN)
             PBM_E_S = params.get("PBM_E_S", PBM_E_S)
+            BM_LAMBDA_BOUND = params.get("BM_LAMBDA_BOUND", BM_LAMBDA_BOUND)
             DEC_CUT_ABS_TOL = params.get("DEC_CUT_ABS_TOL", DEC_CUT_ABS_TOL)
     except FileNotFoundError:
         print(f"Parameter file {file_path} not found. Using default values.")

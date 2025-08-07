@@ -7,6 +7,7 @@ from pyomo.environ import ConcreteModel, ScalarVar
 
 from .alg_root import DdAlgRoot
 from .message import DdDnMessage, DdFinalDnMessage
+from .mip_heuristic_root import IMipHeuristicRoot
 from pyodsp.alg.pbm.pbm import ProximalBundleMethod
 from pyodsp.alg.cuts import CutList
 from pyodsp.alg.cuts_manager import CutInfo
@@ -19,13 +20,11 @@ class DdAlgRootPbm(DdAlgRoot):
         coupling_model: ConcreteModel,
         is_minimize: bool,
         solver_config: SolverConfig,
-        final_solver_config: SolverConfig | None,
         vars_dn: Dict[int, List[ScalarVar]],
+        heuristic: IMipHeuristicRoot | None = None,
         max_iteration=1000,
     ) -> None:
-        super().__init__(
-            coupling_model, is_minimize, solver_config, final_solver_config, vars_dn
-        )
+        super().__init__(coupling_model, is_minimize, solver_config, vars_dn, heuristic)
 
         self.pbm = ProximalBundleMethod(self.solver, max_iteration)
         self.step_time: List[float] = []
@@ -45,7 +44,7 @@ class DdAlgRootPbm(DdAlgRoot):
         self.pbm.reset_iteration()
 
     def get_final_dn_message(self, **kwargs) -> DdFinalDnMessage:
-        if self.final_solver_config is None:
+        if self.heuristic is None:
             return DdFinalDnMessage(None)
         super().get_final_dn_message(**kwargs)
         node_id = kwargs["node_id"]

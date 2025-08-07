@@ -159,6 +159,8 @@ class DecNodeParent(INodeParent, DecNode):
         children_obj = 0.0
         for node_id, message in messages.items():
             obj = message.get_objective()
+            if obj is None:
+                return self.alg_root.pass_final_up_message(None)
             children_obj += self.get_multiplier(node_id) * obj
         return self.alg_root.pass_final_up_message(children_obj)
 

@@ -15,7 +15,7 @@ from pyomo.environ import (
 
 from pyodsp.dec.utils import get_nonzero_coefficients_group
 from pyodsp.solver.pyomo_solver import PyomoSolver, SolverConfig
-from pyodsp.alg.params import DEC_CUT_ABS_TOL
+from pyodsp.alg.params import DEC_CUT_ABS_TOL, BM_LAMBDA_BOUND
 
 
 class MasterCreator:
@@ -35,10 +35,16 @@ class MasterCreator:
         master: ConcreteModel = ConcreteModel()
 
         master.ld_plus = Var(
-            RangeSet(0, self.num_constrs - 1), domain=NonNegativeReals, initialize=0
+            RangeSet(0, self.num_constrs - 1),
+            domain=NonNegativeReals,
+            bounds=(0, BM_LAMBDA_BOUND),
+            initialize=0,
         )
         master.ld_minus = Var(
-            RangeSet(0, self.num_constrs - 1), domain=NonNegativeReals, initialize=0
+            RangeSet(0, self.num_constrs - 1),
+            domain=NonNegativeReals,
+            bounds=(0, BM_LAMBDA_BOUND),
+            initialize=0,
         )
         for i in range(self.num_constrs):
             if self.lagrangian_data.lbs[i] is None:

@@ -14,14 +14,14 @@ from .message import (
     BdDnMessage,
     BdUpMessage,
 )
-from .alg_leaf import BdAlgLeaf
+from ..node._alg import IAlgLeaf
 from ..utils import CouplingData, get_nonzero_coefficients_from_model
 from pyodsp.alg.cuts import Cut, OptimalityCut, FeasibilityCut
 from pyodsp.solver.pyomo_solver import PyomoSolver
 from pyodsp.alg.params import DEC_CUT_ABS_TOL
 
 
-class BdAlgLeafPyomo(BdAlgLeaf):
+class BdAlgLeafPyomo(IAlgLeaf):
     def __init__(self, solver: PyomoSolver):
         self.solver = solver
         self.solver.model.dual = Suffix(direction=Suffix.IMPORT)

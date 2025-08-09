@@ -6,7 +6,6 @@ from pyodsp.solver.pyomo_solver import PyomoSolver, SolverConfig
 
 from pyodsp.dec.node.dec_node import DecNodeRoot, DecNodeLeaf
 from pyodsp.dec.dd.alg_root_bm import DdAlgRootBm
-from pyodsp.dec.dd.alg_root_pbm import DdAlgRootPbm
 from pyodsp.dec.dd.alg_leaf_pyomo import DdAlgLeafPyomo
 from pyodsp.dec.dd.run import DdRun
 from pyodsp.dec.dd.mip_heuristic_root import MipHeuristicRoot
@@ -27,7 +26,9 @@ def create_master(solver="appsi_highs", pbm=False) -> DecNodeRoot:
     heuristic = MipHeuristicRoot(final_config)
     if pbm:
         alg_config = SolverConfig(solver_name="ipopt")
-        root_alg = DdAlgRootPbm(block, True, alg_config, vars_dn, heuristic)
+        root_alg = DdAlgRootBm(
+            block, True, alg_config, vars_dn, heuristic, mode="proximal"
+        )
     else:
         alg_config = SolverConfig(solver_name=solver)
         root_alg = DdAlgRootBm(block, True, alg_config, vars_dn, heuristic)
@@ -68,7 +69,7 @@ def main():
     dd_run = DdRun([master, sub_1, sub_2, sub_3], Path("output/dd/equality_mip"))
     dd_run.run()
 
-    assert_approximately_equal(master.alg_root.pbm.obj_bound[-1], -19.666666666)
+    assert_approximately_equal(master.alg_root.bm.obj_bound[-1], -19.666666666)
     assert_approximately_equal(sub_1.alg_leaf.solver.get_solution()[0], 1.0)
     assert_approximately_equal(sub_2.alg_leaf.solver.get_solution()[0], 2.0)
     assert_approximately_equal(sub_3.alg_leaf.solver.get_solution()[0], 2.0)

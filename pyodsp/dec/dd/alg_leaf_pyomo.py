@@ -14,13 +14,13 @@ from .message import (
     DdDnMessage,
     DdUpMessage,
 )
-from .alg_leaf import DdAlgLeaf
+from ..node._alg import IAlgLeaf
 from .coupling_manager import CouplingManager
 from pyodsp.solver.pyomo_solver import PyomoSolver
 from pyodsp.solver.pyomo_utils import update_linear_terms_in_objective
 
 
-class DdAlgLeafPyomo(DdAlgLeaf):
+class DdAlgLeafPyomo(IAlgLeaf):
     def __init__(self, solver: PyomoSolver):
         self.solver = solver
         self.step_time: List[float] = []

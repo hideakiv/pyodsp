@@ -6,13 +6,13 @@ import pandas as pd
 from pyomo.environ import ScalarVar
 
 from .message import BdInitDnMessage, BdDnMessage, BdFinalDnMessage, BdFinalUpMessage
-from .alg_root import BdAlgRoot
+from ..node._alg import IAlgRoot
 from pyodsp.solver.pyomo_solver import PyomoSolver
 from pyodsp.alg.bm.bm import BundleMethod
 from pyodsp.alg.cuts import CutList
 
 
-class BdAlgRootBm(BdAlgRoot):
+class BdAlgRootBm(IAlgRoot):
     def __init__(self, solver: PyomoSolver, max_iteration=1000) -> None:
         self.bm = BundleMethod(solver, max_iteration)
         self.step_time: List[float] = []

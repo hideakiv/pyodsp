@@ -1,6 +1,7 @@
 from typing import List, Tuple
 from pathlib import Path
 import time
+import logging
 
 import pandas as pd
 
@@ -32,8 +33,8 @@ class BundleMethod:
         self.status: int = STATUS_NOT_FINISHED
         self.start_time = time.time()
 
-    def set_logger(self, node_id: int, depth: int) -> None:
-        self.logger = BmLogger(node_id, depth)
+    def set_logger(self, node_id: int, depth: int, level: int = logging.INFO) -> None:
+        self.logger = BmLogger(node_id, depth, level)
 
     def build(self, num_cuts: int, subobj_bounds: List[float] | None) -> None:
         self.num_cuts = num_cuts

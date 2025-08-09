@@ -27,7 +27,7 @@ class IAlg(ABC):
 
 class IAlgRoot(IAlg, ABC):
     @abstractmethod
-    def set_logger(self, idx: NodeIdx, depth: int) -> None:
+    def set_logger(self, idx: NodeIdx, depth: int, level: int) -> None:
         pass
 
     @abstractmethod

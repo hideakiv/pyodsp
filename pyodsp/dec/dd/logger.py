@@ -4,10 +4,10 @@ from ..node._logger import ILogger
 
 
 class DdLogger(ILogger):
-    def __init__(self):
+    def __init__(self, level: int = logging.INFO):
         # Create a logger object
         self.logger = logging.getLogger("Dual Decomposition")
-        self.logger.setLevel(logging.INFO)
+        self.logger.setLevel(level)
 
         # Create a console handler and set its level to debug
         ch = logging.StreamHandler()

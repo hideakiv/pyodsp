@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import Dict, List, Tuple
 from pathlib import Path
+import logging
 
 from ._node import NodeIdx, INode, INodeParent, INodeChild, INodeInner
 from ._alg import IAlgRoot, IAlgLeaf
@@ -62,9 +63,11 @@ class DecNodeParent(INodeParent, DecNode):
         self,
         idx: NodeIdx,
         alg_root: IAlgRoot,
+        log_level: int = logging.INFO,
         **kwargs,
     ) -> None:
         self.alg_root = alg_root
+        self.log_level = log_level
         super().__init__(idx, **kwargs)
 
     def get_alg_root(self) -> IAlgRoot:
@@ -128,7 +131,7 @@ class DecNodeParent(INodeParent, DecNode):
 
     def set_logger(self) -> None:
         assert self.depth is not None
-        self.alg_root.set_logger(self.idx, self.depth)
+        self.alg_root.set_logger(self.idx, self.depth, self.log_level)
 
     def run_step(
         self, up_messages: Dict[NodeIdx, UpMessage] | None
@@ -243,8 +246,11 @@ class DecNodeInner(INodeInner, DecNodeParent, DecNodeChild):
         idx: NodeIdx,
         alg_root: IAlgRoot,
         alg_leaf: IAlgLeaf,
+        log_level: int = logging.INFO,
     ) -> None:
-        super().__init__(idx=idx, alg_root=alg_root, alg_leaf=alg_leaf)
+        super().__init__(
+            idx=idx, alg_root=alg_root, alg_leaf=alg_leaf, log_level=log_level
+        )
 
     def build_inner(self) -> None:
         DecNodeParent.build_inner(self)

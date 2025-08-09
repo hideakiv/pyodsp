@@ -1,6 +1,7 @@
 from typing import List, Tuple
 from pathlib import Path
 import time
+import logging
 
 import pandas as pd
 from pyomo.environ import Var, Reals, RangeSet, value
@@ -32,8 +33,8 @@ class ProximalBundleMethod(BundleMethod):
         self.penalty = penalty
         self.center_val = []
 
-    def set_logger(self, node_id: int, depth: int) -> None:
-        self.logger = PbmLogger(node_id, depth)
+    def set_logger(self, node_id: int, depth: int, level: int = logging.INFO) -> None:
+        self.logger = PbmLogger(node_id, depth, level)
 
     def set_init_solution(self, solution: List[float]) -> None:
         self.center = solution

@@ -2,6 +2,7 @@ from typing import List, Dict, Tuple
 from pathlib import Path
 import time
 import pandas as pd
+import logging
 
 from pyomo.environ import ConcreteModel, ScalarVar, Objective, Var
 
@@ -150,5 +151,5 @@ class DdAlgRootBm(IAlgRoot):
         df = pd.DataFrame(self.step_time, columns=["step_time"])
         df.to_csv(path, index=False)
 
-    def set_logger(self, node_id: int, depth: int) -> None:
-        self.bm.set_logger(node_id, depth)
+    def set_logger(self, node_id: int, depth: int, level: int = logging.INFO) -> None:
+        self.bm.set_logger(node_id, depth, level)

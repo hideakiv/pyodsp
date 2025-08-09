@@ -3,12 +3,12 @@ from typing import List
 
 
 class PbmLogger:
-    def __init__(self, node_id: int, depth: int) -> None:
+    def __init__(self, node_id: int, depth: int, level: int = logging.INFO) -> None:
         self.node_id = node_id
         self.depth = depth
         # Create a logger object
         self.logger = logging.getLogger(f"Regularized Bundle Method {node_id}")
-        self.logger.setLevel(logging.INFO)
+        self.logger.setLevel(level)
 
         # Create a console handler and set its level to debug
         ch = logging.StreamHandler()

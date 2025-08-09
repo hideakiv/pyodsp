@@ -5,10 +5,11 @@ import pandas as pd
 
 from pyomo.environ import ConcreteModel, ScalarVar
 
-from .message import DdDnMessage, DdFinalDnMessage
 from .alg_root import DdAlgRoot
+from .message import DdDnMessage, DdFinalDnMessage
 from .mip_heuristic_root import IMipHeuristicRoot
 from pyodsp.alg.bm.bm import BundleMethod
+from pyodsp.alg.pbm.pbm import ProximalBundleMethod
 from pyodsp.alg.cuts import CutList
 from pyodsp.alg.cuts_manager import CutInfo
 from pyodsp.alg.params import BM_DUMMY_BOUND
@@ -24,20 +25,33 @@ class DdAlgRootBm(DdAlgRoot):
         vars_dn: Dict[int, List[ScalarVar]],
         heuristic: IMipHeuristicRoot | None = None,
         max_iteration=1000,
+        mode: str | None = None,
     ) -> None:
         super().__init__(coupling_model, is_minimize, solver_config, vars_dn, heuristic)
 
-        self.bm = BundleMethod(self.solver, max_iteration)
+        self.mode = mode
+        if mode is None:
+            self.bm = BundleMethod(self.solver, max_iteration)
+        elif mode == "proximal":
+            self.bm = ProximalBundleMethod(self.solver, max_iteration)
+        else:
+            raise ValueError(f"Invalid mode {mode}")
         self.step_time: List[float] = []
 
     def build(self, bounds: List[float | None]) -> None:
         num_cuts = len(bounds)
-        if self.is_minimize():
-            dummy_bounds = [BM_DUMMY_BOUND for _ in range(num_cuts)]
-        else:
-            dummy_bounds = [-BM_DUMMY_BOUND for _ in range(num_cuts)]
+        if self.mode is None:
+            assert type(self.bm) is BundleMethod
+            if self.is_minimize():
+                dummy_bounds = [BM_DUMMY_BOUND for _ in range(num_cuts)]
+            else:
+                dummy_bounds = [-BM_DUMMY_BOUND for _ in range(num_cuts)]
 
-        self.bm.build(num_cuts, dummy_bounds)
+            self.bm.build(num_cuts, dummy_bounds)
+        elif self.mode == "proximal":
+            assert type(self.bm) is ProximalBundleMethod
+            self.bm.set_init_solution([0.0 for _ in range(self.num_constrs)])
+            self.bm.build(num_cuts)
 
     def run_step(self, cuts_list: List[CutList] | None) -> Tuple[int, DdDnMessage]:
         start = time.time()

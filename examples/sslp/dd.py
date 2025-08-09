@@ -5,7 +5,6 @@ from sslp import first_stage, second_stage
 
 from pyodsp.dec.node.dec_node import DecNodeRoot, DecNodeLeaf
 from pyodsp.dec.dd.alg_root_bm import DdAlgRootBm
-from pyodsp.dec.dd.alg_root_pbm import DdAlgRootPbm
 from pyodsp.dec.dd.alg_leaf_pyomo import DdAlgLeafPyomo
 from pyodsp.dec.dd.run import DdRun
 from pyodsp.dec.dd.mip_heuristic_root import MipHeuristicRoot
@@ -49,7 +48,7 @@ def create_master(nJ: int, nS: int, solver="appsi_highs", pbm=False) -> DecNodeR
     heuristic = MipHeuristicRoot(final_config)
     if pbm:
         alg_config = SolverConfig(solver_name="ipopt")
-        root_alg = DdAlgRootPbm(m, True, alg_config, vars_dn, heuristic)
+        root_alg = DdAlgRootBm(m, True, alg_config, vars_dn, heuristic, mode="proximal")
     else:
         alg_config = SolverConfig(solver_name=solver)
         root_alg = DdAlgRootBm(m, True, alg_config, vars_dn, heuristic)

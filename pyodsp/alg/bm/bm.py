@@ -11,7 +11,7 @@ from pyodsp.solver.pyomo_solver import PyomoSolver
 from pyodsp.solver.pyomo_utils import add_terms_to_objective
 
 from ..cuts import CutList
-from ..cuts_manager import CutInfo
+from .cuts_manager import CutInfo
 from .logger import BmLogger
 from .cp import CuttingPlaneMethod
 from ..params import BM_ABS_TOLERANCE, BM_REL_TOLERANCE, BM_PURGE_FREQ, BM_TIME_LIMIT

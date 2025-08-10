@@ -15,7 +15,7 @@ from pyomo.environ import (
 )
 from pyodsp.solver.pyomo_solver import PyomoSolver, SolverConfig
 from pyodsp.alg.cuts import OptimalityCut
-from pyodsp.alg.cuts_manager import CutInfo
+from pyodsp.alg.bm.cuts_manager import CutInfo
 from .message import DdFinalDnMessage
 
 

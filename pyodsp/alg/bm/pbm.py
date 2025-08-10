@@ -10,7 +10,7 @@ from pyodsp.alg.cuts import CutList
 
 from .logger import BmLogger
 from .cp import CuttingPlaneMethod
-from ..cuts_manager import CutInfo
+from .cuts_manager import CutInfo
 from ..params import BM_ABS_TOLERANCE, BM_REL_TOLERANCE, BM_PURGE_FREQ, BM_TIME_LIMIT
 from ..const import *
 from pyodsp.solver.pyomo_solver import PyomoSolver

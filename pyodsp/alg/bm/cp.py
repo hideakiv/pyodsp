@@ -3,7 +3,7 @@ from pathlib import Path
 from pyomo.environ import ScalarVar, Constraint
 
 from pyodsp.solver.pyomo_solver import PyomoSolver
-from ..cuts_manager import CutsManager, CutInfo
+from .cuts_manager import CutsManager, CutInfo
 from ..cuts import CutList, OptimalityCut, FeasibilityCut
 
 from ..params import BM_ABS_TOLERANCE

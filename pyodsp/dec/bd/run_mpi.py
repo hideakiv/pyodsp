@@ -1,6 +1,7 @@
 from typing import List
 from pathlib import Path
 from mpi4py import MPI
+import logging
 
 from .logger import BdLogger
 from .message import BdDnMessage
@@ -9,8 +10,8 @@ from ..graph.hub_and_spoke_mpi import HubAndSpokeMpi
 
 
 class BdRunMpi:
-    def __init__(self, nodes: List[INode], filedir: Path):
-        self.logger = BdLogger()
+    def __init__(self, nodes: List[INode], filedir: Path, level: int = logging.INFO):
+        self.logger = BdLogger(level)
         self.graph = HubAndSpokeMpi(nodes, self.logger, filedir)
 
         self.comm = MPI.COMM_WORLD

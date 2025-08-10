@@ -7,7 +7,6 @@ from params import UcParams, create_random
 
 from pyodsp.dec.node.dec_node import DecNodeRoot, DecNodeLeaf
 from pyodsp.dec.dd.alg_root_bm import DdAlgRootBm
-from pyodsp.dec.dd.alg_root_pbm import DdAlgRootPbm
 from pyodsp.dec.dd.alg_leaf_pyomo import DdAlgLeafPyomo
 from pyodsp.dec.dd.run import DdRun
 from pyodsp.dec.dd.mip_heuristic_root import MipHeuristicRoot
@@ -59,7 +58,9 @@ def create_master(
 
     if pbm:
         alg_config = SolverConfig(solver_name="ipopt")
-        root_alg = DdAlgRootPbm(model, True, alg_config, vars_dn, heuristics)
+        root_alg = DdAlgRootBm(
+            model, True, alg_config, vars_dn, heuristics, mode="proximal"
+        )
     else:
         alg_config = SolverConfig(solver_name=solver)
         root_alg = DdAlgRootBm(model, True, alg_config, vars_dn, heuristics)

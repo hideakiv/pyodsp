@@ -7,7 +7,6 @@ from params import McspParams, create_single, create_random
 
 from pyodsp.dec.node.dec_node import DecNodeRoot, DecNodeLeaf
 from pyodsp.dec.dd.alg_root_bm import DdAlgRootBm
-from pyodsp.dec.dd.alg_root_pbm import DdAlgRootPbm
 from pyodsp.dec.dd.alg_leaf_pyomo import DdAlgLeafPyomo
 from pyodsp.dec.dd.run import DdRun
 from pyodsp.solver.pyomo_solver import PyomoSolver, SolverConfig
@@ -59,7 +58,7 @@ def create_master(
     heuristic = DpHeuristic(final_config, N)
     if pbm:
         alg_config = SolverConfig(solver_name="ipopt")
-        root_alg = DdAlgRootPbm(m, True, alg_config, vars_dn, heuristic)
+        root_alg = DdAlgRootBm(m, True, alg_config, vars_dn, heuristic, mode="proximal")
     else:
         alg_config = SolverConfig(
             solver_name=solver, kwargs={"options": {"threads": 1}}

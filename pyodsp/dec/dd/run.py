@@ -1,5 +1,6 @@
 from typing import List
 from pathlib import Path
+import logging
 
 from .logger import DdLogger
 from .message import DdDnMessage
@@ -8,8 +9,8 @@ from ..graph.hub_and_spoke import HubAndSpoke
 
 
 class DdRun:
-    def __init__(self, nodes: List[INode], filedir: Path):
-        self.logger = DdLogger()
+    def __init__(self, nodes: List[INode], filedir: Path, level: int = logging.INFO):
+        self.logger = DdLogger(level)
         self.graph = HubAndSpoke(nodes, self.logger, filedir)
 
     def run(self, init_solution: List[float] | None = None) -> None:

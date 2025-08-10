@@ -1,6 +1,7 @@
 from typing import List, Tuple
 from pathlib import Path
 import time
+import logging
 
 import numpy as np
 import pandas as pd
@@ -43,8 +44,8 @@ class ProximalBundleMethod(BundleMethod):
         self.e_v = np.inf
         self.alpha = 0.0
 
-    def set_logger(self, node_id: int, depth: int) -> None:
-        self.logger = PbmLogger(node_id, depth)
+    def set_logger(self, node_id: int, depth: int, level: int = logging.INFO) -> None:
+        self.logger = PbmLogger(node_id, depth, level)
 
     def set_init_solution(self, solution: List[float]) -> None:
         self.center = solution

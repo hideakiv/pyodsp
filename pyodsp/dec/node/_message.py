@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import Any
 
-from pyodsp.alg.cuts import Cut
+from pyodsp.alg.bm.cuts import Cut
 
 NodeIdx = Any
 

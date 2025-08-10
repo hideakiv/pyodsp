@@ -5,12 +5,13 @@ import logging
 
 import numpy as np
 import pandas as pd
-from pyomo.environ import Var, Reals, RangeSet, value
+from pyomo.environ import Var, ScalarVar, Reals, RangeSet
 
-from pyodsp.alg.cuts import CutList
+from pyodsp.alg.bm.cuts import CutList
 
-from .logger import PbmLogger
-from ..bm.bm import BundleMethod
+from .logger import BmLogger
+from .cp import CuttingPlaneMethod
+from .cuts_manager import CutInfo
 from ..params import (
     BM_ABS_TOLERANCE,
     BM_REL_TOLERANCE,
@@ -35,9 +36,19 @@ Mathematical programming, 46(1), 105-122.
 """
 
 
-class ProximalBundleMethod(BundleMethod):
+class ProximalBundleMethod:
     def __init__(self, solver: PyomoSolver, max_iteration=1000, penalty=1.0) -> None:
-        super().__init__(solver, max_iteration)
+        self.cpm = CuttingPlaneMethod(solver)
+
+        self.max_iteration = max_iteration
+        self.iteration = 0
+
+        self.obj_bound: List[float | None] = []
+        self.obj_val: List[float | None] = []
+
+        self.status: int = STATUS_NOT_FINISHED
+        self.start_time = time.time()
+
         self.penalty = penalty
         self.center_val = []
         self.iter_since_update = 0
@@ -45,10 +56,19 @@ class ProximalBundleMethod(BundleMethod):
         self.alpha = 0.0
 
     def set_logger(self, node_id: int, depth: int, level: int = logging.INFO) -> None:
-        self.logger = PbmLogger(node_id, depth, level)
+        method = "Regularized Bundle Method"
+        self.logger = BmLogger(method, node_id, depth, level)
 
     def set_init_solution(self, solution: List[float]) -> None:
         self.center = solution
+
+    def reset_iteration(self, i=0) -> None:
+        self.iteration = i
+        self.status = STATUS_NOT_FINISHED
+        self.start_time = time.time()
+
+    def is_minimize(self) -> bool:
+        return self.cpm.is_minimize()
 
     def build(self, num_cuts: int, subobj_bounds: List[float] | None = None) -> None:
         self.num_cuts = num_cuts
@@ -56,16 +76,18 @@ class ProximalBundleMethod(BundleMethod):
         if subobj_bounds is not None:
             assert self.num_cuts == len(subobj_bounds)
         self._update_objective(subobj_bounds)
-        self.cuts_manager.build(self.num_cuts)
+        self.cpm.build(self.num_cuts)
 
         self.logger.log_initialization(
             tolerance=BM_ABS_TOLERANCE, max_iteration=self.max_iteration
         )
 
-    def run_step(self, cuts_list: List[CutList] | None) -> Tuple[int, List[float]]:
+    def run_step(
+        self, cuts_list: List[CutList] | None
+    ) -> Tuple[int, List[float] | None]:
         if cuts_list is not None:
-            no_cuts, obj_val = self.add_cuts(cuts_list)
-            if self.feasible:
+            no_cuts, feasible, obj_val = self.add_cuts(cuts_list)
+            if feasible:
                 self.obj_val.append(obj_val)
             else:
                 self.obj_val.append(None)
@@ -86,35 +108,57 @@ class ProximalBundleMethod(BundleMethod):
 
         self._increment()
 
-        self._solve()
-        if self.status == STATUS_INFEASIBLE:
+        self.cpm.solve()
+        if self.cpm.is_infeasible():
+            self.status = STATUS_INFEASIBLE
             self.logger.log_infeasible()
             return self.status, None
+
+        current_obj = self.cpm.get_relaxed_objective()
+        self.obj_bound.append(current_obj)
+
         self._log()
 
         if self._termination_check():
             self.logger.log_completion(self.iteration, self.obj_bound[-1])
 
-        return self.status, self.current_solution
+        return self.status, self.cpm.get_current_solution()
 
     def _log(self) -> None:
-        if self.solver.is_minimize():
+        if self.is_minimize():
             lb = self.obj_bound[-1]
             ub = self.obj_val[-1]
         else:
             lb = self.obj_val[-1]
             ub = self.obj_bound[-1]
-        numcuts = self.cuts_manager.get_num_cuts()
+        numcuts = self.cpm.get_num_cuts()
         elapsed = time.time() - self.start_time
-        self.logger.log_master_problem(
-            self.iteration,
-            lb,
-            self.center_val[-1],
-            ub,
-            self.current_solution,
-            numcuts,
-            elapsed,
+        if lb is None:
+            lb = "-"
+        else:
+            lb = f"{lb:.4f}"
+        cb = self.center_val[-1]
+        if cb is None:
+            cb = "-"
+        else:
+            cb = f"{cb:.4f}"
+        if ub is None:
+            ub = "-"
+        else:
+            ub = f"{ub:.4f}"
+        self.logger.log_info(
+            f"Iteration: {self.iteration}\tLB: {lb}\t CB: {cb}\t UB: {ub}\t NumCuts: {numcuts}\t Elapsed: {elapsed:.2f}"
         )
+        self.logger.log_debug(f"\tsolution: {self.cpm.get_current_solution()}")
+
+    def get_cuts(self) -> List[List[CutInfo]]:
+        return self.cpm.get_cuts()
+
+    def get_vars(self) -> List[ScalarVar]:
+        return self.cpm.get_vars()
+
+    def get_num_vars(self) -> int:
+        return len(self.get_vars())
 
     def _termination_check(self) -> bool:
         if self.iteration >= self.max_iteration:
@@ -132,9 +176,7 @@ class ProximalBundleMethod(BundleMethod):
 
         if self.subobj_bounds is not None:
             for i in range(self.num_cuts):
-                bound_gap = abs(
-                    value(self.solver.model._theta[i]) - self.subobj_bounds[i]
-                )
+                bound_gap = abs(self.cpm.get_theta_value(i) - self.subobj_bounds[i])
                 if bound_gap < BM_ABS_TOLERANCE:
                     return False
 
@@ -166,7 +208,16 @@ class ProximalBundleMethod(BundleMethod):
             }
         )
         df.to_csv(path)
-        self.solver.save(dir)
+        self.cpm.save(dir)
+
+    def add_cuts(self, cuts_list: List[CutList]) -> Tuple[bool, bool, float]:
+        return self.cpm.add_cuts(cuts_list)
+
+    def _increment(self) -> None:
+        self.iteration += 1
+        self.cpm.increment_cuts()
+        if self.iteration % BM_PURGE_FREQ == 0:
+            self.cpm.purge_cuts()
 
     def _improved(self) -> bool:
         if len(self.center_val) == 0 or self.center_val[-1] is None:
@@ -176,7 +227,7 @@ class ProximalBundleMethod(BundleMethod):
         approx_val = self.solver.get_objective_value()
         predicted_diff = approx_val - center_val
 
-        if self.solver.is_minimize():
+        if self.is_minimize():
             # Minimization
             return obj_val <= center_val + PBM_ML * predicted_diff
         else:
@@ -187,21 +238,23 @@ class ProximalBundleMethod(BundleMethod):
         def theta_bounds(model, i):
             if subobj_bounds is None:
                 return (None, None)
-            if self.solver.is_minimize():
+            if self.is_minimize():
                 # Minimization
                 return (subobj_bounds[i], None)
             else:
                 # Maximization
                 return (None, subobj_bounds[i])
 
-        self.solver.model._theta = Var(
+        solver = self.cpm.get_solver()
+
+        solver.model._theta = Var(
             RangeSet(0, self.num_cuts - 1), domain=Reals, bounds=theta_bounds
         )
 
         add_quad_terms_to_objective(
-            self.solver,
-            self.solver.model._theta,
-            self.solver.vars,
+            solver,
+            solver.model._theta,
+            solver.vars,
             self.center,
             self.penalty,
         )

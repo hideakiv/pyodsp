@@ -8,8 +8,8 @@ from pyomo.environ import Var, ScalarVar, Reals, RangeSet
 
 from pyodsp.alg.cuts import CutList
 
-from ..bm.logger import BmLogger
-from ..bm.cp import CuttingPlaneMethod
+from .logger import BmLogger
+from .cp import CuttingPlaneMethod
 from ..cuts_manager import CutInfo
 from ..params import BM_ABS_TOLERANCE, BM_REL_TOLERANCE, BM_PURGE_FREQ, BM_TIME_LIMIT
 from ..const import *

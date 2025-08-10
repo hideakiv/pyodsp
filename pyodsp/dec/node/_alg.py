@@ -1,8 +1,8 @@
 from abc import ABC, abstractmethod
-from typing import List, Dict, Tuple
+from typing import List, Tuple
 from pathlib import Path
 
-from pyodsp.alg.cuts import CutList
+from pyodsp.alg.bm.cuts import CutList
 
 from ._message import (
     NodeIdx,

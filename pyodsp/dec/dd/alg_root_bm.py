@@ -11,9 +11,9 @@ from .message import DdDnMessage, DdFinalDnMessage, DdInitDnMessage, DdFinalUpMe
 from .master_creator import MasterCreator
 from .mip_heuristic_root import IMipHeuristicRoot
 from pyodsp.alg.bm.bm import BundleMethod
-from pyodsp.alg.pbm.pbm import ProximalBundleMethod
-from pyodsp.alg.cuts import CutList
-from pyodsp.alg.cuts_manager import CutInfo
+from pyodsp.alg.bm.pbm import ProximalBundleMethod
+from pyodsp.alg.bm.cuts import CutList
+from pyodsp.alg.bm.cuts_manager import CutInfo
 from pyodsp.alg.params import BM_DUMMY_BOUND
 from pyodsp.solver.pyomo_solver import SolverConfig
 

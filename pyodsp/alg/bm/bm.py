@@ -32,7 +32,8 @@ class BundleMethod:
         self.start_time = time.time()
 
     def set_logger(self, node_id: int, depth: int, level: int = logging.INFO) -> None:
-        self.logger = BmLogger(node_id, depth, level)
+        method = "Bundle Method"
+        self.logger = BmLogger(method, node_id, depth, level)
 
     def build(self, num_cuts: int, subobj_bounds: List[float] | None) -> None:
         self.num_cuts = num_cuts
@@ -103,9 +104,18 @@ class BundleMethod:
             ub = self.obj_bound[-1]
         numcuts = self.cpm.get_num_cuts()
         elapsed = time.time() - self.start_time
-        self.logger.log_master_problem(
-            self.iteration, lb, ub, self.cpm.get_current_solution(), numcuts, elapsed
+        if lb is None:
+            lb = "-"
+        else:
+            lb = f"{lb:.4f}"
+        if ub is None:
+            ub = "-"
+        else:
+            ub = f"{ub:.4f}"
+        self.logger.log_info(
+            f"Iteration: {self.iteration}\tLB: {lb}\t UB: {ub}\t NumCuts: {numcuts}\t Elapsed: {elapsed:.2f}"
         )
+        self.logger.log_debug(f"\tsolution: {self.cpm.get_current_solution()}")
 
     def _termination_check(self) -> bool:
         if self.iteration >= self.max_iteration:

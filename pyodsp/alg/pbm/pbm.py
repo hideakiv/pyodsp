@@ -8,7 +8,7 @@ from pyomo.environ import Var, ScalarVar, Reals, RangeSet
 
 from pyodsp.alg.cuts import CutList
 
-from .logger import PbmLogger
+from ..bm.logger import BmLogger
 from ..bm.cp import CuttingPlaneMethod
 from ..cuts_manager import CutInfo
 from ..params import BM_ABS_TOLERANCE, BM_REL_TOLERANCE, BM_PURGE_FREQ, BM_TIME_LIMIT
@@ -45,7 +45,8 @@ class ProximalBundleMethod:
         self.center_val = []
 
     def set_logger(self, node_id: int, depth: int, level: int = logging.INFO) -> None:
-        self.logger = PbmLogger(node_id, depth, level)
+        method = "Regularized Bundle Method"
+        self.logger = BmLogger(method, node_id, depth, level)
 
     def set_init_solution(self, solution: List[float]) -> None:
         self.center = solution
@@ -118,15 +119,23 @@ class ProximalBundleMethod:
             ub = self.obj_bound[-1]
         numcuts = self.cpm.get_num_cuts()
         elapsed = time.time() - self.start_time
-        self.logger.log_master_problem(
-            self.iteration,
-            lb,
-            self.center_val[-1],
-            ub,
-            self.cpm.get_current_solution(),
-            numcuts,
-            elapsed,
+        if lb is None:
+            lb = "-"
+        else:
+            lb = f"{lb:.4f}"
+        cb = self.center_val[-1]
+        if cb is None:
+            cb = "-"
+        else:
+            cb = f"{cb:.4f}"
+        if ub is None:
+            ub = "-"
+        else:
+            ub = f"{ub:.4f}"
+        self.logger.log_info(
+            f"Iteration: {self.iteration}\tLB: {lb}\t CB: {cb}\t UB: {ub}\t NumCuts: {numcuts}\t Elapsed: {elapsed:.2f}"
         )
+        self.logger.log_debug(f"\tsolution: {self.cpm.get_current_solution()}")
 
     def get_cuts(self) -> List[List[CutInfo]]:
         return self.cpm.get_cuts()

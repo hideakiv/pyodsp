@@ -5,27 +5,25 @@ import logging
 
 import pandas as pd
 
-from pyomo.environ import Var, ScalarVar, Constraint, Reals, RangeSet, value
+from pyomo.environ import Var, ScalarVar, Reals, RangeSet
 
 from pyodsp.solver.pyomo_solver import PyomoSolver
 from pyodsp.solver.pyomo_utils import add_terms_to_objective
 
-from ..cuts import CutList, OptimalityCut, FeasibilityCut
-from ..cuts_manager import CutsManager, CutInfo
+from ..cuts import CutList
+from ..cuts_manager import CutInfo
 from .logger import BmLogger
+from .cp import CuttingPlaneMethod
 from ..params import BM_ABS_TOLERANCE, BM_REL_TOLERANCE, BM_PURGE_FREQ, BM_TIME_LIMIT
 from ..const import *
 
 
 class BundleMethod:
     def __init__(self, solver: PyomoSolver, max_iteration=1000) -> None:
-        self.solver = solver
-        self.cuts_manager = CutsManager()
+        self.cpm = CuttingPlaneMethod(solver)
 
         self.max_iteration = max_iteration
         self.iteration = 0
-
-        self.current_solution: List[float] = []
 
         self.obj_bound: List[float | None] = []
         self.obj_val: List[float | None] = []
@@ -42,16 +40,18 @@ class BundleMethod:
         self.subobj_bounds = subobj_bounds
         assert self.num_cuts == len(subobj_bounds)
         self._update_objective(subobj_bounds)
-        self.cuts_manager.build(self.num_cuts)
+        self.cpm.build(self.num_cuts)
 
         self.logger.log_initialization(
             tolerance=BM_ABS_TOLERANCE, max_iteration=self.max_iteration
         )
 
-    def run_step(self, cuts_list: List[CutList] | None) -> Tuple[int, List[float]]:
+    def run_step(
+        self, cuts_list: List[CutList] | None
+    ) -> Tuple[int, List[float] | None]:
         if cuts_list is not None:
-            no_cuts, obj_val = self.add_cuts(cuts_list)
-            if self.feasible:
+            no_cuts, feasible, obj_val = self.add_cuts(cuts_list)
+            if feasible:
                 self.obj_val.append(obj_val)
             else:
                 self.obj_val.append(None)
@@ -59,15 +59,20 @@ class BundleMethod:
             self.obj_val.append(None)
 
         self._increment()
-        self._solve()
-        if self.status == STATUS_INFEASIBLE:
+        self.cpm.solve()
+        if self.cpm.is_infeasible():
+            self.status = STATUS_INFEASIBLE
             self.logger.log_infeasible()
             return self.status, None
+
+        current_obj = self.cpm.get_relaxed_objective()
+        self.obj_bound.append(current_obj)
+
         self._log()
         if self._termination_check():
             self.logger.log_completion(self.iteration, self.obj_bound[-1])
 
-        return self.status, self.current_solution
+        return self.status, self.cpm.get_current_solution()
 
     def reset_iteration(self, i=0) -> None:
         self.iteration = i
@@ -75,45 +80,31 @@ class BundleMethod:
         self.start_time = time.time()
 
     def is_minimize(self) -> bool:
-        return self.solver.is_minimize()
+        return self.cpm.is_minimize()
 
     def get_cuts(self) -> List[List[CutInfo]]:
-        return self.cuts_manager.get_cuts()
+        return self.cpm.get_cuts()
 
     def get_vars(self) -> List[ScalarVar]:
-        return self.solver.get_vars()
+        return self.cpm.get_vars()
 
     def get_num_vars(self) -> int:
         return len(self.get_vars())
 
     def get_original_objective_value(self) -> float:
-        return self.solver.get_original_objective_value()
-
-    def _solve(self) -> None:
-        self.solver.solve()
-        if self.solver.is_infeasible():
-            self.status = STATUS_INFEASIBLE
-        self.current_solution = self.solver.get_solution()
-        current_obj = self.solver.get_original_objective_value()
-        if not self.solver.is_optimal():
-            raise ValueError("invalid solver status")
-        for idx in range(self.num_cuts):
-            theta = self.solver.model._theta[idx]
-            theta_val = theta.value
-            current_obj += theta_val
-        self.obj_bound.append(current_obj)
+        return self.cpm.get_original_objective_value()
 
     def _log(self) -> None:
-        if self.solver.is_minimize():
+        if self.is_minimize():
             lb = self.obj_bound[-1]
             ub = self.obj_val[-1]
         else:
             lb = self.obj_val[-1]
             ub = self.obj_bound[-1]
-        numcuts = self.cuts_manager.get_num_cuts()
+        numcuts = self.cpm.get_num_cuts()
         elapsed = time.time() - self.start_time
         self.logger.log_master_problem(
-            self.iteration, lb, ub, self.current_solution, numcuts, elapsed
+            self.iteration, lb, ub, self.cpm.get_current_solution(), numcuts, elapsed
         )
 
     def _termination_check(self) -> bool:
@@ -135,7 +126,7 @@ class BundleMethod:
             return False
 
         for i in range(self.num_cuts):
-            bound_gap = abs(value(self.solver.model._theta[i]) - self.subobj_bounds[i])
+            bound_gap = abs(self.cpm.get_theta_value(i) - self.subobj_bounds[i])
             if bound_gap < BM_ABS_TOLERANCE:
                 return False
         if abs(self.obj_val[-1]) < BM_ABS_TOLERANCE:
@@ -154,106 +145,30 @@ class BundleMethod:
         path = dir / "bm.csv"
         df = pd.DataFrame({"obj_bound": self.obj_bound, "obj_val": self.obj_val})
         df.to_csv(path)
-        self.solver.save(dir)
+        self.cpm.save(dir)
 
-    def add_cuts(self, cuts_list: List[CutList]) -> Tuple[bool, float]:
-        found_cuts = [False for _ in range(self.num_cuts)]
-        self.feasible = True
-        obj_val = self.solver.get_original_objective_value()
-        for idx, cuts in enumerate(cuts_list):
-            for cut in cuts:
-                found_cut = False
-                if isinstance(cut, OptimalityCut):
-                    found_cut = self._add_optimality_cut(idx, cut)
-                    obj_val += cut.objective_value
-                elif isinstance(cut, FeasibilityCut):
-                    found_cut = self._add_feasibility_cut(idx, cut)
-                    self.feasible = False
-                found_cuts[idx] = found_cut or found_cuts[idx]
-
-        optimal = not any(found_cuts)
-        return optimal, obj_val
+    def add_cuts(self, cuts_list: List[CutList]) -> Tuple[bool, bool, float]:
+        return self.cpm.add_cuts(cuts_list)
 
     def _increment(self) -> None:
         self.iteration += 1
-        self.cuts_manager.increment()
+        self.cpm.increment_cuts()
         if self.iteration % BM_PURGE_FREQ == 0:
-            self.cuts_manager.purge(self.solver.model)
+            self.cpm.purge_cuts()
 
     def _update_objective(self, subobj_bounds: List[float]):
         def theta_bounds(model, i):
-            if self.solver.is_minimize():
+            if self.is_minimize():
                 # Minimization
                 return (subobj_bounds[i], None)
             else:
                 # Maximization
                 return (None, subobj_bounds[i])
 
-        self.solver.model._theta = Var(
+        solver = self.cpm.get_solver()
+
+        solver.model._theta = Var(
             RangeSet(0, self.num_cuts - 1), domain=Reals, bounds=theta_bounds
         )
 
-        add_terms_to_objective(self.solver, self.solver.model._theta)
-
-    def _add_optimality_cut(self, idx: int, cut: OptimalityCut) -> bool:
-        theta = self.solver.model._theta[idx]
-        theta_val = theta.value
-        cut_num = self.cuts_manager.get_num_optimality(idx)
-        vars = self.get_vars()
-
-        if self.solver.is_minimize():
-            # Minimization
-            if (
-                theta_val is not None
-                and theta_val >= cut.objective_value - BM_ABS_TOLERANCE
-            ):
-                # No need to add the cut
-                return False
-
-            constraint = Constraint(
-                expr=sum(coeff * vars[j] for j, coeff in cut.coeffs.items()) + theta
-                >= cut.rhs
-            )
-        else:
-            # Maximization
-            if (
-                theta_val is not None
-                and theta_val <= cut.objective_value + BM_ABS_TOLERANCE
-            ):
-                # No need to add the cut
-                return False
-
-            constraint = Constraint(
-                expr=sum(coeff * vars[j] for j, coeff in cut.coeffs.items()) + theta
-                <= cut.rhs
-            )
-
-        self.solver.model.add_component(f"_optimality_cut_{idx}_{cut_num}", constraint)
-
-        self.cuts_manager.append_cut(
-            CutInfo(constraint, cut, idx, self.iteration, self.current_solution, 0)
-        )
-
-        return True
-
-    def _add_feasibility_cut(self, idx: int, cut: FeasibilityCut) -> bool:
-        cut_num = self.cuts_manager.get_num_feasibility(idx)
-        vars = self.get_vars()
-
-        if self.solver.is_minimize():
-            # Minimization
-            constraint = Constraint(
-                expr=sum(coeff * vars[j] for j, coeff in cut.coeffs.items()) >= cut.rhs
-            )
-        else:
-            # Maximization
-            constraint = Constraint(
-                expr=sum(coeff * vars[j] for j, coeff in cut.coeffs.items()) <= cut.rhs
-            )
-        self.solver.model.add_component(f"_feasibility_cut_{idx}_{cut_num}", constraint)
-
-        self.cuts_manager.append_cut(
-            CutInfo(constraint, cut, idx, self.iteration, self.current_solution, 0)
-        )
-
-        return True
+        add_terms_to_objective(solver, solver.model._theta)

@@ -14,7 +14,6 @@ class CutInfo:
     constraint: Constraint
     cut: Cut
     idx: int
-    iteration: int
     trial_point: List[float]
     age: int
 

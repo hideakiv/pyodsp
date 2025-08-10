@@ -4,7 +4,7 @@ import time
 import logging
 
 import pandas as pd
-from pyomo.environ import Var, Reals, RangeSet, value
+from pyomo.environ import Var, Reals, RangeSet
 
 from pyodsp.alg.cuts import CutList
 
@@ -45,22 +45,24 @@ class ProximalBundleMethod(BundleMethod):
         if subobj_bounds is not None:
             assert self.num_cuts == len(subobj_bounds)
         self._update_objective(subobj_bounds)
-        self.cuts_manager.build(self.num_cuts)
+        self.cpm.build(self.num_cuts)
 
         self.logger.log_initialization(
             tolerance=BM_ABS_TOLERANCE, max_iteration=self.max_iteration
         )
 
-    def run_step(self, cuts_list: List[CutList] | None) -> Tuple[int, List[float]]:
+    def run_step(
+        self, cuts_list: List[CutList] | None
+    ) -> Tuple[int, List[float] | None]:
         if cuts_list is not None:
-            no_cuts, obj_val = self.add_cuts(cuts_list)
-            if self.feasible:
+            no_cuts, feasible, obj_val = self.add_cuts(cuts_list)
+            if feasible:
                 self.obj_val.append(obj_val)
             else:
                 self.obj_val.append(None)
 
             if no_cuts or self._improved():
-                self._update_center(self.current_solution)
+                self._update_center(self.cpm.get_current_solution())
                 self.center_val.append(self.obj_val[-1])
             elif len(self.center_val) == 0:
                 self.center_val.append(self.obj_val[-1])
@@ -72,32 +74,37 @@ class ProximalBundleMethod(BundleMethod):
 
         self._increment()
 
-        self._solve()
-        if self.status == STATUS_INFEASIBLE:
+        self.cpm.solve()
+        if self.cpm.is_infeasible():
+            self.status = STATUS_INFEASIBLE
             self.logger.log_infeasible()
             return self.status, None
+
+        current_obj = self.cpm.get_relaxed_objective()
+        self.obj_bound.append(current_obj)
+
         self._log()
 
         if self._termination_check():
             self.logger.log_completion(self.iteration, self.obj_bound[-1])
 
-        return self.status, self.current_solution
+        return self.status, self.cpm.get_current_solution()
 
     def _log(self) -> None:
-        if self.solver.is_minimize():
+        if self.is_minimize():
             lb = self.obj_bound[-1]
             ub = self.obj_val[-1]
         else:
             lb = self.obj_val[-1]
             ub = self.obj_bound[-1]
-        numcuts = self.cuts_manager.get_num_cuts()
+        numcuts = self.cpm.get_num_cuts()
         elapsed = time.time() - self.start_time
         self.logger.log_master_problem(
             self.iteration,
             lb,
             self.center_val[-1],
             ub,
-            self.current_solution,
+            self.cpm.get_current_solution(),
             numcuts,
             elapsed,
         )
@@ -118,9 +125,7 @@ class ProximalBundleMethod(BundleMethod):
 
         if self.subobj_bounds is not None:
             for i in range(self.num_cuts):
-                bound_gap = abs(
-                    value(self.solver.model._theta[i]) - self.subobj_bounds[i]
-                )
+                bound_gap = abs(self.cpm.get_theta_value(i) - self.subobj_bounds[i])
                 if bound_gap < BM_ABS_TOLERANCE:
                     return False
 
@@ -152,13 +157,13 @@ class ProximalBundleMethod(BundleMethod):
             }
         )
         df.to_csv(path)
-        self.solver.save(dir)
+        self.cpm.save(dir)
 
     def _improved(self) -> bool:
         if len(self.center_val) == 0 or self.center_val[-1] is None:
             return False
 
-        if self.solver.is_minimize():
+        if self.is_minimize():
             # Minimization
             return self.obj_val[-1] <= self.center_val[-1]
         else:
@@ -169,27 +174,28 @@ class ProximalBundleMethod(BundleMethod):
         def theta_bounds(model, i):
             if subobj_bounds is None:
                 return (None, None)
-            if self.solver.is_minimize():
+            if self.is_minimize():
                 # Minimization
                 return (subobj_bounds[i], None)
             else:
                 # Maximization
                 return (None, subobj_bounds[i])
 
-        self.solver.model._theta = Var(
+        solver = self.cpm.get_solver()
+
+        solver.model._theta = Var(
             RangeSet(0, self.num_cuts - 1), domain=Reals, bounds=theta_bounds
         )
 
         add_quad_terms_to_objective(
-            self.solver,
-            self.solver.model._theta,
-            self.solver.vars,
+            solver,
+            solver.model._theta,
+            solver.vars,
             self.center,
             self.penalty,
         )
 
     def _update_center(self, center: List[float]) -> None:
         self.center = center
-        update_quad_terms_in_objective(
-            self.solver, self.solver.vars, self.center, self.penalty
-        )
+        solver = self.cpm.get_solver()
+        update_quad_terms_in_objective(solver, solver.vars, self.center, self.penalty)

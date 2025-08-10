@@ -4,13 +4,14 @@ import time
 import logging
 
 import pandas as pd
-from pyomo.environ import Var, Reals, RangeSet
+from pyomo.environ import Var, ScalarVar, Reals, RangeSet
 
 from pyodsp.alg.cuts import CutList
 
 from .logger import PbmLogger
-from ..bm.bm import BundleMethod
-from ..params import BM_ABS_TOLERANCE, BM_REL_TOLERANCE, BM_TIME_LIMIT
+from ..bm.cp import CuttingPlaneMethod
+from ..cuts_manager import CutInfo
+from ..params import BM_ABS_TOLERANCE, BM_REL_TOLERANCE, BM_PURGE_FREQ, BM_TIME_LIMIT
 from ..const import *
 from pyodsp.solver.pyomo_solver import PyomoSolver
 from pyodsp.solver.pyomo_utils import (
@@ -27,9 +28,19 @@ Mathematical programming, 46(1), 105-122.
 """
 
 
-class ProximalBundleMethod(BundleMethod):
+class ProximalBundleMethod:
     def __init__(self, solver: PyomoSolver, max_iteration=1000, penalty=1.0) -> None:
-        super().__init__(solver, max_iteration)
+        self.cpm = CuttingPlaneMethod(solver)
+
+        self.max_iteration = max_iteration
+        self.iteration = 0
+
+        self.obj_bound: List[float | None] = []
+        self.obj_val: List[float | None] = []
+
+        self.status: int = STATUS_NOT_FINISHED
+        self.start_time = time.time()
+
         self.penalty = penalty
         self.center_val = []
 
@@ -38,6 +49,14 @@ class ProximalBundleMethod(BundleMethod):
 
     def set_init_solution(self, solution: List[float]) -> None:
         self.center = solution
+
+    def reset_iteration(self, i=0) -> None:
+        self.iteration = i
+        self.status = STATUS_NOT_FINISHED
+        self.start_time = time.time()
+
+    def is_minimize(self) -> bool:
+        return self.cpm.is_minimize()
 
     def build(self, num_cuts: int, subobj_bounds: List[float] | None = None) -> None:
         self.num_cuts = num_cuts
@@ -109,6 +128,15 @@ class ProximalBundleMethod(BundleMethod):
             elapsed,
         )
 
+    def get_cuts(self) -> List[List[CutInfo]]:
+        return self.cpm.get_cuts()
+
+    def get_vars(self) -> List[ScalarVar]:
+        return self.cpm.get_vars()
+
+    def get_num_vars(self) -> int:
+        return len(self.get_vars())
+
     def _termination_check(self) -> bool:
         if self.iteration >= self.max_iteration:
             self.status = STATUS_MAX_ITERATION
@@ -158,6 +186,15 @@ class ProximalBundleMethod(BundleMethod):
         )
         df.to_csv(path)
         self.cpm.save(dir)
+
+    def add_cuts(self, cuts_list: List[CutList]) -> Tuple[bool, bool, float]:
+        return self.cpm.add_cuts(cuts_list)
+
+    def _increment(self) -> None:
+        self.iteration += 1
+        self.cpm.increment_cuts()
+        if self.iteration % BM_PURGE_FREQ == 0:
+            self.cpm.purge_cuts()
 
     def _improved(self) -> bool:
         if len(self.center_val) == 0 or self.center_val[-1] is None:

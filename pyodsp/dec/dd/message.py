@@ -7,7 +7,7 @@ from ..node._message import (
     DnMessage,
     UpMessage,
 )
-from pyodsp.alg.cuts import Cut
+from pyodsp.alg.bm.cuts import Cut
 
 
 class DdInitDnMessage(InitDnMessage):

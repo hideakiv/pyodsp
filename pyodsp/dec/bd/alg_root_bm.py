@@ -10,7 +10,7 @@ from .message import BdInitDnMessage, BdDnMessage, BdFinalDnMessage, BdFinalUpMe
 from ..node._alg import IAlgRoot
 from pyodsp.solver.pyomo_solver import PyomoSolver
 from pyodsp.alg.bm.bm import BundleMethod
-from pyodsp.alg.cuts import CutList
+from pyodsp.alg.bm.cuts import CutList
 
 
 class BdAlgRootBm(IAlgRoot):

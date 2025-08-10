@@ -1,6 +1,6 @@
 from typing import List, Dict
 
-from pyodsp.alg.cuts import Cut, OptimalityCut, FeasibilityCut, CutList
+from pyodsp.alg.bm.cuts import Cut, OptimalityCut, FeasibilityCut, CutList
 from ._node import NodeIdx, UpMessage
 
 

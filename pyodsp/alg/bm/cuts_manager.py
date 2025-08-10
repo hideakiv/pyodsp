@@ -3,7 +3,7 @@ from dataclasses import dataclass
 
 from pyomo.environ import ConcreteModel, Constraint
 
-from ..cuts import Cut, FeasibilityCut, OptimalityCut
+from .cuts import Cut, FeasibilityCut, OptimalityCut
 from ..params import BM_SLACK_TOLERANCE, BM_MAX_CUT_AGE, BM_CUT_SIM_TOLERANCE
 
 

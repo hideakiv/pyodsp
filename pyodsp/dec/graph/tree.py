@@ -1,7 +1,7 @@
 from typing import List, Dict
 from pathlib import Path
 
-from pyodsp.alg.cuts import OptimalityCut, FeasibilityCut
+from pyodsp.alg.bm.cuts import OptimalityCut, FeasibilityCut
 
 from ..node._logger import ILogger
 from ..node._node import INode, INodeRoot, INodeLeaf, INodeInner

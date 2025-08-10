@@ -16,7 +16,7 @@ from .message import (
 )
 from ..node._alg import IAlgLeaf
 from ..utils import CouplingData, get_nonzero_coefficients_from_model
-from pyodsp.alg.cuts import Cut, OptimalityCut, FeasibilityCut
+from pyodsp.alg.bm.cuts import Cut, OptimalityCut, FeasibilityCut
 from pyodsp.solver.pyomo_solver import PyomoSolver
 from pyodsp.alg.params import DEC_CUT_ABS_TOL
 

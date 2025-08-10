@@ -6,7 +6,7 @@ import logging
 import pandas as pd
 from pyomo.environ import Var, ScalarVar, Reals, RangeSet
 
-from pyodsp.alg.cuts import CutList
+from pyodsp.alg.bm.cuts import CutList
 
 from .logger import BmLogger
 from .cp import CuttingPlaneMethod

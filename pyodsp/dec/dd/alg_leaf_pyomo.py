@@ -3,7 +3,7 @@ from pathlib import Path
 import time
 import pandas as pd
 
-from pyodsp.alg.cuts import OptimalityCut, FeasibilityCut
+from pyodsp.alg.bm.cuts import OptimalityCut, FeasibilityCut
 from pyodsp.alg.params import DEC_CUT_ABS_TOL
 
 from .message import (

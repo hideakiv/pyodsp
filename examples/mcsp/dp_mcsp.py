@@ -16,8 +16,11 @@ from pyomo.environ import (
 from pyodsp.solver.pyomo_solver import PyomoSolver, SolverConfig
 from pyodsp.alg.bm.cuts import OptimalityCut
 from pyodsp.alg.bm.cuts_manager import CutInfo
-from pyodsp.dec.dd.message import DdFinalDnMessage
-from pyodsp.dec.dd.mip_heuristic_root import IMipHeuristicRoot
+from pyodsp.dec.dd.message import DdFinalDnMessage, DdFinalUpMessage
+from pyodsp.dec.dd.mip_heuristic_root import (
+    IMipHeuristicRoot,
+    aggregate_final_up_messages,
+)
 
 
 import pyomo.environ as pyo
@@ -118,7 +121,7 @@ class DpHeuristic(IMipHeuristicRoot):
 
             self.master.model._dd_obj.expr += obj
 
-    def run(self) -> Dict[int, DdFinalDnMessage]:
+    def run_init(self) -> Dict[int, DdFinalDnMessage]:
         self.master.solve()
 
         for cutlist, group in zip(self.cuts, self.groups):
@@ -146,3 +149,8 @@ class DpHeuristic(IMipHeuristicRoot):
             solutions[idx] = DdFinalDnMessage(None)
 
         return solutions
+
+    def run_final(
+        self, messages: list[DdFinalUpMessage], multipliers: list[float]
+    ) -> DdFinalUpMessage:
+        return aggregate_final_up_messages(messages, multipliers)

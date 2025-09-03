@@ -60,7 +60,7 @@ class BdFinalDnMessage(FinalDnMessage):
 
 
 class BdFinalUpMessage(FinalUpMessage):
-    def __init__(self, objective: float) -> None:
+    def __init__(self, objective: float | None) -> None:
         self.objective = objective
 
     def get_objective(self) -> float | None:

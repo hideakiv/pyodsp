@@ -16,7 +16,7 @@ from pyomo.environ import (
 from pyodsp.solver.pyomo_solver import PyomoSolver, SolverConfig
 from pyodsp.alg.bm.cuts import OptimalityCut
 from pyodsp.alg.bm.cuts_manager import CutInfo
-from .message import DdFinalDnMessage
+from .message import DdFinalDnMessage, DdFinalUpMessage
 
 
 class IMipHeuristicRoot(ABC):
@@ -25,8 +25,26 @@ class IMipHeuristicRoot(ABC):
         pass
 
     @abstractmethod
-    def run(self) -> Dict[int, DdFinalDnMessage]:
+    def run_init(self) -> Dict[int, DdFinalDnMessage]:
         pass
+
+    @abstractmethod
+    def run_final(
+        self, messages: list[DdFinalUpMessage], multipliers: list[float]
+    ) -> DdFinalUpMessage:
+        pass
+
+
+def aggregate_final_up_messages(
+    messages: list[DdFinalUpMessage], multipliers: list[float]
+) -> DdFinalUpMessage:
+    obj = 0.0
+    for message, multiplier in zip(messages, multipliers):
+        child_obj = message.get_objective()
+        if child_obj is None:
+            return DdFinalUpMessage(None)
+        obj += multiplier * child_obj
+    return DdFinalUpMessage(obj)
 
 
 class MipHeuristicRoot(IMipHeuristicRoot):
@@ -93,7 +111,7 @@ class MipHeuristicRoot(IMipHeuristicRoot):
 
             self.master.model._dd_obj.expr += obj
 
-    def run(self) -> Dict[int, DdFinalDnMessage]:
+    def run_init(self) -> Dict[int, DdFinalDnMessage]:
         self.master.solve()
         if self.master.is_optimal():
             solutions = {}
@@ -114,3 +132,8 @@ class MipHeuristicRoot(IMipHeuristicRoot):
                 solutions[idx] = DdFinalDnMessage(None)
 
             return solutions
+
+    def run_final(
+        self, messages: list[DdFinalUpMessage], multipliers: list[float]
+    ) -> DdFinalUpMessage:
+        return aggregate_final_up_messages(messages, multipliers)

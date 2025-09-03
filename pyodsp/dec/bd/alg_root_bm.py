@@ -40,8 +40,15 @@ class BdAlgRootBm(IAlgRoot):
     def get_final_dn_message(self, **kwargs) -> BdFinalDnMessage:
         return BdFinalDnMessage([var.value for var in self.get_vars()])
 
-    def pass_final_up_message(self, children_obj: float) -> BdFinalUpMessage:
-        obj = self.bm.get_original_objective_value() + children_obj
+    def pass_final_up_message(
+        self, messages: list[BdFinalUpMessage], multipliers: list[float]
+    ) -> BdFinalUpMessage:
+        obj = self.bm.get_original_objective_value()
+        for message, multiplier in zip(messages, multipliers):
+            child_obj = message.get_objective()
+            if child_obj is None:
+                return BdFinalUpMessage(None)
+            obj += multiplier * child_obj
         return BdFinalUpMessage(obj)
 
     def get_num_vars(self) -> int:

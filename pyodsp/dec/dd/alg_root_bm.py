@@ -9,7 +9,7 @@ from pyomo.environ import ConcreteModel, ScalarVar, Objective, Var
 from ..node._alg import IAlgRoot
 from .message import DdDnMessage, DdFinalDnMessage, DdInitDnMessage, DdFinalUpMessage
 from .master_creator import MasterCreator
-from .mip_heuristic_root import IMipHeuristicRoot
+from .mip_heuristic_root import IMipHeuristicRoot, aggregate_final_up_messages
 from pyodsp.alg.bm.bm import BundleMethod
 from pyodsp.alg.bm.pbm import ProximalBundleMethod
 from pyodsp.alg.bm.cuts import CutList
@@ -128,13 +128,17 @@ class DdAlgRootBm(IAlgRoot):
                 vars_dn=self.get_vars_dn(),
                 is_minimize=self.is_minimize(),
             )
-            self.final_solutions = self.heuristic.run()
+            self.final_solutions = self.heuristic.run_init()
             self.is_finalized = True
         node_id = kwargs["node_id"]
         return self.final_solutions[node_id]
 
-    def pass_final_up_message(self, children_obj: float | None) -> DdFinalUpMessage:
-        return DdFinalUpMessage(children_obj)
+    def pass_final_up_message(
+        self, messages: list[DdFinalUpMessage], multipliers: list[float]
+    ) -> DdFinalUpMessage:
+        if self.heuristic is None:
+            return aggregate_final_up_messages(messages, multipliers)
+        return self.heuristic.run_final(messages, multipliers)
 
     def get_num_vars(self) -> int:
         return self.bm.get_num_vars()

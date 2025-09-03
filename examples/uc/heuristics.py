@@ -16,8 +16,11 @@ from pyomo.environ import (
 )
 from pyodsp.solver.pyomo_solver import PyomoSolver, SolverConfig
 from pyodsp.alg.bm.cuts_manager import CutInfo
-from pyodsp.dec.dd.message import DdFinalDnMessage
-from pyodsp.dec.dd.mip_heuristic_root import IMipHeuristicRoot
+from pyodsp.dec.dd.message import DdFinalDnMessage, DdFinalUpMessage
+from pyodsp.dec.dd.mip_heuristic_root import (
+    IMipHeuristicRoot,
+    aggregate_final_up_messages,
+)
 
 
 class UcHeuristicRoot(IMipHeuristicRoot):
@@ -102,3 +105,8 @@ class UcHeuristicRoot(IMipHeuristicRoot):
                 solutions[idx] = DdFinalDnMessage(None)
 
             return solutions
+
+    def run_final(
+        self, messages: list[DdFinalUpMessage], multipliers: list[float]
+    ) -> DdFinalUpMessage:
+        return aggregate_final_up_messages(messages, multipliers)

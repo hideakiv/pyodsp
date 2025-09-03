@@ -80,7 +80,7 @@ class UcHeuristicRoot(IMipHeuristicRoot):
 
             self.master.model._dd_obj.expr += block.objexpr
 
-    def run(self) -> Dict[int, DdFinalDnMessage]:
+    def run_init(self) -> Dict[int, DdFinalDnMessage]:
         self.master.solve()
 
         if self.master.is_optimal():

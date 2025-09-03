@@ -118,7 +118,7 @@ class DpHeuristic(IMipHeuristicRoot):
 
             self.master.model._dd_obj.expr += obj
 
-    def run(self) -> Dict[int, DdFinalDnMessage]:
+    def run_init(self) -> Dict[int, DdFinalDnMessage]:
         self.master.solve()
 
         for cutlist, group in zip(self.cuts, self.groups):

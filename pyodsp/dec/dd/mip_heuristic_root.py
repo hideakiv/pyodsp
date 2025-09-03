@@ -25,7 +25,7 @@ class IMipHeuristicRoot(ABC):
         pass
 
     @abstractmethod
-    def run(self) -> Dict[int, DdFinalDnMessage]:
+    def run_init(self) -> Dict[int, DdFinalDnMessage]:
         pass
 
 
@@ -93,7 +93,7 @@ class MipHeuristicRoot(IMipHeuristicRoot):
 
             self.master.model._dd_obj.expr += obj
 
-    def run(self) -> Dict[int, DdFinalDnMessage]:
+    def run_init(self) -> Dict[int, DdFinalDnMessage]:
         self.master.solve()
         if self.master.is_optimal():
             solutions = {}

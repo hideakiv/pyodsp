@@ -128,7 +128,7 @@ class DdAlgRootBm(IAlgRoot):
                 vars_dn=self.get_vars_dn(),
                 is_minimize=self.is_minimize(),
             )
-            self.final_solutions = self.heuristic.run()
+            self.final_solutions = self.heuristic.run_init()
             self.is_finalized = True
         node_id = kwargs["node_id"]
         return self.final_solutions[node_id]

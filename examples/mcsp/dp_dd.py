@@ -60,9 +60,7 @@ def create_master(
         alg_config = SolverConfig(solver_name="ipopt")
         root_alg = DdAlgRootBm(m, True, alg_config, vars_dn, heuristic, mode="proximal")
     else:
-        alg_config = SolverConfig(
-            solver_name=solver, kwargs={"options": {"threads": 1}}
-        )
+        alg_config = SolverConfig(solver_name=solver)
         root_alg = DdAlgRootBm(m, True, alg_config, vars_dn, heuristic)
     root_node = DecNodeRoot(0, root_alg)
     return root_node
@@ -89,7 +87,7 @@ def create_sub(
 
 
 if __name__ == "__main__":
-    K = 10
-    P = 40
+    K = 5
+    P = 8
     param = create_random(K, P)
     main(param)

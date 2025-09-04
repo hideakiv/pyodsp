@@ -49,6 +49,7 @@ class DdAlgRootBm(IAlgRoot):
         else:
             raise ValueError(f"Invalid mode {mode}")
         self.step_time: List[float] = []
+        self.lagrangian_solution: list[float] | None = None
 
     def get_vars_dn(self) -> Dict[int, List[ScalarVar]]:
         return self.vars_dn
@@ -111,6 +112,7 @@ class DdAlgRootBm(IAlgRoot):
         start = time.time()
         status, solution = self.bm.run_step(cuts_list)
         self.step_time.append(time.time() - start)
+        self.lagrangian_solution = solution
         return status, DdDnMessage(solution)
 
     def reset_iteration(self) -> None:
@@ -127,6 +129,7 @@ class DdAlgRootBm(IAlgRoot):
                 cuts=self.get_cuts(),
                 vars_dn=self.get_vars_dn(),
                 is_minimize=self.is_minimize(),
+                lagrangian=self.lagrangian_solution,
             )
             self.final_solutions = self.heuristic.run_init()
             self.is_finalized = True

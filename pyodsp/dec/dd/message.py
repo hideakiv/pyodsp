@@ -66,8 +66,14 @@ class DdFinalDnMessage(FinalDnMessage):
 
 
 class DdFinalUpMessage(FinalUpMessage):
-    def __init__(self, objective: float | None) -> None:
+    def __init__(
+        self, objective: float | None, solution: list[float] | None = None
+    ) -> None:
         self.objective = objective
+        self.solution = solution
 
     def get_objective(self) -> float | None:
         return self.objective
+
+    def get_solution(self) -> list[float] | None:
+        return self.solution

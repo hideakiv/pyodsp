@@ -11,6 +11,7 @@ from ..node._alg import IAlgRoot
 from pyodsp.solver.pyomo_solver import PyomoSolver
 from pyodsp.alg.bm.bm import BundleMethod
 from pyodsp.alg.bm.cuts import CutList
+from pyodsp.dec.node._message import NodeIdx
 
 
 class BdAlgRootBm(IAlgRoot):
@@ -41,14 +42,14 @@ class BdAlgRootBm(IAlgRoot):
         return BdFinalDnMessage([var.value for var in self.get_vars()])
 
     def pass_final_up_message(
-        self, messages: list[BdFinalUpMessage], multipliers: list[float]
+        self, messages: dict[NodeIdx, BdFinalUpMessage]
     ) -> BdFinalUpMessage:
         obj = self.bm.get_original_objective_value()
-        for message, multiplier in zip(messages, multipliers):
+        for message in messages.values():
             child_obj = message.get_objective()
             if child_obj is None:
                 return BdFinalUpMessage(None)
-            obj += multiplier * child_obj
+            obj += child_obj
         return BdFinalUpMessage(obj)
 
     def get_num_vars(self) -> int:

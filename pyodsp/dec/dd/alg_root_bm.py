@@ -16,6 +16,7 @@ from pyodsp.alg.bm.cuts import CutList
 from pyodsp.alg.bm.cuts_manager import CutInfo
 from pyodsp.alg.params import BM_DUMMY_BOUND
 from pyodsp.solver.pyomo_solver import SolverConfig
+from pyodsp.dec.node._message import NodeIdx
 
 
 class DdAlgRootBm(IAlgRoot):
@@ -137,11 +138,11 @@ class DdAlgRootBm(IAlgRoot):
         return self.final_solutions[node_id]
 
     def pass_final_up_message(
-        self, messages: list[DdFinalUpMessage], multipliers: list[float]
+        self, messages: dict[NodeIdx, DdFinalUpMessage]
     ) -> DdFinalUpMessage:
         if self.heuristic is None:
-            return aggregate_final_up_messages(messages, multipliers)
-        return self.heuristic.run_final(messages, multipliers)
+            return aggregate_final_up_messages(messages)
+        return self.heuristic.run_final(messages)
 
     def get_num_vars(self) -> int:
         return self.bm.get_num_vars()

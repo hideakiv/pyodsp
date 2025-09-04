@@ -63,5 +63,8 @@ class BdFinalUpMessage(FinalUpMessage):
     def __init__(self, objective: float | None) -> None:
         self.objective = objective
 
+    def set_objective(self, obj: float) -> None:
+        self.objective = obj
+
     def get_objective(self) -> float | None:
         return self.objective

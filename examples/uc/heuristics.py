@@ -21,6 +21,7 @@ from pyodsp.dec.dd.mip_heuristic_root import (
     IMipHeuristicRoot,
     aggregate_final_up_messages,
 )
+from pyodsp.dec.node._message import NodeIdx
 
 
 class UcHeuristicRoot(IMipHeuristicRoot):
@@ -106,7 +107,5 @@ class UcHeuristicRoot(IMipHeuristicRoot):
 
             return solutions
 
-    def run_final(
-        self, messages: list[DdFinalUpMessage], multipliers: list[float]
-    ) -> DdFinalUpMessage:
-        return aggregate_final_up_messages(messages, multipliers)
+    def run_final(self, messages: dict[NodeIdx, DdFinalUpMessage]) -> DdFinalUpMessage:
+        return aggregate_final_up_messages(messages)

@@ -75,5 +75,8 @@ class DdFinalUpMessage(FinalUpMessage):
     def get_objective(self) -> float | None:
         return self.objective
 
+    def set_objective(self, obj: float) -> None:
+        self.objective = obj
+
     def get_solution(self) -> list[float] | None:
         return self.solution

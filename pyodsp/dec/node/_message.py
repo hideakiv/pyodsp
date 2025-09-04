@@ -52,3 +52,7 @@ class FinalUpMessage(IMessage, ABC):
     @abstractmethod
     def get_objective(self) -> float | None:
         pass
+
+    @abstractmethod
+    def set_objective(self, obj: float) -> None:
+        pass

@@ -125,7 +125,6 @@ class Tree:
         self, node: INodeRoot, up_messages: Dict[NodeIdx, UpMessage] | None
     ) -> UpMessage | None:
         node.reset()
-        up_messages = None
         while True:
             status, new_dn_message = node.run_step(up_messages)
 

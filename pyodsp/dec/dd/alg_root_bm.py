@@ -111,7 +111,7 @@ class DdAlgRootBm(IAlgRoot):
 
     def run_step(self, cuts_list: List[CutList] | None) -> Tuple[int, DdDnMessage]:
         start = time.time()
-        status, solution = self.bm.run_step(cuts_list)
+        status, solution, objective = self.bm.run_step(cuts_list)
         self.step_time.append(time.time() - start)
         self.lagrangian_solution = solution
         return status, DdDnMessage(solution)

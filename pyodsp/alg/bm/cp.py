@@ -27,8 +27,11 @@ class CuttingPlaneMethod:
     def get_vars(self) -> list[ScalarVar]:
         return self.solver.get_vars()
 
-    def get_original_objective_value(self) -> float:
+    def get_original_objective_value(self) -> float | None:
         return self.solver.get_original_objective_value()
+
+    def get_parent_objective_value(self) -> float:
+        return self.solver.get_parent_objective_value()
 
     def get_solver(self) -> PyomoSolver:
         return self.solver
@@ -51,24 +54,28 @@ class CuttingPlaneMethod:
         theta = self.solver.model._theta[idx]
         return theta.value
 
-    def get_relaxed_objective(self) -> float:
+    def get_relaxed_objective(self) -> float | None:
         if not self.solver.is_optimal():
             raise ValueError("invalid solver status")
         current_obj = self.get_original_objective_value()
+        if current_obj is None:
+            return None
+
         for idx in range(self.num_cuts):
             current_obj += self.get_theta_value(idx)
         return current_obj
 
-    def add_cuts(self, cuts_list: list[CutList]) -> tuple[bool, bool, float]:
+    def add_cuts(self, cuts_list: list[CutList]) -> tuple[bool, bool, float | None]:
         found_cuts = [False for _ in range(self.num_cuts)]
         feasible = True
-        obj_val = self.solver.get_original_objective_value()
+        obj_val = self.get_original_objective_value()
         for idx, cuts in enumerate(cuts_list):
             for cut in cuts:
                 found_cut = False
                 if isinstance(cut, OptimalityCut):
                     found_cut = self._add_optimality_cut(idx, cut)
-                    obj_val += cut.objective_value
+                    if obj_val is not None:
+                        obj_val += cut.objective_value
                 elif isinstance(cut, FeasibilityCut):
                     found_cut = self._add_feasibility_cut(idx, cut)
                     feasible = False

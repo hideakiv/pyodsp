@@ -84,7 +84,7 @@ class ProximalBundleMethod:
 
     def run_step(
         self, cuts_list: List[CutList] | None
-    ) -> Tuple[int, List[float] | None]:
+    ) -> Tuple[int, List[float] | None, float]:
         if cuts_list is not None:
             no_cuts, feasible, obj_val = self.add_cuts(cuts_list)
             if feasible:
@@ -123,7 +123,15 @@ class ProximalBundleMethod:
         if self._termination_check():
             self.logger.log_completion(self.iteration, self.obj_bound[-1])
 
-        return self.status, self.cpm.get_current_solution()
+        parent_objective = self.cpm.get_parent_objective_value()
+        original_objective = self.cpm.get_original_objective_value()
+        sample_objective = parent_objective + original_objective
+
+        return (
+            self.status,
+            self.cpm.get_current_solution(),
+            sample_objective,
+        )
 
     def _log(self) -> None:
         if self.is_minimize():

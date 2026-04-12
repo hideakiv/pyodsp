@@ -45,6 +45,7 @@ class PyomoSolver(Solver):
 
         self._infeasible_model = None
         self._unbounded_model = None
+        self.model._parent_objective = 0.0
 
     def solve(self) -> None:
         """Solve the model."""
@@ -67,8 +68,10 @@ class PyomoSolver(Solver):
         """Get the objective value of the model"""
         return pyo.value(self._get_objective())
 
-    def get_original_objective_value(self) -> float:
-        """Get the objective value of the model"""
+    def get_original_objective_value(self) -> float | None:
+        """Get the objective value of the original objective, or None if it can't be evaluated."""
+        if self._results is None:
+            return None
         return pyo.value(self.original_objective)
 
     def get_vars(self) -> List[pyo.ScalarVar]:
@@ -276,6 +279,12 @@ class PyomoSolver(Solver):
         repn = generate_standard_repn(expr)
         var_coeff_pairs = list(zip(repn.linear_vars, repn.linear_coefs))
         return var_coeff_pairs
+
+    def set_parent_objective_value(self, objective: float) -> None:
+        self.model._parent_objective = objective
+
+    def get_parent_objective_value(self) -> float:
+        return self.model._parent_objective
 
     def save(self, dir: Path) -> None:
         """outputs solution to dir"""

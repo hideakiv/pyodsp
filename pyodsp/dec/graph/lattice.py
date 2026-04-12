@@ -1,36 +1,42 @@
 from typing import List, Dict
 from pathlib import Path
 
+import numpy as np
+import scipy.stats as st
 from pyodsp.alg.bm.cuts import OptimalityCut, FeasibilityCut
 
 from ..node._logger import ILogger
 from ..node._node import INode, INodeRoot, INodeLeaf, INodeInner
 from ..node._message import (
-    InitDnMessage,
-    InitUpMessage,
     DnMessage,
-    UpMessage,
-    FinalDnMessage,
-    FinalUpMessage,
     NodeIdx,
 )
 from ..utils import create_directory
 
-from pyodsp.alg.const import (
-    STATUS_NOT_FINISHED,
-    STATUS_MAX_ITERATION,
-    STATUS_TIME_LIMIT,
-)
+
+from pyodsp.alg.params import BM_REL_TOLERANCE
 
 
 class Lattice:
     def __init__(
-        self, nodes: List[List[INode]], logger: ILogger, filedir: Path
+        self,
+        nodes: List[List[INode]],
+        logger: ILogger,
+        filedir: Path,
+        max_iteration: int = 1000,
+        sample_frequency: int = 10,
+        sample_size: int = 1000,
+        confidence_level: float = 0.95,
     ) -> None:
         self.num_stages = len(nodes)
         self._verify_nodes(nodes)
         self.logger = logger
         self.filedir = filedir
+        self.max_iteration = max_iteration
+        self.sample_frequency = sample_frequency
+        self.sample_size = sample_size
+        self.confidence_level = confidence_level
+        self.is_minimize = True
         create_directory(self.filedir)
 
     def _verify_nodes(self, nodes: List[List[INode]]) -> None:
@@ -50,13 +56,15 @@ class Lattice:
                 node = nodes[stage][0]
                 if isinstance(node, INodeLeaf):
                     raise ValueError(f"Stage {stage} must be root node.")
-                assert type(node) is INodeRoot
+                assert isinstance(node, INodeRoot)
+                assert not isinstance(node, INodeLeaf)
                 self.root = node
             elif stage == self.num_stages - 1:
                 for node in nodes[stage]:
                     if isinstance(node, INodeRoot):
                         raise ValueError(f"Stage {stage} must be leaf node.")
-                    assert type(node) is INodeLeaf
+                    assert isinstance(node, INodeLeaf)
+                    assert not isinstance(node, INodeRoot)
                     self.leaves.append(node)
             else:
                 for node in nodes[stage]:
@@ -89,7 +97,7 @@ class Lattice:
         for stage in range(self.num_stages - 1):
             self._run_init_forward(stage)
 
-        for stage in range(self.num_stages, 0, -1):
+        for stage in range(self.num_stages - 1, 0, -1):
             self._run_init_backward(stage)
 
     def _run_init_forward(self, stage: int) -> None:
@@ -98,9 +106,14 @@ class Lattice:
             node = self.nodes[node_idx]
             assert isinstance(node, INodeRoot)
             node.set_logger()
-        node = self.stages[stage][0]  # get first node in stage as representative
+        node = self.nodes[
+            self.stages[stage][0]
+        ]  # get first node in stage as representative
         assert isinstance(node, INodeRoot)
         init_dn_message = node.get_init_dn_message()
+
+        if stage == 0:
+            self.is_minimize = init_dn_message.get_is_minimize()
 
         for node_idx in self.stages[stage + 1]:
             child = self.nodes[node_idx]
@@ -127,24 +140,74 @@ class Lattice:
     def _run_main(self) -> None:
         if self.root is None:
             raise ValueError("Root node not found")
-        while True:
-            for stage in range(self.num_stages - 1):
-                self._run_forward(stage)
+        bound = -1e9
+        for iteration in range(self.max_iteration):
+            bound = self._run_root()
+            if iteration % self.sample_frequency == self.sample_frequency - 1:
+                if self._termination(bound):
+                    break
+            else:
+                self._run_forwards()
 
-            for stage in range(self.num_stages, 0, -1):
-                self._run_backward(stage)
+            bound = self._run_backwards()
 
-    def _run_forward(self, stage: int) -> None:
-        assert stage < self.num_stages - 1
-        node = self.stages[stage][0]  # TODO: implement node selection
-        assert isinstance(node, INodeRoot)
+    def _termination(self, bound: float) -> bool:
+        objectives = []
+        for _ in range(self.sample_size):
+            objective = self._run_forwards()
+            objectives.append(objective)
+        ci_d, ci_u = st.t.interval(
+            confidence=self.confidence_level,
+            df=len(objectives) - 1,
+            loc=np.mean(objectives),
+            scale=st.sem(objectives),
+        )
+        if self.is_minimize:
+            print(abs(ci_u - bound) / max(abs(ci_u), abs(bound)))
+            breakpoint()
+            return abs(ci_u - bound) / max(abs(ci_u), abs(bound)) < BM_REL_TOLERANCE
+        else:
+            return abs(ci_d - bound) / max(abs(ci_d), abs(bound)) < BM_REL_TOLERANCE
+
+    def _run_root(self) -> float:
+        assert self.root is not None
+        self._run_forward(self.root)
+
+        return (
+            self.root.alg_root.bm.cpm.solver.get_objective_value()
+        )  # FIXME: properly access
+
+    def _run_forwards(self) -> float:
+        node = self.root
+        path = [node.get_idx()]
+        for stage in range(1, self.num_stages):
+            # randomly sample node in the next stage
+            prob = [node.get_multiplier(node_idx) for node_idx in node.get_children()]
+            sampled_idx = np.random.choice(node.get_children(), p=prob)
+            node = self.nodes[sampled_idx]
+            path.append(node.get_idx())
+
+            if stage < self.num_stages - 1:
+                assert isinstance(node, INodeRoot)
+                self._run_forward(node)
+        assert not isinstance(node, INodeRoot)
+        assert isinstance(node, INodeLeaf)
+        up_message = node.get_up_message()  # solve leaf node
+        return up_message.get_objective()  # FIXME: reference only in BdUpMessage
+
+    def _run_forward(self, node: INodeRoot) -> float:
         node.reset()
         status, dn_message = node.run_step(None)
 
-        for node_idx in self.stages[stage + 1]:
-            child = self.nodes[node_idx]
+        for child_id in node.get_children():
+            child = self.nodes[child_id]
             assert isinstance(child, INodeLeaf)
             child.pass_dn_message(dn_message)
+        return dn_message.get_objective()  # FIXME: reference only in BdDnMessage
+
+    def _run_backwards(self) -> None:
+        for stage in range(self.num_stages - 1, 0, -1):
+            self._run_backward(stage)
 
     def _run_backward(self, stage: int) -> None:
         assert stage > 0

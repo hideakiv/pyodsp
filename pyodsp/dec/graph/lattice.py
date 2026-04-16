@@ -173,12 +173,11 @@ class Lattice:
         assert self.root is not None
         self._run_forward(self.root)
 
-        return (
-            self.root.alg_root.bm.cpm.solver.get_objective_value()
-        )  # FIXME: properly access
+        return self.root.alg_root.bm.get_objective_value()  # FIXME: properly access
 
     def _run_forwards(self) -> float:
         node = self.root
+        assert node is not None
         path = [node.get_idx()]
         for stage in range(1, self.num_stages):
             # randomly sample node in the next stage
@@ -193,7 +192,7 @@ class Lattice:
         assert not isinstance(node, INodeRoot)
         assert isinstance(node, INodeLeaf)
         up_message = node.get_up_message()  # solve leaf node
-        return up_message.get_objective()  # FIXME: reference only in BdUpMessage
+        return up_message.get_objective()
 
     def _run_forward(self, node: INodeRoot) -> float:
         node.reset()
@@ -203,7 +202,7 @@ class Lattice:
             child = self.nodes[child_id]
             assert isinstance(child, INodeLeaf)
             child.pass_dn_message(dn_message)
-        return dn_message.get_objective()  # FIXME: reference only in BdDnMessage
+        return dn_message.get_objective()
 
     def _run_backwards(self) -> None:
         for stage in range(self.num_stages - 1, 0, -1):

@@ -103,6 +103,9 @@ class BundleMethod:
     def get_original_objective_value(self) -> float:
         return self.cpm.get_original_objective_value()
 
+    def get_objective_value(self) -> float:
+        return self.cpm.get_objective_value()
+
     def _log(self) -> None:
         if self.is_minimize():
             lb = self.obj_bound[-1]

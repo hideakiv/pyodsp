@@ -48,6 +48,9 @@ class DdUpMessage(UpMessage):
     def get_cut(self):
         return self.cut
 
+    def get_objective(self) -> float:
+        return 0.0
+
 
 class DdDnMessage(DnMessage):
     def __init__(self, solution: List[float]) -> None:
@@ -55,6 +58,9 @@ class DdDnMessage(DnMessage):
 
     def get_solution(self):
         return self.solution
+
+    def get_objective(self) -> float:
+        return 0.0
 
 
 class DdFinalDnMessage(FinalDnMessage):

@@ -30,6 +30,9 @@ class CuttingPlaneMethod:
     def get_original_objective_value(self) -> float | None:
         return self.solver.get_original_objective_value()
 
+    def get_objective_value(self) -> float:
+        return self.solver.get_objective_value()
+
     def get_parent_objective_value(self) -> float:
         return self.solver.get_parent_objective_value()
 

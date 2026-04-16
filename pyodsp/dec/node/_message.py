@@ -39,9 +39,15 @@ class UpMessage(IMessage, ABC):
     def get_cut(self) -> Cut:
         pass
 
+    @abstractmethod
+    def get_objective(self) -> float:
+        pass
+
 
 class DnMessage(IMessage, ABC):
-    pass
+    @abstractmethod
+    def get_objective(Self) -> float:
+        pass
 
 
 class FinalDnMessage(IMessage, ABC):

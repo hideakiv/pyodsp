@@ -87,9 +87,6 @@ class Lattice:
         self.logger.log_initialization()
         self._run_init()
         self._run_main()
-        self.logger.log_finaliziation()
-        final_obj = self._run_final()
-        self.logger.log_completion(final_obj)
         self._save()
 
     def _run_init(self) -> None:
@@ -274,47 +271,6 @@ class Lattice:
             node = self.nodes[node_idx]
             assert isinstance(node, INodeRoot)
             node.add_cuts(up_messages)
-
-    def _run_final(self) -> float | None:
-        if self.root is None:
-            raise ValueError("root node not found")
-        for stage in range(self.num_stages - 1):
-            self._run_final_forward(stage)
-
-        values: List[float | None] = []
-        for stage in range(self.num_stages - 1, 0, -1):
-            values = self._run_final_backward(stage)
-
-        return values[0]
-
-    def _run_final_forward(self, stage: int) -> None:
-        assert stage < self.num_stages - 1
-        node_id = self.stages[stage][0]  # get first node in stage as representative
-        node = self.nodes[node_id]
-        assert isinstance(node, INodeRoot)
-        final_dn_message = node.get_final_dn_message()
-
-        for node_idx in self.stages[stage + 1]:
-            child = self.nodes[node_idx]
-            assert isinstance(child, INodeLeaf)
-            child.pass_final_dn_message(final_dn_message)
-
-    def _run_final_backward(self, stage: int) -> List[float | None]:
-        final_up_messages = {}
-        for child_id in self.stages[stage]:
-            child = self.nodes[child_id]
-            assert isinstance(child, INodeLeaf)
-            final_up_message = child.get_final_up_message()
-            final_up_messages[child_id] = final_up_message
-
-        values: List[float | None] = []
-        for node_idx in self.stages[stage - 1]:
-            node = self.nodes[node_idx]
-            assert isinstance(node, INodeRoot)
-            value = node.pass_final_up_message(final_up_messages)
-            values.append(value.get_objective())
-
-        return values
 
     def _save(self) -> None:
         for node in self.nodes.values():

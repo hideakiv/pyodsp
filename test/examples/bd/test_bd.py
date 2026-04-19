@@ -49,3 +49,13 @@ def test_aircon():
             text=True,
         )
         assert result.returncode == 0
+
+
+def test_sddp():
+    for solver in solvers:
+        result = subprocess.run(
+            ["python", "examples/aircon/sddp.py", "--solver", solver],
+            capture_output=True,
+            text=True,
+        )
+        assert result.returncode == 0

@@ -14,7 +14,7 @@ from ..node._message import (
 from ..utils import create_directory
 
 
-from pyodsp.alg.params import BM_REL_TOLERANCE
+from pyodsp.alg.params import SDDP_REL_TOLERANCE, SDDP_IMPROVE_TOLERANCE
 
 
 class Lattice:
@@ -38,6 +38,8 @@ class Lattice:
         self.confidence_level = confidence_level
         self.is_minimize = True
         create_directory(self.filedir)
+
+        self.prev_samples = None
 
     def _verify_nodes(self, nodes: List[List[INode]]) -> None:
         self.root: INodeRoot | None = None
@@ -154,6 +156,7 @@ class Lattice:
     def _termination(self, bound: float) -> bool:
         objectives = []
         for _ in range(self.sample_size):
+            np.random.seed(42 + _)
             objective = self._run_forwards()
             objectives.append(objective)
         ci_d, ci_u = st.t.interval(
@@ -162,12 +165,52 @@ class Lattice:
             loc=np.mean(objectives),
             scale=st.sem(objectives),
         )
+        self.logger.log_info(
+            f"lower: {ci_d}, upper: {ci_u}, confidence: {self.confidence_level}"
+        )
+        converged = False
         if self.is_minimize:
-            print(abs(ci_u - bound) / max(abs(ci_u), abs(bound)))
-            breakpoint()
-            return abs(ci_u - bound) / max(abs(ci_u), abs(bound)) < BM_REL_TOLERANCE
+            converged = (
+                abs(ci_u - bound) / max(abs(ci_u), abs(bound)) < SDDP_REL_TOLERANCE
+            )
         else:
-            return abs(ci_d - bound) / max(abs(ci_d), abs(bound)) < BM_REL_TOLERANCE
+            converged = (
+                abs(ci_d - bound) / max(abs(ci_d), abs(bound)) < SDDP_REL_TOLERANCE
+            )
+
+        if converged:
+            self.logger.log_info("SDDP termination with convergence.")
+            return True
+
+        no_improve = False
+        if self.prev_samples is not None:
+            sample_diffs = [
+                self.prev_samples[i] - objectives[i] for i in range(len(objectives))
+            ]
+            all_zero = True
+            for sample_diff in sample_diffs:
+                if sample_diff > 1e-9:
+                    all_zero = False
+                    break
+
+            if all_zero:
+                no_improve = True
+            else:
+                diff_ci_d, diff_ci_u = st.t.interval(
+                    confidence=self.confidence_level,
+                    df=len(sample_diffs) - 1,
+                    loc=np.mean(sample_diffs),
+                    scale=st.sem(sample_diffs),
+                )
+                no_improve = diff_ci_u < SDDP_IMPROVE_TOLERANCE
+
+        if no_improve:
+            self.logger.log_info("SDDP termination with no improvement.")
+            return True
+
+        self.prev_samples = objectives
+
+        return False
 
     def _run_root(self) -> float:
         assert self.root is not None
@@ -239,14 +282,15 @@ class Lattice:
             self._run_final_forward(stage)
 
         values: List[float | None] = []
-        for stage in range(self.num_stages, 0, -1):
+        for stage in range(self.num_stages - 1, 0, -1):
             values = self._run_final_backward(stage)
 
         return values[0]
 
     def _run_final_forward(self, stage: int) -> None:
         assert stage < self.num_stages - 1
-        node = self.stages[stage][0]  # get first node in stage as representative
+        node_id = self.stages[stage][0]  # get first node in stage as representative
+        node = self.nodes[node_id]
         assert isinstance(node, INodeRoot)
         final_dn_message = node.get_final_dn_message()
 
@@ -256,7 +300,6 @@ class Lattice:
             child.pass_final_dn_message(final_dn_message)
 
     def _run_final_backward(self, stage: int) -> List[float | None]:
-        assert stage > 0
         final_up_messages = {}
         for child_id in self.stages[stage]:
             child = self.nodes[child_id]

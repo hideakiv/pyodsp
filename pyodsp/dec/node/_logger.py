@@ -4,6 +4,14 @@ from typing import Any
 
 class ILogger(ABC):
     @abstractmethod
+    def log_info(self, text: str):
+        pass
+
+    @abstractmethod
+    def log_debug(self, text: str):
+        pass
+
+    @abstractmethod
     def log_initialization(self, **kwargs):
         pass
 

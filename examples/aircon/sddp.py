@@ -24,7 +24,7 @@ def main(solver="appsi_highs", agg=False):
 
     sddp_run = SddpRun(nodes, Path("output/aircon/sddp"))
     sddp_run.run()
-    assert_approximately_equal(nodes[0].alg_root.bm.obj_bound[-1], 6.25)
+    assert_approximately_equal(nodes[0][0].alg_root.bm.obj_bound[-1], 6.25)
 
 
 def create_root(idx, demand, solver_name, agg=False):
@@ -54,7 +54,7 @@ def create_inner(idx, demand, solver_name, agg=False):
     alg_root = BdAlgRootBm(solver_root, max_iteration=1)
     solver_leaf = PyomoSolver(model, config, coupling_up)
     alg_leaf = BdAlgLeafPyomo(solver_leaf)
-    node = DecNodeInner(idx, alg_root, alg_leaf)
+    node = DecNodeInner(idx, alg_root, alg_leaf, log_level=0)
     node.set_bound(0)
     node.add_parent(0)
     node.add_child(3, multiplier=0.5)

@@ -113,7 +113,7 @@ class ProximalBundleMethod:
         if self.cpm.is_infeasible():
             self.status = STATUS_INFEASIBLE
             self.logger.log_infeasible()
-            return self.status, None
+            return self.status, None, 0.0
 
         current_obj = self.cpm.get_relaxed_objective()
         self.obj_bound.append(current_obj)
@@ -219,7 +219,7 @@ class ProximalBundleMethod:
         df.to_csv(path)
         self.cpm.save(dir)
 
-    def add_cuts(self, cuts_list: List[CutList]) -> Tuple[bool, bool, float]:
+    def add_cuts(self, cuts_list: List[CutList]) -> Tuple[bool, bool, float | None]:
         return self.cpm.add_cuts(cuts_list)
 
     def _increment(self) -> None:

@@ -20,6 +20,12 @@ class DdLogger(ILogger):
         # Add the handler to the logger
         self.logger.addHandler(ch)
 
+    def log_info(self, text: str):
+        self.logger.info(text)
+
+    def log_debug(self, text: str):
+        self.logger.debug(text)
+
     def log_initialization(self, **kwargs):
         self.logger.info("Starting Dual decomposition")
         for key, var in kwargs.items():

@@ -28,9 +28,9 @@ class BdAlgRootBm(IAlgRoot):
 
     def run_step(self, cuts_list: List[CutList] | None) -> Tuple[int, BdDnMessage]:
         start = time.time()
-        status, solution = self.bm.run_step(cuts_list)
+        status, solution, objective = self.bm.run_step(cuts_list)
         self.step_time.append(time.time() - start)
-        return status, BdDnMessage(solution)
+        return status, BdDnMessage(solution, objective)
 
     def add_cuts(self, cuts_list: List[CutList]) -> None:
         self.bm.add_cuts(cuts_list)

@@ -45,7 +45,9 @@ class BdAlgLeafPyomo(IAlgLeaf):
 
     def pass_dn_message(self, message: BdDnMessage) -> None:
         solution = message.get_solution()
+        objective = message.get_objective()
         self._fix_variables(solution)
+        self._fix_parent_objective(objective)
 
     def pass_final_dn_message(self, message: BdFinalDnMessage) -> None:
         solution = message.get_solution()
@@ -67,12 +69,21 @@ class BdAlgLeafPyomo(IAlgLeaf):
         for i, var in enumerate(self.solver.vars):
             var.fix(coupling_values[i])
 
+    def _fix_parent_objective(self, objective: float) -> None:
+        self.solver.set_parent_objective_value(objective)
+
     def get_up_message(self) -> BdUpMessage:
         start = time.time()
         self.solver.solve()
         cut = self._get_subgradient_inner()
         self.step_time.append(time.time() - start)
-        return BdUpMessage(cut)
+        parent_objective = self.solver.get_parent_objective_value()
+        original_objective = self.solver.get_original_objective_value()
+        if original_objective is None:
+            sample_objective = None
+        else:
+            sample_objective = parent_objective + original_objective
+        return BdUpMessage(cut, sample_objective)
 
     def _get_subgradient_inner(self) -> Cut:
         if self.solver.is_optimal():

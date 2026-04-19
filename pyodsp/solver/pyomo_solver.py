@@ -4,6 +4,7 @@ from typing import List, Dict, Any
 from pathlib import Path
 
 import pandas as pd
+import pickle
 
 import pyomo.environ as pyo
 from pyomo.repn.standard_repn import generate_standard_repn
@@ -45,6 +46,7 @@ class PyomoSolver(Solver):
 
         self._infeasible_model = None
         self._unbounded_model = None
+        self.model._parent_objective = 0.0
 
     def solve(self) -> None:
         """Solve the model."""
@@ -67,8 +69,12 @@ class PyomoSolver(Solver):
         """Get the objective value of the model"""
         return pyo.value(self._get_objective())
 
-    def get_original_objective_value(self) -> float:
-        """Get the objective value of the model"""
+    def get_original_objective_value(self) -> float | None:
+        """Get the objective value of the original objective, or None if it can't be evaluated."""
+        if self._results is None:
+            return 0  # FIXME: error with pdb if this is None
+        if len(self._results["Solution"]) == 0:
+            return None
         return pyo.value(self.original_objective)
 
     def get_vars(self) -> List[pyo.ScalarVar]:
@@ -277,6 +283,12 @@ class PyomoSolver(Solver):
         var_coeff_pairs = list(zip(repn.linear_vars, repn.linear_coefs))
         return var_coeff_pairs
 
+    def set_parent_objective_value(self, objective: float) -> None:
+        self.model._parent_objective = objective
+
+    def get_parent_objective_value(self) -> float:
+        return self.model._parent_objective
+
     def save(self, dir: Path) -> None:
         """outputs solution to dir"""
         path = dir / "sol.csv"
@@ -293,6 +305,62 @@ class PyomoSolver(Solver):
         sol = pd.DataFrame(list(solution.items()), columns=["var", "val"])
 
         sol.to_csv(path, sep="\t", index=False)
+
+        self.save_model(dir, format="lp")
+
+    def save_model(self, dir: Path, format: str = "lp") -> None:
+        """Save the Pyomo concrete model to a directory.
+
+        Args:
+            dir: Directory to save the model to
+            format: Format to save in ('lp', 'mps', 'nl', 'pickle')
+                   - 'lp': LP format (human-readable, solver-compatible)
+                   - 'mps': MPS format (standard solver format)
+                   - 'nl': NL format (AMPL format)
+                   - 'pickle': Python pickle (preserves all object state)
+        """
+        dir_path = Path(dir)
+        dir_path.mkdir(parents=True, exist_ok=True)
+
+        if format == "pickle":
+            model_path = dir_path / "model.pkl"
+            with open(model_path, "wb") as f:
+                pickle.dump(self.model, f)  # FIXME
+        elif format in ("lp", "mps", "nl"):
+            model_path = dir_path / f"model.{format}"
+            self.model.write(
+                str(model_path), io_options={"symbolic_solver_labels": True}
+            )
+        else:
+            raise ValueError(
+                f"Unsupported format: {format}. Choose from 'lp', 'mps', 'nl', 'pickle'"
+            )
+
+    def load_model(self, dir: Path, format: str = "pickle") -> pyo.ConcreteModel:
+        """Load a Pyomo concrete model from a directory.
+
+        Args:
+            dir: Directory containing the saved model
+            format: Format the model was saved in ('lp', 'mps', 'nl', 'pickle')
+
+        Returns:
+            The loaded Pyomo ConcreteModel
+        """
+        dir_path = Path(dir)
+
+        if format == "pickle":
+            model_path = dir_path / "model.pkl"
+            with open(model_path, "rb") as f:
+                model = pickle.load(f)
+            return model
+        elif format in ("lp", "mps", "nl"):
+            raise NotImplementedError(
+                f"Loading from {format} format requires a solver. Use pickle format instead."
+            )
+        else:
+            raise ValueError(
+                f"Unsupported format: {format}. Choose from 'lp', 'mps', 'nl', 'pickle'"
+            )
 
     def _change_domain_to_real(self, var: pyo.ScalarVar) -> None:
         if var.domain is pyo.NonNegativeIntegers:

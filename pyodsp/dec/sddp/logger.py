@@ -3,10 +3,10 @@ import logging
 from ..node._logger import ILogger
 
 
-class BdLogger(ILogger):
+class SddpLogger(ILogger):
     def __init__(self, level: int = logging.INFO):
         # Create a logger object
-        self.logger = logging.getLogger("Benders Decomposition")
+        self.logger = logging.getLogger("SDDP")
         self.logger.setLevel(level)
 
         # Create a console handler and set its level to debug
@@ -27,7 +27,7 @@ class BdLogger(ILogger):
         self.logger.debug(text)
 
     def log_initialization(self, **kwargs):
-        self.logger.info("Starting Benders decomposition")
+        self.logger.info("Starting SDDP")
         for key, var in kwargs.items():
             self.logger.info(f"{key}: {var}")
 
@@ -39,8 +39,8 @@ class BdLogger(ILogger):
         self.logger.debug(f"\t{idx}\t{cut_type}\t{coefficients}\t{constant}")
 
     def log_finaliziation(self):
-        self.logger.info("Finalizing Benders Decomposition")
+        self.logger.info("Finalizing SDDP")
 
     def log_completion(self, objective_value):
-        self.logger.info("Benders decomposition completed")
+        self.logger.info("SDDP completed")
         self.logger.info(f"Final objective value: {objective_value}")

@@ -36,19 +36,27 @@ class BdInitUpMessage(InitUpMessage):
 
 
 class BdUpMessage(UpMessage):
-    def __init__(self, cut: Cut) -> None:
+    def __init__(self, cut: Cut, objective: float) -> None:
         self.cut = cut
+        self.objective = objective
 
     def get_cut(self):
         return self.cut
 
+    def get_objective(self):
+        return self.objective
+
 
 class BdDnMessage(DnMessage):
-    def __init__(self, solution: List[float]) -> None:
+    def __init__(self, solution: List[float], objective: float = 0.0) -> None:
         self.solution = solution
+        self.objective = objective
 
     def get_solution(self):
         return self.solution
+
+    def get_objective(self):
+        return self.objective
 
 
 class BdFinalDnMessage(FinalDnMessage):

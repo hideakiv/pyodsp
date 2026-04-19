@@ -72,6 +72,8 @@ class PyomoSolver(Solver):
         """Get the objective value of the original objective, or None if it can't be evaluated."""
         if self._results is None:
             return None
+        if len(self._results["Solution"]) == 0:
+            return None
         return pyo.value(self.original_objective)
 
     def get_vars(self) -> List[pyo.ScalarVar]:

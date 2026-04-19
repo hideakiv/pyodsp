@@ -79,7 +79,10 @@ class BdAlgLeafPyomo(IAlgLeaf):
         self.step_time.append(time.time() - start)
         parent_objective = self.solver.get_parent_objective_value()
         original_objective = self.solver.get_original_objective_value()
-        sample_objective = parent_objective + original_objective
+        if original_objective is None:
+            sample_objective = None
+        else:
+            sample_objective = parent_objective + original_objective
         return BdUpMessage(cut, sample_objective)
 
     def _get_subgradient_inner(self) -> Cut:

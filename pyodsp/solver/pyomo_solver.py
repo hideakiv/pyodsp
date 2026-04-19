@@ -71,7 +71,7 @@ class PyomoSolver(Solver):
     def get_original_objective_value(self) -> float | None:
         """Get the objective value of the original objective, or None if it can't be evaluated."""
         if self._results is None:
-            return None
+            return 0  # FIXME: error with pdb if this is None
         if len(self._results["Solution"]) == 0:
             return None
         return pyo.value(self.original_objective)

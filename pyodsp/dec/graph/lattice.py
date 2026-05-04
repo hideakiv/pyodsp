@@ -141,6 +141,7 @@ class Lattice:
             raise ValueError("Root node not found")
         bound = -1e9
         for iteration in range(self.max_iteration):
+            np.random.seed(42 + self.sample_size + iteration)
             bound = self._run_root()
             if iteration % self.sample_frequency == self.sample_frequency - 1:
                 if self._termination(bound):

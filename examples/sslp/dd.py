@@ -69,7 +69,6 @@ def create_sub(s: int, nI: int, nJ: int, nS: int, solver="appsi_highs") -> DecNo
     sub_solver = PyomoSolver(m, config, vars_up)
     sub_alg = DdAlgLeafPyomo(sub_solver)
     leaf_node = DecNodeLeaf(s + 1, sub_alg)
-    leaf_node.add_parent(0)
 
     return leaf_node
 

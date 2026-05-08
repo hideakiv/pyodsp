@@ -51,10 +51,8 @@ def create_inner(idx, demand, solver_name):
     alg_root = BdAlgRootBm(solver_root, max_iteration=1)
     solver_leaf = PyomoSolver(model, config, coupling_up)
     alg_leaf = BdAlgLeafPyomo(solver_leaf)
-    parent = (idx - 1) // 2
     node = DecNodeInner(idx, alg_root, alg_leaf)
     node.set_bound(1000)
-    node.add_parent(parent)
     node.add_child(2 * idx + 1, multiplier=0.5)
     node.add_child(2 * idx + 2, multiplier=0.5)
     return node
@@ -69,10 +67,8 @@ def create_leaf(idx, demand, solver_name):
     config = SolverConfig(solver_name=solver_name)
     solver_leaf = PyomoSolver(model, config, coupling_up)
     alg_leaf = BdAlgLeafPyomo(solver_leaf)
-    parent = (idx - 1) // 2
     node = DecNodeLeaf(idx, alg_leaf)
     node.set_bound(1000)
-    node.add_parent(parent)
     return node
 
 

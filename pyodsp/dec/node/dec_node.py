@@ -144,6 +144,7 @@ class DecNodeParent(INodeParent, DecNode):
     def get_init_dn_message(self, **kwargs) -> InitDnMessage:
         init_message = self.alg_root.get_init_dn_message(**kwargs)
         init_message.set_depth(self.get_depth())
+        init_message.set_origin(self.idx)
         return init_message
 
     def pass_init_up_messages(self, messages: Dict[NodeIdx, InitUpMessage]) -> None:
@@ -207,6 +208,7 @@ class DecNodeChild(INodeChild, DecNode):
 
     def pass_init_dn_message(self, message: InitDnMessage) -> None:
         self.set_depth(message.get_depth() + 1)
+        self.add_parent(message.get_origin())
         self.alg_leaf.pass_init_dn_message(message)
 
     def get_init_up_message(self) -> InitUpMessage:

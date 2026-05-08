@@ -146,7 +146,6 @@ for scenario, block in second_stage.items():
     alg = BdAlgLeafPyomo(second_stage_solver[scenario])
     leaf_node = DecNodeLeaf(idx, alg)
     leaf_node.set_bound(1000000.0)
-    leaf_node.add_parent(0)
     leaf_nodes[scenario] = leaf_node
     root_node.add_child(idx, multiplier=1 / len(SCENARIOS))
     idx += 1

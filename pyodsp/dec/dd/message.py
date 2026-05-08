@@ -1,5 +1,6 @@
 from typing import List, Dict
 from ..node._message import (
+    NodeIdx,
     InitDnMessage,
     InitUpMessage,
     FinalDnMessage,
@@ -16,6 +17,7 @@ class DdInitDnMessage(InitDnMessage):
     ) -> None:
         self.coupling_matrix = coupling_matrix
         self.is_minimize = is_minimize
+        self.origin: NodeIdx | None = None
 
     def get_coupling_matrix(self):
         return self.coupling_matrix
@@ -28,6 +30,13 @@ class DdInitDnMessage(InitDnMessage):
 
     def get_depth(self) -> int:
         return self.depth
+
+    def set_origin(self, idx: NodeIdx) -> None:
+        self.origin = idx
+
+    def get_origin(self) -> NodeIdx:
+        assert self.origin is not None
+        return self.origin
 
 
 class DdInitUpMessage(InitUpMessage):

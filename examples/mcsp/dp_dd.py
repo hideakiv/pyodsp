@@ -81,7 +81,6 @@ def create_sub(
     sub_solver = PyomoSolver(m, config, vars_up)
     sub_alg = DdAlgLeafPyomo(sub_solver)
     leaf_node = DecNodeLeaf(k + 1, sub_alg)
-    leaf_node.add_parent(0)
 
     return leaf_node
 

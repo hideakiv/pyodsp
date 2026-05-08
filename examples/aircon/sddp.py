@@ -56,7 +56,6 @@ def create_inner(idx, demand, solver_name, agg=False):
     alg_leaf = BdAlgLeafPyomo(solver_leaf)
     node = DecNodeInner(idx, alg_root, alg_leaf, log_level=0)
     node.set_bound(0)
-    node.add_parent(0)
     node.add_child(3, multiplier=0.5)
     node.add_child(4, multiplier=0.5)
     if agg:
@@ -75,8 +74,6 @@ def create_leaf(idx, demand, solver_name):
     alg_leaf = BdAlgLeafPyomo(solver_leaf)
     node = DecNodeLeaf(idx, alg_leaf)
     node.set_bound(0)
-    node.add_parent(1)
-    node.add_parent(2)
     return node
 
 

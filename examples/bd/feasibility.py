@@ -56,7 +56,6 @@ def create_leaf_node(i, solver="appsi_highs"):
     second_stage_alg = BdAlgLeafPyomo(second_stage_solver)
     leaf_node = DecNodeLeaf(i, second_stage_alg)
     leaf_node.set_bound(-1000.0)
-    leaf_node.add_parent(0)
     return leaf_node
 
 

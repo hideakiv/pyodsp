@@ -73,16 +73,6 @@ class Lattice:
                     if not isinstance(node, INodeInner):
                         raise ValueError(f"Stage {stage} must be inner node.")
 
-            # check parents
-            if stage > 0:
-                previous = self.stages[stage - 1]
-                for node in nodes[stage]:
-                    parents = node.get_parents()
-                    if set(previous) != set(parents):
-                        raise ValueError(
-                            f"parents f{parents} are not the same as previous {previous}"
-                        )
-
     def run(self, init_solution: DnMessage | None = None):
         self.logger.log_initialization()
         self._run_init()
@@ -105,19 +95,19 @@ class Lattice:
             node = self.nodes[node_idx]
             assert isinstance(node, INodeRoot)
             node.set_logger()
-        node = self.nodes[
-            self.stages[stage][0]
-        ]  # get first node in stage as representative
-        assert isinstance(node, INodeRoot)
-        init_dn_message = node.get_init_dn_message()
 
-        if stage == 0:
-            self.is_minimize = init_dn_message.get_is_minimize()
+        for node_idx in self.stages[stage]:
+            node = self.nodes[node_idx]
+            assert isinstance(node, INodeRoot)
+            init_dn_message = node.get_init_dn_message()
 
-        for node_idx in self.stages[stage + 1]:
-            child = self.nodes[node_idx]
-            assert isinstance(child, INodeLeaf)
-            child.pass_init_dn_message(init_dn_message)
+            if stage == 0:
+                self.is_minimize = init_dn_message.get_is_minimize()
+
+            for child_idx in self.stages[stage + 1]:
+                child = self.nodes[child_idx]
+                assert isinstance(child, INodeLeaf)
+                child.pass_init_dn_message(init_dn_message)
 
     def _run_init_backward(self, stage: int) -> None:
         assert stage > 0

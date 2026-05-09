@@ -23,14 +23,6 @@ class InitDnMessage(IMessage, ABC):
     def get_depth(self) -> int:
         pass
 
-    @abstractmethod
-    def set_origin(self, idx: NodeIdx) -> None:
-        pass
-
-    @abstractmethod
-    def get_origin(self) -> NodeIdx:
-        pass
-
 
 class InitUpMessage(IMessage, ABC):
     @abstractmethod

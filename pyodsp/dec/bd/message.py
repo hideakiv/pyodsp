@@ -1,6 +1,5 @@
 from typing import List
 from ..node._message import (
-    NodeIdx,
     InitDnMessage,
     InitUpMessage,
     FinalDnMessage,
@@ -14,7 +13,6 @@ from pyodsp.alg.bm.cuts import Cut
 class BdInitDnMessage(InitDnMessage):
     def __init__(self, is_minimize: bool) -> None:
         self.is_minimize = is_minimize
-        self.origin: NodeIdx | None = None
 
     def get_is_minimize(self) -> bool:
         return self.is_minimize
@@ -24,13 +22,6 @@ class BdInitDnMessage(InitDnMessage):
 
     def get_depth(self) -> int:
         return self.depth
-
-    def set_origin(self, idx: NodeIdx) -> None:
-        self.origin = idx
-
-    def get_origin(self) -> NodeIdx:
-        assert self.origin is not None
-        return self.origin
 
 
 class BdInitUpMessage(InitUpMessage):

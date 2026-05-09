@@ -22,7 +22,6 @@ class DecNode(INode, ABC):
         self.idx: NodeIdx = idx
         self.depth: int | None = None
 
-        self.parents: List[NodeIdx] = []
         self.children: List[NodeIdx] = []
         self.children_multipliers: Dict[NodeIdx, float] = {}
         self.children_bounds: Dict[int, float] = {}
@@ -40,9 +39,6 @@ class DecNode(INode, ABC):
 
     def set_depth(self, depth: int) -> None:
         self.depth = depth
-
-    def get_parents(self) -> List[NodeIdx]:
-        return self.parents
 
     def get_children(self) -> List[NodeIdx]:
         return self.children
@@ -144,7 +140,6 @@ class DecNodeParent(INodeParent, DecNode):
     def get_init_dn_message(self, **kwargs) -> InitDnMessage:
         init_message = self.alg_root.get_init_dn_message(**kwargs)
         init_message.set_depth(self.get_depth())
-        init_message.set_origin(self.idx)
         return init_message
 
     def pass_init_up_messages(self, messages: Dict[NodeIdx, InitUpMessage]) -> None:
@@ -192,11 +187,6 @@ class DecNodeChild(INodeChild, DecNode):
     def get_alg_leaf(self) -> IAlgLeaf:
         return self.alg_leaf
 
-    def add_parent(self, idx: NodeIdx) -> None:
-        if idx in self.parents:
-            raise ValueError(f"Idx {idx} already in parents of node {self.idx}")
-        self.parents.append(idx)
-
     def set_bound(self, bound: float) -> None:
         self.bound = bound
 
@@ -208,7 +198,6 @@ class DecNodeChild(INodeChild, DecNode):
 
     def pass_init_dn_message(self, message: InitDnMessage) -> None:
         self.set_depth(message.get_depth() + 1)
-        self.add_parent(message.get_origin())
         self.alg_leaf.pass_init_dn_message(message)
 
     def get_init_up_message(self) -> InitUpMessage:

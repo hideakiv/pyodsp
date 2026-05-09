@@ -28,10 +28,6 @@ class INode(ABC):
         pass
 
     @abstractmethod
-    def get_parents(self) -> List[NodeIdx]:
-        pass
-
-    @abstractmethod
     def get_children(self) -> List[NodeIdx]:
         pass
 
@@ -124,10 +120,6 @@ INodeRoot = INodeParent
 class INodeChild(INode, ABC):
     @abstractmethod
     def get_alg_leaf(self) -> IAlgLeaf:
-        pass
-
-    @abstractmethod
-    def add_parent(self, idx: NodeIdx) -> None:
         pass
 
     @abstractmethod

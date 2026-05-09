@@ -96,18 +96,19 @@ class Lattice:
             assert isinstance(node, INodeRoot)
             node.set_logger()
 
-        for node_idx in self.stages[stage]:
-            node = self.nodes[node_idx]
-            assert isinstance(node, INodeRoot)
-            init_dn_message = node.get_init_dn_message()
+        node = self.nodes[
+            self.stages[stage][0]
+        ]  # get first node in stage as representative
+        assert isinstance(node, INodeRoot)
+        init_dn_message = node.get_init_dn_message()
 
-            if stage == 0:
-                self.is_minimize = init_dn_message.get_is_minimize()
+        if stage == 0:
+            self.is_minimize = init_dn_message.get_is_minimize()
 
-            for child_idx in self.stages[stage + 1]:
-                child = self.nodes[child_idx]
-                assert isinstance(child, INodeLeaf)
-                child.pass_init_dn_message(init_dn_message)
+        for child_idx in self.stages[stage + 1]:
+            child = self.nodes[child_idx]
+            assert isinstance(child, INodeLeaf)
+            child.pass_init_dn_message(init_dn_message)
 
     def _run_init_backward(self, stage: int) -> None:
         assert stage > 0

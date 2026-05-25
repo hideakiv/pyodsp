@@ -10,6 +10,8 @@ class Spec:
     max_charge: float
     charge_efficiency: float
 
+    penalty: float
+
 
 @dataclass
 class Schedule:
@@ -24,7 +26,32 @@ class Schedule:
     max_proc: list[float]
 
 
-def stage(
+def root_stage(
+    block: pyo.ScalarBlock,
+    prev_level: float,
+    schedule: Schedule,
+):
+    block.prev_level = pyo.Var(domain=pyo.NonNegativeReals)
+    block.prev_level.fix(prev_level)
+
+    # define next procurement
+    def proc_bd(block, t):
+        return (0, schedule.max_proc[t])
+
+    block.next_procurement = pyo.Var(
+        block.nextT, domain=pyo.NonNegativeReals, bounds=proc_bd
+    )
+
+    # define cost
+    objexpr = sum(
+        schedule.proc_prices[t] * block.next_procurement[t]
+        for t in range(schedule.next_time)
+    )
+
+    block.obj = pyo.Objective(expr=objexpr, sense=pyo.minimize)
+
+
+def nonroot_stage(
     block: pyo.ScalarBlock,
     prev_level: pyo.Var,
     procurement: pyo.Var,
@@ -79,14 +106,22 @@ def stage(
     block.level_cn = pyo.Constraint(block.T, rule=level_rule)
 
     # define balance
-    def purchase_bd(block, t):
+    def market_bd(block, t):
         return (-schedule.max_sell[t], schedule.max_purchase[t])
 
-    block.purchase = pyo.Var(block.T, domain=pyo.Reals, bounds=purchase_bd)
+    block.market = pyo.Var(block.T, domain=pyo.Reals, bounds=market_bd)
+
+    block.violation_p = pyo.Var(block.T, domain=pyo.NonNegativeReals)
+    block.violation_m = pyo.Var(block.T, domain=pyo.NonNegativeReals)
 
     def balance_rule(block, t):
         return (
-            block.power[t] + block.purchase[t] == schedule.demands[t] - procurement[t]
+            block.power[t]
+            + block.market[t]
+            + procurement[t]
+            + block.violation_p[t]
+            - block.violation_m[t]
+            == schedule.demands[t]
         )
 
     block.balance_cn = pyo.Constraint(block.T, rule=balance_rule)
@@ -105,37 +140,9 @@ def stage(
         for t in range(schedule.next_time)
     )
     purchase_cost = sum(
-        schedule.prices[t] * block.purchase[t] for t in range(schedule.time)
+        schedule.prices[t] * block.market[t] for t in range(schedule.time)
     )
-    return proc_cost + purchase_cost
-
-
-def root_stage(
-    block: pyo.ScalarBlock,
-    prev_level: float,
-    procurement: list[float],
-    schedule: Schedule,
-    spec: Spec,
-):
-    block.prev_level = pyo.Var(domain=pyo.NonNegativeReals)
-    block.prev_level.fix(prev_level)
-
-    block.procurement = pyo.Var(
-        pyo.RangeSet(0, schedule.time - 1), domain=pyo.NonNegativeReals
+    violation_cost = spec.penalty * sum(
+        block.violation_p[t] + block.violation_m[t] for t in range(schedule.time)
     )
-    for t in range(len(procurement)):
-        block.procurement[t].fix(procurement[t])
-
-    objexpr = stage(block, block.prev_level, block.procurement, schedule, spec)
-    block.obj = pyo.Objective(expr=objexpr, sense=pyo.minimize)
-
-
-def nonroot_stage(
-    block: pyo.ScalarBlock,
-    prev_level: pyo.Var,
-    procurement: pyo.Var,
-    schedule: Schedule,
-    spec: Spec,
-):
-    objexpr = stage(block, prev_level, procurement, schedule, spec)
-    block.obj_expr = objexpr
+    block.obj_expr = proc_cost + purchase_cost + violation_cost

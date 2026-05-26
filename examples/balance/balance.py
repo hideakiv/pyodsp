@@ -95,7 +95,7 @@ def stage(
     block.power_cn = pyo.Constraint(block.nextT, rule=power_rule)
 
 
-def root_stage(
+def first_stage(
     block: pyo.ScalarBlock,
     current_level: float,
     schedule: Schedule,
@@ -115,7 +115,7 @@ def root_stage(
     block.obj = pyo.Objective(expr=objexpr, sense=pyo.minimize)
 
 
-def nonroot_stage(
+def mid_stage(
     block: pyo.ScalarBlock,
     current_level: pyo.Var,
     power: pyo.Var,
@@ -148,10 +148,61 @@ def nonroot_stage(
         schedule.proc_prices[t] * block.next_procurement[t]
         for t in range(schedule.next_time)
     )
-    purchase_cost = sum(
+    market_cost = sum(
         schedule.prices[t] * block.market[t] for t in range(schedule.time)
     )
     violation_cost = spec.penalty * sum(
         block.violation_p[t] + block.violation_m[t] for t in range(schedule.time)
     )
-    block.obj_expr = proc_cost + purchase_cost + violation_cost
+    block.obj_expr = proc_cost + market_cost + violation_cost
+
+
+def last_stage(
+    block: pyo.ScalarBlock,
+    current_level: pyo.Var,
+    final_level: float,
+    level_penalty: float,
+    power: pyo.Var,
+    schedule: Schedule,
+    spec: Spec,
+):
+    block.T = pyo.RangeSet(0, schedule.time - 1)
+
+    # define balance
+    def market_bd(block, t):
+        return (-schedule.max_sell[t], schedule.max_purchase[t])
+
+    block.market = pyo.Var(block.T, domain=pyo.Reals, bounds=market_bd)
+
+    block.violation_p = pyo.Var(block.T, domain=pyo.NonNegativeReals)
+    block.violation_m = pyo.Var(block.T, domain=pyo.NonNegativeReals)
+
+    def balance_rule(block, t):
+        return (
+            block.market[t] + power[t] + block.violation_p[t] - block.violation_m[t]
+            == schedule.demands[t]
+        )
+
+    block.balance_cn = pyo.Constraint(block.T, rule=balance_rule)
+
+    # define level_violation
+    block.level_violation_p = pyo.Var(domain=pyo.NonNegativeReals)
+    block.level_violation_m = pyo.Var(domain=pyo.NonNegativeReals)
+
+    def final_level_rule(block):
+        return (
+            current_level + block.level_violation_p - block.level_violation_m
+            == final_level
+        )
+
+    block.final_level_cn = pyo.Constraint(rule=final_level_rule)
+
+    # define cost
+    market_cost = sum(
+        schedule.prices[t] * block.market[t] for t in range(schedule.time)
+    )
+    violation_cost = spec.penalty * sum(
+        block.violation_p[t] + block.violation_m[t] for t in range(schedule.time)
+    )
+    level_violation_cost = level_penalty * (block.level_violation_p + block.violation_m)
+    block.obj_expr = market_cost + violation_cost + level_violation_cost

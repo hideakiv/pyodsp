@@ -3,49 +3,49 @@ import pyomo.environ as pyo
 
 
 @dataclass
-class Spec:
+class ConstantParams:
+    time: int
+
     min_level: float
     max_level: float
     max_discharge: float
     max_charge: float
     charge_efficiency: float
 
+    max_purchase: list[float]
+    max_sell: list[float]
+
+    proc_prices: list[float]
+    max_proc: list[float]
+
     penalty: float
 
 
 @dataclass
-class Schedule:
-    time: int
+class ScenarioParams:
     demands: list[float]
     prices: list[float]
-    max_purchase: list[float]
-    max_sell: list[float]
-
-    next_time: int
-    proc_prices: list[float]
-    max_proc: list[float]
 
 
 def stage(
     block: pyo.ScalarBlock,
     current_level: pyo.Var,
-    schedule: Schedule,
-    spec: Spec,
+    cp: ConstantParams,
 ):
 
-    block.nextT = pyo.RangeSet(0, schedule.next_time - 1)
+    block.nextT = pyo.RangeSet(0, cp.time - 1)
 
     # define hydro
 
     def discharge_bd(block, t):
-        return (0, spec.max_discharge)
+        return (0, cp.max_discharge)
 
     block.power_discharge = pyo.Var(
         block.nextT, domain=pyo.NonNegativeReals, bounds=discharge_bd
     )
 
     def charge_bd(block, t):
-        return (0, spec.max_charge)
+        return (0, cp.max_charge)
 
     block.power_charge = pyo.Var(
         block.nextT, domain=pyo.NonNegativeReals, bounds=charge_bd
@@ -53,7 +53,7 @@ def stage(
 
     # define level
     def level_bd(block, t):
-        return (spec.min_level, spec.max_level)
+        return (cp.min_level, cp.max_level)
 
     block.level = pyo.Var(block.nextT, domain=pyo.NonNegativeReals, bounds=level_bd)
 
@@ -63,21 +63,21 @@ def stage(
                 block.level[t]
                 == current_level
                 - block.power_discharge[t]
-                + spec.charge_efficiency * block.power_charge[t]
+                + cp.charge_efficiency * block.power_charge[t]
             )
         else:
             return (
                 block.level[t]
                 == block.level[t - 1]
                 - block.power_discharge[t]
-                + spec.charge_efficiency * block.power_charge[t]
+                + cp.charge_efficiency * block.power_charge[t]
             )
 
     block.level_cn = pyo.Constraint(block.nextT, rule=level_rule)
 
     # define procurement
     def proc_bd(block, t):
-        return (0, schedule.max_proc[t])
+        return (0, cp.max_proc[t])
 
     block.procurement = pyo.Var(
         block.nextT, domain=pyo.NonNegativeReals, bounds=proc_bd
@@ -98,19 +98,15 @@ def stage(
 def first_stage(
     block: pyo.ScalarBlock,
     current_level: float,
-    schedule: Schedule,
-    spec: Spec,
+    cp: ConstantParams,
 ):
 
     block.current_level = pyo.Var(domain=pyo.NonNegativeReals)
     block.current_level.fix(current_level)
-    stage(block, block.current_level, schedule, spec)
+    stage(block, block.current_level, cp)
 
     # define cost
-    objexpr = sum(
-        schedule.proc_prices[t] * block.procurement[t]
-        for t in range(schedule.next_time)
-    )
+    objexpr = sum(cp.proc_prices[t] * block.procurement[t] for t in range(cp.time))
 
     block.obj = pyo.Objective(expr=objexpr, sense=pyo.minimize)
 
@@ -119,14 +115,14 @@ def mid_stage(
     block: pyo.ScalarBlock,
     current_level: pyo.Var,
     power: pyo.Var,
-    schedule: Schedule,
-    spec: Spec,
+    sp: ScenarioParams,
+    cp: ConstantParams,
 ):
-    block.T = pyo.RangeSet(0, schedule.time - 1)
+    block.T = pyo.RangeSet(0, cp.time - 1)
 
     # define balance
     def market_bd(block, t):
-        return (-schedule.max_sell[t], schedule.max_purchase[t])
+        return (-cp.max_sell[t], cp.max_purchase[t])
 
     block.market = pyo.Var(block.T, domain=pyo.Reals, bounds=market_bd)
 
@@ -136,23 +132,18 @@ def mid_stage(
     def balance_rule(block, t):
         return (
             block.market[t] + power[t] + block.violation_p[t] - block.violation_m[t]
-            == schedule.demands[t]
+            == sp.demands[t]
         )
 
     block.balance_cn = pyo.Constraint(block.T, rule=balance_rule)
 
-    stage(block, current_level, schedule, spec)
+    stage(block, current_level, cp)
 
     # define cost
-    proc_cost = sum(
-        schedule.proc_prices[t] * block.next_procurement[t]
-        for t in range(schedule.next_time)
-    )
-    market_cost = sum(
-        schedule.prices[t] * block.market[t] for t in range(schedule.time)
-    )
-    violation_cost = spec.penalty * sum(
-        block.violation_p[t] + block.violation_m[t] for t in range(schedule.time)
+    proc_cost = sum(cp.proc_prices[t] * block.procurement[t] for t in range(cp.time))
+    market_cost = sum(sp.prices[t] * block.market[t] for t in range(cp.time))
+    violation_cost = cp.penalty * sum(
+        block.violation_p[t] + block.violation_m[t] for t in range(cp.time)
     )
     block.obj_expr = proc_cost + market_cost + violation_cost
 
@@ -163,14 +154,14 @@ def last_stage(
     final_level: float,
     level_penalty: float,
     power: pyo.Var,
-    schedule: Schedule,
-    spec: Spec,
+    sp: ScenarioParams,
+    cp: ConstantParams,
 ):
-    block.T = pyo.RangeSet(0, schedule.time - 1)
+    block.T = pyo.RangeSet(0, cp.time - 1)
 
     # define balance
     def market_bd(block, t):
-        return (-schedule.max_sell[t], schedule.max_purchase[t])
+        return (-cp.max_sell[t], cp.max_purchase[t])
 
     block.market = pyo.Var(block.T, domain=pyo.Reals, bounds=market_bd)
 
@@ -180,7 +171,7 @@ def last_stage(
     def balance_rule(block, t):
         return (
             block.market[t] + power[t] + block.violation_p[t] - block.violation_m[t]
-            == schedule.demands[t]
+            == sp.demands[t]
         )
 
     block.balance_cn = pyo.Constraint(block.T, rule=balance_rule)
@@ -198,11 +189,9 @@ def last_stage(
     block.final_level_cn = pyo.Constraint(rule=final_level_rule)
 
     # define cost
-    market_cost = sum(
-        schedule.prices[t] * block.market[t] for t in range(schedule.time)
-    )
-    violation_cost = spec.penalty * sum(
-        block.violation_p[t] + block.violation_m[t] for t in range(schedule.time)
+    market_cost = sum(sp.prices[t] * block.market[t] for t in range(cp.time))
+    violation_cost = cp.penalty * sum(
+        block.violation_p[t] + block.violation_m[t] for t in range(cp.time)
     )
     level_violation_cost = level_penalty * (block.level_violation_p + block.violation_m)
     block.obj_expr = market_cost + violation_cost + level_violation_cost

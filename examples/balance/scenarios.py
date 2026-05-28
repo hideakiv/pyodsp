@@ -10,6 +10,9 @@ class BalanceParams:
     cp: ConstantParams
     sp_dict: dict[int, list[ScenarioParams]]
     tp_dict: dict[int, np.ndarray]
+    init_level: float
+    final_level: float
+    final_penalty: float
 
 
 def create_cp() -> ConstantParams:
@@ -24,6 +27,10 @@ def create_static_scenarios(
 ) -> BalanceParams:
     assert num_stages >= 2
     assert len(num_scenarios) == len(regime_params.regimes)
+
+    init_level = 100.0
+    final_level = 100.0
+    final_penalty = 100.0
 
     # create constant params
     cp = create_cp()
@@ -68,4 +75,4 @@ def create_static_scenarios(
     for stage in range(1, num_stages):
         tp_dict[stage] = tp
 
-    return BalanceParams(cp, sp_dict, tp_dict)
+    return BalanceParams(cp, sp_dict, tp_dict, init_level, final_level, final_penalty)

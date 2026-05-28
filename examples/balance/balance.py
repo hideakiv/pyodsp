@@ -4,6 +4,8 @@ import pyomo.environ as pyo
 
 @dataclass
 class ConstantParams:
+    num_stages: int
+    num_scenarios: int
     time: int
 
     min_level: float
@@ -114,7 +116,7 @@ def first_stage(
 def mid_stage(
     block: pyo.ScalarBlock,
     current_level: pyo.Var,
-    power: pyo.Var,
+    planned_power: pyo.Var,
     sp: ScenarioParams,
     cp: ConstantParams,
 ):
@@ -131,7 +133,10 @@ def mid_stage(
 
     def balance_rule(block, t):
         return (
-            block.market[t] + power[t] + block.violation_p[t] - block.violation_m[t]
+            block.market[t]
+            + planned_power[t]
+            + block.violation_p[t]
+            - block.violation_m[t]
             == sp.demands[t]
         )
 
@@ -153,7 +158,7 @@ def last_stage(
     current_level: pyo.Var,
     final_level: float,
     level_penalty: float,
-    power: pyo.Var,
+    planned_power: pyo.Var,
     sp: ScenarioParams,
     cp: ConstantParams,
 ):
@@ -170,7 +175,10 @@ def last_stage(
 
     def balance_rule(block, t):
         return (
-            block.market[t] + power[t] + block.violation_p[t] - block.violation_m[t]
+            block.market[t]
+            + planned_power[t]
+            + block.violation_p[t]
+            - block.violation_m[t]
             == sp.demands[t]
         )
 

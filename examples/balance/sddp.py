@@ -87,11 +87,11 @@ def create_inner(
     model = pyo.ConcreteModel()
     model.current_level = pyo.Var()
     model.planned_power = pyo.Var(range(cp.time))
-    mid_stage(model, model.current_level, model.power, sp, cp)
+    mid_stage(model, model.current_level, model.planned_power, sp, cp)
     model.obj = pyo.Objective(expr=model.obj_expr, sense=pyo.minimize)
     coupling_up = [model.current_level]
     for t in range(cp.time):
-        coupling_dn.append(model.planned_power[t])
+        coupling_up.append(model.planned_power[t])
     coupling_dn = [model.level[cp.time - 1]]
     for t in range(cp.time):
         coupling_dn.append(model.power[t])
@@ -134,7 +134,7 @@ def create_leaf(
     model.obj = pyo.Objective(expr=model.obj_expr, sense=pyo.minimize)
     coupling_up = [model.current_level]
     for t in range(cp.time):
-        coupling_dn.append(model.planned_power[t])
+        coupling_up.append(model.planned_power[t])
     config = SolverConfig(solver_name=solver_name)
     solver_leaf = PyomoSolver(model, config, coupling_up)
     alg_leaf = BdAlgLeafPyomo(solver_leaf)

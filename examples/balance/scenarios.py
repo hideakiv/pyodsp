@@ -15,8 +15,22 @@ class BalanceParams:
     final_penalty: float
 
 
-def create_cp() -> ConstantParams:
-    pass
+def create_cp(num_stages: int, num_scenarios: int, time: int) -> ConstantParams:
+    return ConstantParams(
+        num_stages=num_stages,
+        num_scenarios=num_scenarios,
+        time=time,
+        min_level=0.0,
+        max_level=500.0,
+        max_charge=100.0,
+        max_discharge=100.0,
+        charge_efficiency=0.9,
+        max_purchase=[100] * time,
+        max_sell=[100] * time,
+        proc_prices=[100] * time,
+        max_proc=[100] * time,
+        penalty=1e3,
+    )
 
 
 def create_static_scenarios(
@@ -31,9 +45,11 @@ def create_static_scenarios(
     init_level = 100.0
     final_level = 100.0
     final_penalty = 100.0
+    time = 48
+    total_scenarios = sum(num_scenarios)
 
     # create constant params
-    cp = create_cp()
+    cp = create_cp(num_stages, total_scenarios, time)
 
     # create list of scenarios
     scenarios: list[ScenarioParams] = []
@@ -47,7 +63,6 @@ def create_static_scenarios(
         sp_dict[stage] = scenarios.copy()
 
     # create initial transition probability
-    total_scenarios = sum(num_scenarios)
     init_tp = np.zeros((1, total_scenarios))
     s2 = 0
     for next_regime in range(len(num_scenarios)):
@@ -59,9 +74,9 @@ def create_static_scenarios(
     # create regular transition probability
     tp = np.zeros((total_scenarios, total_scenarios))
     s1 = 0
-    s2 = 0
     for this_regime in range(len(num_scenarios)):
         for i in range(num_scenarios[this_regime]):
+            s2 = 0
             for next_regime in range(len(num_scenarios)):
                 for j in range(num_scenarios[next_regime]):
                     raw_prob = regime_params.transition_matrix[this_regime, next_regime]

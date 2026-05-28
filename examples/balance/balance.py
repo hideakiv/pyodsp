@@ -201,5 +201,7 @@ def last_stage(
     violation_cost = cp.penalty * sum(
         block.violation_p[t] + block.violation_m[t] for t in range(cp.time)
     )
-    level_violation_cost = level_penalty * (block.level_violation_p + block.violation_m)
+    level_violation_cost = level_penalty * (
+        block.level_violation_p + block.level_violation_m
+    )
     block.obj_expr = market_cost + violation_cost + level_violation_cost

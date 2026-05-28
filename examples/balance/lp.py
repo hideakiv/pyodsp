@@ -16,17 +16,18 @@ def solve(params: BalanceParams, solver="appsi_highs"):
     opt = pyo.SolverFactory(solver)
     opt.solve(model)
 
-    # 1. Generate unique labels for your components
-    labels = generate_cuid_names(model)
-
-    # 2. Extract variable data into a dictionary
     solution_data = {}
     for var in model.component_data_objects(pyo.Var):
-        solution_data[labels[var]] = var.value
+        solution_data[var.name] = pyo.value(var)
 
-    # 3. Save to disk
-    with open("output/balance/lp/pyomo_solution.json", "w") as f:
-        json.dump(solution_data, f)
+    print(pyo.value(model.obj.expr))
+
+    # filename = "output/balance/lp/pyomo_solution.json"
+    # if not Path(filename).parent.exists():
+    #     Path(filename).parent.mkdir(parents=True, exist_ok=True)
+
+    # with open("output/balance/lp/pyomo_solution.json", "w") as f:
+    #     json.dump(solution_data, f)
 
 
 def create_root(model: pyo.ConcreteModel, params: BalanceParams):
@@ -43,20 +44,15 @@ def create_root(model: pyo.ConcreteModel, params: BalanceParams):
     )
 
     def power_coupling_rule(m, s, t):
-        return m.power[t] == m.next_stage[s].planned_power
+        return m.power[t] == m.next_stage[s].planned_power[t]
 
     model.power_coupling_cn = pyo.Constraint(
-        range(params.cp.num_scenarios), params.cp.time, rule=power_coupling_rule
+        range(params.cp.num_scenarios), range(params.cp.time), rule=power_coupling_rule
     )
 
     # define cost
-    objexpr = sum(
-        params.cp.proc_prices[t] * model.procurement[t] for t in range(params.cp.time)
-    )
     for s in range(params.cp.num_scenarios):
-        objexpr += params.tp_dict[0][0, s] * model.next_stage[s].obj
-
-    model.obj = pyo.Objective(expr=objexpr, sense=pyo.minimize)
+        model.obj += params.tp_dict[0][0, s] * model.next_stage[s].obj
 
 
 def create_inner_rule(stage: int, params: BalanceParams):
@@ -64,8 +60,8 @@ def create_inner_rule(stage: int, params: BalanceParams):
         sp = params.sp_dict[stage][s1]
         block.current_level = pyo.Var()
         block.planned_power = pyo.Var(range(params.cp.time))
-        mid_stage(block, block.current_level, block.power, sp, params.cp)
-        if stage < params.cp.num_stages - 1:
+        mid_stage(block, block.current_level, block.planned_power, sp, params.cp)
+        if stage < params.cp.num_stages - 2:
             block.next_stage = pyo.Block(
                 range(params.cp.num_scenarios),
                 rule=create_inner_rule(stage + 1, params),
@@ -84,10 +80,12 @@ def create_inner_rule(stage: int, params: BalanceParams):
         )
 
         def power_coupling_rule(m, s, t):
-            return m.power[t] == m.next_stage[s].planned_power
+            return m.power[t] == m.next_stage[s].planned_power[t]
 
         block.power_coupling_cn = pyo.Constraint(
-            range(params.cp.num_scenarios), params.cp.time, rule=power_coupling_rule
+            range(params.cp.num_scenarios),
+            range(params.cp.time),
+            rule=power_coupling_rule,
         )
 
         objexpr = block.obj_expr

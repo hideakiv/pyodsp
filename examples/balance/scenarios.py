@@ -16,19 +16,29 @@ class BalanceParams:
 
 
 def create_cp(num_stages: int, num_scenarios: int, time: int) -> ConstantParams:
+    hours = np.arange(time) / 2.0
+    proc_prices = [
+        40.0 if h < 6 or h >= 22 else 55.0 if h < 12 else 70.0 if h < 18 else 62.0
+        for h in hours
+    ]
+    max_proc = [
+        45.0 if h < 6 or h >= 22 else 28.0 if h < 12 else 25.0 if h < 18 else 30.0
+        for h in hours
+    ]
+
     return ConstantParams(
         num_stages=num_stages,
         num_scenarios=num_scenarios,
         time=time,
         min_level=0.0,
-        max_level=500.0,
-        max_charge=100.0,
-        max_discharge=100.0,
-        charge_efficiency=0.9,
-        max_purchase=[100] * time,
-        max_sell=[100] * time,
-        proc_prices=[100] * time,
-        max_proc=[100] * time,
+        max_level=180.0,
+        max_charge=22.0,
+        max_discharge=22.0,
+        charge_efficiency=0.92,
+        max_purchase=40.0,
+        max_sell=30.0,
+        proc_prices=proc_prices,
+        max_proc=max_proc,
         penalty=1e3,
     )
 
@@ -44,7 +54,7 @@ def create_static_scenarios(
 
     init_level = 100.0
     final_level = 100.0
-    final_penalty = 100.0
+    final_penalty = 180.0
     time = 48
     total_scenarios = sum(num_scenarios)
 

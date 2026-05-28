@@ -156,8 +156,19 @@ if __name__ == "__main__":
     time = 48
     r1 = NormalRegime(time)
     r2 = HotSunnyRegime(time)
-    regimes = [r1, r2]
-    tm = np.asarray([[0.8, 0.2], [0.6, 0.4]])
+    r3 = HotCloudyRegime(time)
+    r4 = ColdSunnyRegime(time)
+    r5 = ColdCloudyRegime(time)
+    regimes = [r1, r2, r3, r4, r5]
+    tm = np.asarray(
+        [
+            [0.6, 0.1, 0.1, 0.1, 0.1],
+            [0.1, 0.6, 0.1, 0.1, 0.1],
+            [0.1, 0.1, 0.6, 0.1, 0.1],
+            [0.1, 0.1, 0.1, 0.6, 0.1],
+            [0.1, 0.1, 0.1, 0.1, 0.6],
+        ]
+    )
     regime_params = RegimeParams(regimes, tm)
-    params = create_static_scenarios(3, [1, 1], regime_params, 0)
+    params = create_static_scenarios(8, [1, 1, 1, 1, 1], regime_params, 0)
     solve(params)

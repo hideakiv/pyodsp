@@ -14,8 +14,8 @@ class ConstantParams:
     max_charge: float
     charge_efficiency: float
 
-    max_purchase: list[float]
-    max_sell: list[float]
+    max_purchase: float
+    max_sell: float
 
     proc_prices: list[float]
     max_proc: list[float]
@@ -124,7 +124,7 @@ def mid_stage(
 
     # define balance
     def market_bd(block, t):
-        return (-cp.max_sell[t], cp.max_purchase[t])
+        return (-cp.max_sell, cp.max_purchase)
 
     block.market = pyo.Var(block.T, domain=pyo.Reals, bounds=market_bd)
 
@@ -166,7 +166,7 @@ def last_stage(
 
     # define balance
     def market_bd(block, t):
-        return (-cp.max_sell[t], cp.max_purchase[t])
+        return (-cp.max_sell, cp.max_purchase)
 
     block.market = pyo.Var(block.T, domain=pyo.Reals, bounds=market_bd)
 

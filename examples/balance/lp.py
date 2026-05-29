@@ -1,20 +1,26 @@
 from pathlib import Path
 import json
+import time
 import numpy as np
 import pyomo.environ as pyo
-from pyomo.core.base.block import generate_cuid_names
 
 from balance import first_stage, mid_stage, last_stage
 from scenarios import BalanceParams, create_static_scenarios
 
 
-def solve(params: BalanceParams, solver="appsi_highs"):
+def solve_lp(params: BalanceParams, solver="appsi_highs"):
 
+    start = time.perf_counter()
     model = pyo.ConcreteModel()
     create_root(model, params)
+    finish = time.perf_counter()
+    build_time = finish - start
 
+    start = time.perf_counter()
     opt = pyo.SolverFactory(solver)
-    opt.solve(model)
+    opt.solve(model, tee=True)
+    finish = time.perf_counter()
+    solve_time = finish - start
 
     solution_data = {}
     for var in model.component_data_objects(pyo.Var):
@@ -28,6 +34,8 @@ def solve(params: BalanceParams, solver="appsi_highs"):
 
     # with open("output/balance/lp/pyomo_solution.json", "w") as f:
     #     json.dump(solution_data, f)
+
+    return build_time, solve_time
 
 
 def create_root(model: pyo.ConcreteModel, params: BalanceParams):
@@ -113,34 +121,3 @@ def create_leaf_rule(stage: int, params: BalanceParams):
         block.obj = block.obj_expr
 
     return create_leaf
-
-
-if __name__ == "__main__":
-    from regime import (
-        NormalRegime,
-        HotSunnyRegime,
-        HotCloudyRegime,
-        ColdSunnyRegime,
-        ColdCloudyRegime,
-        RegimeParams,
-    )
-
-    time = 48
-    r1 = NormalRegime(time)
-    r2 = HotSunnyRegime(time)
-    r3 = HotCloudyRegime(time)
-    r4 = ColdSunnyRegime(time)
-    r5 = ColdCloudyRegime(time)
-    regimes = [r1, r2, r3, r4, r5]
-    tm = np.asarray(
-        [
-            [0.6, 0.1, 0.1, 0.1, 0.1],
-            [0.1, 0.6, 0.1, 0.1, 0.1],
-            [0.1, 0.1, 0.6, 0.1, 0.1],
-            [0.1, 0.1, 0.1, 0.6, 0.1],
-            [0.1, 0.1, 0.1, 0.1, 0.6],
-        ]
-    )
-    regime_params = RegimeParams(regimes, tm)
-    params = create_static_scenarios(8, [1, 1, 1, 1, 1], regime_params, 0)
-    solve(params)

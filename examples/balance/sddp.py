@@ -1,4 +1,5 @@
 from pathlib import Path
+import time
 import numpy as np
 import pyomo.environ as pyo
 
@@ -12,7 +13,9 @@ from pyodsp.dec.sddp.run import SddpRun
 from pyodsp.solver.pyomo_solver import PyomoSolver, SolverConfig
 
 
-def solve(params: BalanceParams, solver="appsi_highs"):
+def solve_sddp(params: BalanceParams, solver="appsi_highs"):
+
+    start = time.perf_counter()
     nodes = []
     for stage in range(params.cp.num_stages):
         node_list = []
@@ -46,9 +49,16 @@ def solve(params: BalanceParams, solver="appsi_highs"):
                 )
                 node_list.append(node)
         nodes.append(node_list)
+    finish = time.perf_counter()
+    build_time = finish - start
 
-    sddp_run = SddpRun(nodes, Path("output/balance/sddp"))
+    start = time.perf_counter()
+    sddp_run = SddpRun(nodes, Path("output/balance/sddp"), sample_frequency=50)
     sddp_run.run()
+    finish = time.perf_counter()
+    solve_time = finish - start
+
+    return build_time, solve_time
 
 
 def create_root(
@@ -141,34 +151,3 @@ def create_leaf(
     node = DecNodeLeaf(idx, alg_leaf)
     node.set_bound(-1e6)
     return node
-
-
-if __name__ == "__main__":
-    from regime import (
-        NormalRegime,
-        HotSunnyRegime,
-        HotCloudyRegime,
-        ColdSunnyRegime,
-        ColdCloudyRegime,
-        RegimeParams,
-    )
-
-    time = 48
-    r1 = NormalRegime(time)
-    r2 = HotSunnyRegime(time)
-    r3 = HotCloudyRegime(time)
-    r4 = ColdSunnyRegime(time)
-    r5 = ColdCloudyRegime(time)
-    regimes = [r1, r2, r3, r4, r5]
-    tm = np.asarray(
-        [
-            [0.6, 0.1, 0.1, 0.1, 0.1],
-            [0.1, 0.6, 0.1, 0.1, 0.1],
-            [0.1, 0.1, 0.6, 0.1, 0.1],
-            [0.1, 0.1, 0.1, 0.6, 0.1],
-            [0.1, 0.1, 0.1, 0.1, 0.6],
-        ]
-    )
-    regime_params = RegimeParams(regimes, tm)
-    params = create_static_scenarios(8, [1, 1, 1, 1, 1], regime_params, 0)
-    solve(params)

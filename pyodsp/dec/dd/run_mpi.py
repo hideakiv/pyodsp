@@ -10,9 +10,15 @@ from ..graph.hub_and_spoke_mpi import HubAndSpokeMpi
 
 
 class DdRunMpi:
-    def __init__(self, nodes: List[INode], filedir: Path, level: int = logging.INFO):
+    def __init__(
+        self,
+        nodes: List[INode],
+        filedir: Path,
+        level: int = logging.INFO,
+        max_iteration: int = 1000,
+    ):
         self.logger = DdLogger(level)
-        self.graph = HubAndSpokeMpi(nodes, self.logger, filedir)
+        self.graph = HubAndSpokeMpi(nodes, self.logger, filedir, max_iteration)
 
         self.comm = MPI.COMM_WORLD
         self.rank = self.comm.Get_rank()

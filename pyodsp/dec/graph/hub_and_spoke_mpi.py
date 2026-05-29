@@ -19,8 +19,14 @@ from pyodsp.alg.const import STATUS_NOT_FINISHED
 
 
 class HubAndSpokeMpi(HubAndSpoke):
-    def __init__(self, nodes: List[INode], logger: ILogger, filedir: Path) -> None:
-        super().__init__(nodes, logger, filedir)
+    def __init__(
+        self,
+        nodes: List[INode],
+        logger: ILogger,
+        filedir: Path,
+        max_iteration: int = 1000,
+    ) -> None:
+        super().__init__(nodes, logger, filedir, max_iteration)
         self.comm = MPI.COMM_WORLD
         self.rank = self.comm.Get_rank()
 
@@ -132,7 +138,7 @@ class HubAndSpokeMpi(HubAndSpoke):
 
     def _run_main(self, up_messages: Dict[NodeIdx, UpMessage] | None) -> None:
         combined_up_messages = up_messages
-        while True:
+        for _ in range(self.max_iteration):
             status, dn_message = self._run_root(combined_up_messages)
             if status != STATUS_NOT_FINISHED:
                 self.comm.bcast(-1, root=0)
@@ -150,7 +156,7 @@ class HubAndSpokeMpi(HubAndSpoke):
 
     def _run_main_mpi(self) -> None:
         message: DnMessage = None
-        while True:
+        for _ in range(self.max_iteration):
             message = self.comm.bcast(message, root=0)
             if message == -1:
                 break

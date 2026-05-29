@@ -20,10 +20,17 @@ from pyodsp.alg.const import STATUS_NOT_FINISHED
 
 
 class HubAndSpoke:
-    def __init__(self, nodes: List[INode], logger: ILogger, filedir: Path) -> None:
+    def __init__(
+        self,
+        nodes: List[INode],
+        logger: ILogger,
+        filedir: Path,
+        max_iteration: int = 1000,
+    ) -> None:
         self._verify_nodes(nodes)
         self.logger = logger
         self.filedir = filedir
+        self.max_iteration = max_iteration
         create_directory(self.filedir)
 
     def _verify_nodes(self, nodes: List[INode]) -> None:
@@ -102,7 +109,7 @@ class HubAndSpoke:
         return up_messages
 
     def _run_main(self, up_messages: Dict[NodeIdx, UpMessage] | None) -> None:
-        while True:
+        for _ in range(self.max_iteration):
             status, dn_message = self._run_root(up_messages)
             if status != STATUS_NOT_FINISHED:
                 break

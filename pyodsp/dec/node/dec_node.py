@@ -5,7 +5,6 @@ import logging
 
 from ._node import NodeIdx, INode, INodeParent, INodeChild, INodeInner
 from ._alg import IAlgRoot, IAlgLeaf
-from .cut_aggregator import CutAggregator
 from ._message import (
     InitDnMessage,
     InitUpMessage,
@@ -106,21 +105,11 @@ class DecNodeParent(INodeParent, DecNode):
     def build_inner(self) -> None:
         if len(self.groups) == 0:
             self.groups = [[child] for child in self.children]
-        self.cut_aggregator = CutAggregator(self.groups, self.children_multipliers)
         self.num_cuts = len(self.groups)
 
-        subobj_bounds: List[float | None] = []
-        for group in self.groups:
-            bound = 0.0
-            for member in group:
-                if member not in self.children_bounds:
-                    bound = None
-                    break
-                bound += (
-                    self.children_multipliers[member] * self.children_bounds[member]
-                )
-            subobj_bounds.append(bound)
-        self.alg_root.build(subobj_bounds)
+        self.alg_root.build(
+            self.groups, self.children_multipliers, self.children_bounds
+        )
 
     def reset(self) -> None:
         self.alg_root.reset_iteration()
@@ -132,10 +121,7 @@ class DecNodeParent(INodeParent, DecNode):
     def run_step(
         self, up_messages: Dict[NodeIdx, UpMessage] | None
     ) -> Tuple[int, DnMessage]:
-        if up_messages is None:
-            return self.alg_root.run_step(None)
-        aggregate_cuts = self.cut_aggregator.get_aggregate_cuts(up_messages)
-        return self.alg_root.run_step(aggregate_cuts)
+        return self.alg_root.run_step(up_messages)
 
     def get_init_dn_message(self, **kwargs) -> InitDnMessage:
         init_message = self.alg_root.get_init_dn_message(**kwargs)
@@ -165,9 +151,8 @@ class DecNodeParent(INodeParent, DecNode):
     def get_num_vars(self) -> int:
         return self.alg_root.get_num_vars()
 
-    def add_cuts(self, up_messages: Dict[int, UpMessage]) -> None:
-        aggregate_cuts = self.cut_aggregator.get_aggregate_cuts(up_messages)
-        self.alg_root.add_cuts(aggregate_cuts)
+    def add_cuts(self, up_messages: Dict[NodeIdx, UpMessage]) -> None:
+        self.alg_root.add_cuts(up_messages)
 
     def save(self, dir: Path) -> None:
         node_dir = dir / f"node{self.idx}"

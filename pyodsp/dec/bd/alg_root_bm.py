@@ -6,12 +6,18 @@ import logging
 
 from pyomo.environ import ScalarVar
 
-from .message import BdInitDnMessage, BdDnMessage, BdFinalDnMessage, BdFinalUpMessage
+from .message import (
+    BdInitDnMessage,
+    BdUpMessage,
+    BdDnMessage,
+    BdFinalDnMessage,
+    BdFinalUpMessage,
+)
 from ..node._alg import IAlgRoot
 from pyodsp.solver.pyomo_solver import PyomoSolver
 from pyodsp.alg.bm.bm import BundleMethod
-from pyodsp.alg.bm.cuts import CutList
 from pyodsp.dec.node._message import NodeIdx
+from pyodsp.dec.node.cut_aggregator import CutAggregator
 
 
 class BdAlgRootBm(IAlgRoot):
@@ -22,17 +28,41 @@ class BdAlgRootBm(IAlgRoot):
     def get_vars(self) -> List[ScalarVar]:
         return self.bm.get_vars()
 
-    def build(self, subobj_bounds: List[float]) -> None:
-        num_cuts = len(subobj_bounds)
+    def build(
+        self,
+        groups: list[list[NodeIdx]],
+        children_multipliers: dict[NodeIdx, float],
+        children_bounds: dict[NodeIdx, float],
+    ) -> None:
+        num_cuts = len(groups)
+        self.groups = groups
+        self.children_multipliers = children_multipliers
+        self.cut_aggregator = CutAggregator(self.groups, self.children_multipliers)
+        subobj_bounds: List[float | None] = []
+        for group in self.groups:
+            bound = 0.0
+            for member in group:
+                if member not in children_bounds:
+                    bound = None
+                    break
+                bound += self.children_multipliers[member] * children_bounds[member]
+            subobj_bounds.append(bound)
         self.bm.build(num_cuts, subobj_bounds)
 
-    def run_step(self, cuts_list: List[CutList] | None) -> Tuple[int, BdDnMessage]:
+    def run_step(
+        self, up_messages: dict[NodeIdx, BdUpMessage] | None
+    ) -> Tuple[int, BdDnMessage]:
+        if up_messages is None:
+            cuts_list = None
+        else:
+            cuts_list = self.cut_aggregator.get_aggregate_cuts(up_messages)
         start = time.time()
         status, solution, objective = self.bm.run_step(cuts_list)
         self.step_time.append(time.time() - start)
         return status, BdDnMessage(solution, objective)
 
-    def add_cuts(self, cuts_list: List[CutList]) -> None:
+    def add_cuts(self, up_messages: dict[NodeIdx, BdUpMessage]) -> None:
+        cuts_list = self.cut_aggregator.get_aggregate_cuts(up_messages)
         self.bm.add_cuts(cuts_list)
 
     def reset_iteration(self) -> None:

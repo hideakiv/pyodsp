@@ -193,3 +193,6 @@ class BundleMethod:
         )
 
         add_terms_to_objective(solver, solver.model._theta)
+
+    def get_theta_value(self) -> list[float]:
+        return [self.cpm.get_theta_value(i) for i in range(self.num_cuts)]

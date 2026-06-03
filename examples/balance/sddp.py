@@ -110,7 +110,7 @@ def create_inner(
     alg_root = BdAlgRootBm(solver_root, max_iteration=1)
     solver_leaf = PyomoSolver(model, config, coupling_up)
     alg_leaf = BdAlgLeafPyomo(solver_leaf)
-    node = DecNodeInner(idx, alg_root, alg_leaf, log_level=0)
+    node = DecNodeInner(idx, alg_root, alg_leaf, log_level_root=0)
     node.set_bound(-1e6)
     group = []
     for s in range(cp.num_scenarios):

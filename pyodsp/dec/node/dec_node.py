@@ -58,11 +58,11 @@ class DecNodeParent(INodeParent, DecNode):
         self,
         idx: NodeIdx,
         alg_root: IAlgRoot,
-        log_level: int = logging.INFO,
+        log_level_root: int = logging.INFO,
         **kwargs,
     ) -> None:
         self.alg_root = alg_root
-        self.log_level = log_level
+        self.log_level_root = log_level_root
         super().__init__(idx, **kwargs)
 
     def get_alg_root(self) -> IAlgRoot:
@@ -116,7 +116,7 @@ class DecNodeParent(INodeParent, DecNode):
 
     def set_logger(self) -> None:
         assert self.depth is not None
-        self.alg_root.set_logger(self.idx, self.depth, self.log_level)
+        self.alg_root.set_logger(self.idx, self.depth, self.log_level_root)
 
     def run_step(
         self, up_messages: Dict[NodeIdx, UpMessage] | None
@@ -164,8 +164,15 @@ DecNodeRoot = DecNodeParent
 
 
 class DecNodeChild(INodeChild, DecNode):
-    def __init__(self, idx: NodeIdx, alg_leaf: IAlgLeaf, **kwargs) -> None:
+    def __init__(
+        self,
+        idx: NodeIdx,
+        alg_leaf: IAlgLeaf,
+        log_level_leaf: int = logging.INFO,
+        **kwargs,
+    ) -> None:
         self.alg_leaf = alg_leaf
+        self.log_level_leaf = log_level_leaf
         self.bound = None
         super().__init__(idx, **kwargs)
 
@@ -206,6 +213,10 @@ class DecNodeChild(INodeChild, DecNode):
         self.pass_dn_message(message)
         return self.get_up_message()
 
+    def set_logger(self) -> None:
+        assert self.depth is not None
+        self.alg_leaf.set_logger(self.idx, self.depth, self.log_level_leaf)
+
     def save(self, dir: Path) -> None:
         node_dir = dir / f"node{self.idx}"
         create_directory(node_dir)
@@ -221,10 +232,15 @@ class DecNodeInner(INodeInner, DecNodeParent, DecNodeChild):
         idx: NodeIdx,
         alg_root: IAlgRoot,
         alg_leaf: IAlgLeaf,
-        log_level: int = logging.INFO,
+        log_level_root: int = logging.INFO,
+        log_level_leaf: int = logging.INFO,
     ) -> None:
         super().__init__(
-            idx=idx, alg_root=alg_root, alg_leaf=alg_leaf, log_level=log_level
+            idx=idx,
+            alg_root=alg_root,
+            alg_leaf=alg_leaf,
+            log_level_root=log_level_root,
+            log_level_leaf=log_level_leaf,
         )
 
     def build_inner(self) -> None:

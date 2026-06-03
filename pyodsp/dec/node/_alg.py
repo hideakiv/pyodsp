@@ -17,6 +17,10 @@ from ._message import (
 
 class IAlg(ABC):
     @abstractmethod
+    def set_logger(self, idx: NodeIdx, depth: int, level: int) -> None:
+        pass
+
+    @abstractmethod
     def save(self, dir: Path) -> None:
         pass
 
@@ -26,10 +30,6 @@ class IAlg(ABC):
 
 
 class IAlgRoot(IAlg, ABC):
-    @abstractmethod
-    def set_logger(self, idx: NodeIdx, depth: int, level: int) -> None:
-        pass
-
     @abstractmethod
     def build(
         self,

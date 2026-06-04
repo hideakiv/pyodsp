@@ -19,8 +19,10 @@ from ..const import *
 
 
 class BundleMethod:
-    def __init__(self, solver: PyomoSolver, max_iteration=1000) -> None:
-        self.cpm = CuttingPlaneMethod(solver)
+    def __init__(
+        self, solver: PyomoSolver, max_iteration=1000, force: bool = False
+    ) -> None:
+        self.cpm = CuttingPlaneMethod(solver, force)
 
         self.max_iteration = max_iteration
         self.iteration = 0

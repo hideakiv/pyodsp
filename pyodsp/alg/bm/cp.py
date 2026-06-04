@@ -10,10 +10,11 @@ from ..params import BM_ABS_TOLERANCE
 
 
 class CuttingPlaneMethod:
-    def __init__(self, solver: PyomoSolver) -> None:
+    def __init__(self, solver: PyomoSolver, force: bool = False) -> None:
         self.solver = solver
         self.cuts_manager = CutsManager()
         self.current_solution: list[float] = []
+        self.force = force
 
     def is_minimize(self) -> bool:
         return self.solver.is_minimize()
@@ -96,7 +97,8 @@ class CuttingPlaneMethod:
         if self.solver.is_minimize():
             # Minimization
             if (
-                theta_val is not None
+                not self.force
+                and theta_val is not None
                 and theta_val >= cut.objective_value - BM_ABS_TOLERANCE
             ):
                 # No need to add the cut
@@ -109,7 +111,8 @@ class CuttingPlaneMethod:
         else:
             # Maximization
             if (
-                theta_val is not None
+                not self.force
+                and theta_val is not None
                 and theta_val <= cut.objective_value + BM_ABS_TOLERANCE
             ):
                 # No need to add the cut

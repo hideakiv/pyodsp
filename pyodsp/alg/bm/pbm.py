@@ -38,8 +38,10 @@ Mathematical programming, 46(1), 105-122.
 
 
 class ProximalBundleMethod:
-    def __init__(self, solver: PyomoSolver, max_iteration=1000, penalty=1.0) -> None:
-        self.cpm = CuttingPlaneMethod(solver)
+    def __init__(
+        self, solver: PyomoSolver, max_iteration=1000, penalty=1.0, force: bool = False
+    ) -> None:
+        self.cpm = CuttingPlaneMethod(solver, force)
 
         self.max_iteration = max_iteration
         self.iteration = 0

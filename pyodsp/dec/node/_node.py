@@ -32,6 +32,10 @@ class INode(ABC):
         pass
 
     @abstractmethod
+    def set_logger(self) -> None:
+        pass
+
+    @abstractmethod
     def build(self) -> None:
         pass
 
@@ -71,10 +75,6 @@ class INodeParent(INode, ABC):
 
     @abstractmethod
     def get_child_bound(self, idx: NodeIdx) -> float:
-        pass
-
-    @abstractmethod
-    def set_logger(self) -> None:
         pass
 
     @abstractmethod

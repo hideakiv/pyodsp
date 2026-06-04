@@ -14,6 +14,7 @@ from .message import (
     DdDnMessage,
     DdUpMessage,
 )
+from ..node._message import NodeIdx
 from ..node._alg import IAlgLeaf
 from .coupling_manager import CouplingManager
 from pyodsp.solver.pyomo_solver import PyomoSolver
@@ -136,6 +137,9 @@ class DdAlgLeafPyomo(IAlgLeaf):
             var.fix(values[i])
         self.solver.activate_original_objective()
         self.solver.solve()
+
+    def set_logger(self, idx: NodeIdx, depth: int, level: int) -> None:
+        pass
 
     def save(self, dir: Path) -> None:
         self.solver.save(dir)

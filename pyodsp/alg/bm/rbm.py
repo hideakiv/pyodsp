@@ -21,8 +21,10 @@ from pyodsp.solver.pyomo_utils import (
 
 
 class RestrictedBundleMethod:
-    def __init__(self, solver: PyomoSolver, max_iteration=1000, penalty=1.0) -> None:
-        self.cpm = CuttingPlaneMethod(solver)
+    def __init__(
+        self, solver: PyomoSolver, max_iteration=1000, penalty=1.0, force: bool = False
+    ) -> None:
+        self.cpm = CuttingPlaneMethod(solver, force)
 
         self.max_iteration = max_iteration
         self.iteration = 0

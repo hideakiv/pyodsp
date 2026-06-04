@@ -7,16 +7,22 @@ import logging
 from pyomo.environ import ConcreteModel, ScalarVar, Objective, Var
 
 from ..node._alg import IAlgRoot
-from .message import DdDnMessage, DdFinalDnMessage, DdInitDnMessage, DdFinalUpMessage
+from .message import (
+    DdUpMessage,
+    DdDnMessage,
+    DdFinalDnMessage,
+    DdInitDnMessage,
+    DdFinalUpMessage,
+)
 from .master_creator import MasterCreator
 from .mip_heuristic_root import IMipHeuristicRoot, aggregate_final_up_messages
 from pyodsp.alg.bm.bm import BundleMethod
 from pyodsp.alg.bm.pbm import ProximalBundleMethod
-from pyodsp.alg.bm.cuts import CutList
 from pyodsp.alg.bm.cuts_manager import CutInfo
 from pyodsp.alg.params import BM_DUMMY_BOUND
 from pyodsp.solver.pyomo_solver import SolverConfig
 from pyodsp.dec.node._message import NodeIdx
+from pyodsp.dec.node.cut_aggregator import CutAggregator
 
 
 class DdAlgRootBm(IAlgRoot):
@@ -94,8 +100,16 @@ class DdAlgRootBm(IAlgRoot):
     def get_coupling_model(self) -> ConcreteModel:
         return self.coupling_model
 
-    def build(self, bounds: List[float | None]) -> None:
-        num_cuts = len(bounds)
+    def build(
+        self,
+        groups: list[list[NodeIdx]],
+        children_multipliers: dict[NodeIdx, float],
+        children_bounds: dict[NodeIdx, float],
+    ) -> None:
+        num_cuts = len(groups)
+        self.groups = groups
+        self.children_multipliers = children_multipliers
+        self.cut_aggregator = CutAggregator(self.groups, self.children_multipliers)
         if self.mode is None:
             assert type(self.bm) is BundleMethod
             if self.is_minimize():
@@ -109,7 +123,13 @@ class DdAlgRootBm(IAlgRoot):
             self.bm.set_init_solution([0.0 for _ in range(self.num_constrs)])
             self.bm.build(num_cuts)
 
-    def run_step(self, cuts_list: List[CutList] | None) -> Tuple[int, DdDnMessage]:
+    def run_step(
+        self, up_messages: dict[NodeIdx, DdUpMessage] | None
+    ) -> Tuple[int, DdDnMessage]:
+        if up_messages is None:
+            cuts_list = None
+        else:
+            cuts_list = self.cut_aggregator.get_aggregate_cuts(up_messages)
         start = time.time()
         status, solution, objective = self.bm.run_step(cuts_list)
         self.step_time.append(time.time() - start)
@@ -147,7 +167,8 @@ class DdAlgRootBm(IAlgRoot):
     def get_num_vars(self) -> int:
         return self.bm.get_num_vars()
 
-    def add_cuts(self, cuts_list: List[CutList]) -> None:
+    def add_cuts(self, up_messages: dict[NodeIdx, DdUpMessage]) -> None:
+        cuts_list = self.cut_aggregator.get_aggregate_cuts(up_messages)
         self.bm.add_cuts(cuts_list)
 
     def get_cuts(self) -> List[List[CutInfo]]:

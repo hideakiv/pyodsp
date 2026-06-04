@@ -19,8 +19,10 @@ from ..const import *
 
 
 class BundleMethod:
-    def __init__(self, solver: PyomoSolver, max_iteration=1000) -> None:
-        self.cpm = CuttingPlaneMethod(solver)
+    def __init__(
+        self, solver: PyomoSolver, max_iteration=1000, force: bool = False
+    ) -> None:
+        self.cpm = CuttingPlaneMethod(solver, force)
 
         self.max_iteration = max_iteration
         self.iteration = 0
@@ -193,3 +195,6 @@ class BundleMethod:
         )
 
         add_terms_to_objective(solver, solver.model._theta)
+
+    def get_theta_value(self) -> list[float]:
+        return [self.cpm.get_theta_value(i) for i in range(self.num_cuts)]

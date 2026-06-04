@@ -17,6 +17,10 @@ from ._message import (
 
 class IAlg(ABC):
     @abstractmethod
+    def set_logger(self, idx: NodeIdx, depth: int, level: int) -> None:
+        pass
+
+    @abstractmethod
     def save(self, dir: Path) -> None:
         pass
 
@@ -27,15 +31,18 @@ class IAlg(ABC):
 
 class IAlgRoot(IAlg, ABC):
     @abstractmethod
-    def set_logger(self, idx: NodeIdx, depth: int, level: int) -> None:
+    def build(
+        self,
+        groups: list[list[NodeIdx]],
+        children_multipliers: dict[NodeIdx, float],
+        children_bounds: dict[NodeIdx, float],
+    ) -> None:
         pass
 
     @abstractmethod
-    def build(self, bounds: List[float | None]) -> None:
-        pass
-
-    @abstractmethod
-    def run_step(self, cuts_list: List[CutList] | None) -> Tuple[int, DnMessage]:
+    def run_step(
+        self, up_messages: dict[NodeIdx, UpMessage] | None
+    ) -> Tuple[int, DnMessage]:
         pass
 
     @abstractmethod
@@ -43,7 +50,7 @@ class IAlgRoot(IAlg, ABC):
         pass
 
     @abstractmethod
-    def add_cuts(self, cuts_list: List[CutList]) -> None:
+    def add_cuts(self, up_messages: dict[NodeIdx, UpMessage]) -> None:
         pass
 
     @abstractmethod

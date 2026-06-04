@@ -14,6 +14,7 @@ from .message import (
     BdDnMessage,
     BdUpMessage,
 )
+from ..node._message import NodeIdx
 from ..node._alg import IAlgLeaf
 from ..utils import CouplingData, get_nonzero_coefficients_from_model
 from pyodsp.alg.bm.cuts import Cut, OptimalityCut, FeasibilityCut
@@ -130,6 +131,9 @@ class BdAlgLeafPyomo(IAlgLeaf):
             j: val for j, val in enumerate(coeff) if abs(val) > DEC_CUT_ABS_TOL
         }
         return FeasibilityCut(coeffs=sparse_coeff, rhs=rhs, info={})
+
+    def set_logger(self, idx: NodeIdx, depth: int, level: int) -> None:
+        pass
 
     def save(self, dir: Path) -> None:
         self.solver.save(dir)

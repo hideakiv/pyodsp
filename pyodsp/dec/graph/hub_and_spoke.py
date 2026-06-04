@@ -96,6 +96,7 @@ class HubAndSpoke:
 
     def _init_leaf(self, node: INodeLeaf, message: InitDnMessage) -> None:
         node.pass_init_dn_message(message)
+        node.set_logger()
 
     def _run_main_preprocess(
         self, init_solution: DnMessage | None

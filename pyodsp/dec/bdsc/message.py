@@ -61,11 +61,13 @@ class BdScDnMessage(DnMessage):
         solution: List[float],
         rho: float,
         cut_list: list[CutList] | None,
+        subobj_bounds: list[float],
         objective: float = 0.0,
     ) -> None:
         self.solution = solution
         self.rho = rho
         self.cut = cut_list
+        self.subobj_bounds = subobj_bounds
         self.objective = objective
 
     def get_solution(self):
@@ -76,6 +78,9 @@ class BdScDnMessage(DnMessage):
 
     def get_cut(self):
         return self.cut
+
+    def get_subobj_bounds(self) -> list[float]:
+        return self.subobj_bounds
 
     def get_objective(self):
         return self.objective

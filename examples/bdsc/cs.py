@@ -62,8 +62,8 @@ def create_leaf_node(i: int, r: int, solver="appsi_highs"):
     second_stage_solver = PyomoSolver(model, config, coupling_up)
     master_config = SolverConfig(solver_name="ipopt")
     second_stage_alg = BdScAlgLeafPyomo(second_stage_solver, master_config)
-    leaf_node = DecNodeLeaf(i, second_stage_alg)
-    leaf_node.set_bound(-2.0)
+    leaf_node = DecNodeLeaf(i, second_stage_alg, log_level_leaf=0)
+    leaf_node.set_bound(-2.01)
     return leaf_node
 
 

@@ -39,7 +39,7 @@ class BdScAlgRootBm(IAlgRoot):
         self.groups = groups
         self.children_multipliers = children_multipliers
         self.cut_aggregator = CutAggregator(self.groups, self.children_multipliers)
-        subobj_bounds: List[float | None] = []
+        self.subobj_bounds: List[float | None] = []
         for group in self.groups:
             bound = 0.0
             for member in group:
@@ -47,8 +47,8 @@ class BdScAlgRootBm(IAlgRoot):
                     bound = None
                     break
                 bound += self.children_multipliers[member] * children_bounds[member]
-            subobj_bounds.append(bound)
-        self.bm.build(num_cuts, subobj_bounds)
+            self.subobj_bounds.append(bound)
+        self.bm.build(num_cuts, self.subobj_bounds)
         self.rho = None
         self.solution = None
         self.objective = None
@@ -74,6 +74,7 @@ class BdScAlgRootBm(IAlgRoot):
                 cuts_list = self.cut_aggregator.get_aggregate_cuts(up_messages)
                 for cuts in cuts_list:
                     for cut in cuts:
+                        cut.rhs = cut.rhs / (1 + tau_average)
                         for var_id, coeff in cut.coeffs.items():
                             cut.coeffs[var_id] = coeff / (1 + tau_average)
 
@@ -88,8 +89,9 @@ class BdScAlgRootBm(IAlgRoot):
                 assert self.rho is not None
                 self.rho = self.rho + c_average / (1 + tau_average)
                 status = STATUS_NOT_FINISHED
-
-        return status, BdScDnMessage(self.solution, self.rho, cuts_list, self.objective)
+        return status, BdScDnMessage(
+            self.solution, self.rho, cuts_list, self.subobj_bounds, self.objective
+        )
 
     def add_cuts(self, up_messages: dict[NodeIdx, BdScUpMessage]) -> None:
         cuts_list = self.cut_aggregator.get_aggregate_cuts(up_messages)

@@ -39,8 +39,8 @@ class BdScLogger(ILogger):
         self.logger.debug(f"\t{idx}\t{cut_type}\t{coefficients}\t{constant}")
 
     def log_finaliziation(self):
-        self.logger.info("Finalizing Benders Decomposition")
+        self.logger.info("Finalizing Benders Decomposition with scaled cuts")
 
     def log_completion(self, objective_value):
-        self.logger.info("Benders decomposition completed")
+        self.logger.info("Benders decomposition with scaled cuts completed")
         self.logger.info(f"Final objective value: {objective_value}")

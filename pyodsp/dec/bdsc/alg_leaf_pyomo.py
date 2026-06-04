@@ -30,7 +30,7 @@ class BdScAlgLeafPyomo(IAlgLeaf):
     def __init__(
         self, solver: PyomoSolver, master_config: SolverConfig, max_iteration=1000
     ):
-        self.cgsp = BundleMethod(solver, max_iteration)
+        self.cgsp = BundleMethod(solver, max_iteration, force=True)
         self.mc = MasterCreator(
             is_minimize=self.cgsp.is_minimize(), solver_config=master_config
         )
@@ -40,10 +40,10 @@ class BdScAlgLeafPyomo(IAlgLeaf):
 
     def build(self) -> None:
         self.cgsp.set_logger(
-            node_id=f"{self.idx}_cgsp", depth=1, level=logging.DEBUG
+            node_id=f"{self.idx}_cgsp", depth=1, level=self.level
         )  # TODO: pass actual node id and depth
         if self.cgsp.is_minimize():
-            self.cgsp.build(1, [-1e9])  # TODO: use a better bound
+            self.cgsp.build(1, [-1e9])  # temporary bound
         else:
             raise ValueError("Maximization is not supported yet")
             self.cgsp.build(1, [1e9])
@@ -60,13 +60,18 @@ class BdScAlgLeafPyomo(IAlgLeaf):
         rho = message.get_rho()
         objective = message.get_objective()
         cut_list = message.get_cut()
-        if cut_list is None:
-            self._fix_variables(solution)
-            self._fix_parent_objective(objective)
-            self._create_master(solution, rho)
-            self.cgsp.reset_iteration()
+        subobj_bound = sum(message.get_subobj_bounds())  # TODO: update only once
+        if self.is_minimize():
+            self.cgsp.cpm.solver.model._theta[0].setlb(subobj_bound)
         else:
+            raise NotImplementedError("Maximization not implemented yet")
+
+        self._fix_variables(solution)
+        self._fix_parent_objective(objective)
+        self._create_master(solution, rho)
+        if cut_list is not None:
             self.cgsp.add_cuts(cut_list)
+        self.cgsp.reset_iteration()
 
     def _create_master(self, solution: List[float], rho: float) -> None:
         master = self.mc.create(
@@ -74,7 +79,7 @@ class BdScAlgLeafPyomo(IAlgLeaf):
         )  # NOTE: maybe we can reuse the master from the previous iteration
         self.cgmp = ProximalBundleMethod(master, self.max_iteration)
         self.cgmp.set_logger(
-            node_id=f"{self.idx}_cgmp_{self.cgmp_id}", depth=1, level=logging.DEBUG
+            node_id=f"{self.idx}_cgmp_{self.cgmp_id}", depth=1, level=self.level
         )
         self.cgmp_id += 1
         init_solution = [0.0 for _ in range(len(solution) + 1)]
@@ -122,6 +127,8 @@ class BdScAlgLeafPyomo(IAlgLeaf):
         self._unfix_variables()
         for _ in range(self.max_iteration):
             if _ > 0:
+                # print("cgsp", cuts_list[0][0])
+                # breakpoint()
                 status, solution, objective = self.cgmp.run_step(cuts_list)
                 if status != STATUS_NOT_FINISHED:
                     break
@@ -131,6 +138,8 @@ class BdScAlgLeafPyomo(IAlgLeaf):
                 tau = 0.0
                 beta = [0.0 for var in self.cgsp.get_vars()]
             self._update_cgsp_objective(beta, tau)
+            # print("cgmp", beta, tau)
+            # breakpoint()
             self.cgsp.cpm.solve()
             qy = self.cgsp.get_original_objective_value()
             x = [value(var) for var in self.cgsp.get_vars()]

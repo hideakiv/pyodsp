@@ -6,7 +6,8 @@ Pyodsp offers distributed algorithms for programming models written in [Pyomo](h
 
 ### Benders Decomposition (bd)
 - Decomposition based on complicating variables.
-- Currently only supports linear programs (LP).
+- Implementation of SDDP is available.
+- Supports mixed integer linear programs in both first and second stages using van der Laan and Romeijnders' scaled cuts (not tested thoroughly).
 ### Dual Decomposition (dd)
 - Decomposition based on complicating constraints.
 - Dual of Dantzig - Wolfe decomposition (DWD)

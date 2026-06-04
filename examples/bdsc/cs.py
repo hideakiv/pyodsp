@@ -17,14 +17,15 @@ from pyodsp.dec.bdsc.run import BdScRun
 from utils import assert_approximately_equal
 
 
-def first_stage(model: pyo.ConcreteModel):
-    model.x = pyo.Var(within=pyo.NonNegativeReals, bounds=(0, 1))
+def first_stage(model: pyo.ConcreteModel, r: int):
+    lb = 1 / 4 - 1 / 32 / (1 + r / 2)
+    model.x = pyo.Var(within=pyo.NonNegativeReals, bounds=(lb, 1))
     model.obj_expr1 = 3 * model.x
 
 
 def second_stage(model: pyo.ConcreteModel, s: int, r: int):
     delta = 1 / 32 / (1 + r / 2)
-    if s < r / 2:
+    if s <= r / 2:
         h = delta * s
     else:
         h = 1 / 4 - delta * (s - r / 2)
@@ -34,10 +35,10 @@ def second_stage(model: pyo.ConcreteModel, s: int, r: int):
     model.obj_expr2 = -2 * model.y
 
 
-def create_root_node(solver="appsi_highs"):
+def create_root_node(r: int, solver="appsi_highs"):
     model = pyo.ConcreteModel()
 
-    first_stage(model)
+    first_stage(model, r)
 
     model.obj = pyo.Objective(expr=model.obj_expr1, sense=pyo.minimize)
 
@@ -52,8 +53,8 @@ def create_root_node(solver="appsi_highs"):
 def create_leaf_node(i: int, r: int, solver="appsi_highs"):
     model = pyo.ConcreteModel()
 
-    first_stage(model)
-    second_stage(model, s=i - 1, r=r)
+    first_stage(model, r)
+    second_stage(model, s=i, r=r)
     model.obj = pyo.Objective(expr=model.obj_expr2, sense=pyo.minimize)
 
     coupling_up = [model.x]
@@ -68,11 +69,11 @@ def create_leaf_node(i: int, r: int, solver="appsi_highs"):
 
 def main():
 
-    r = 100
+    r = 2
 
     nodes = []
     group = []
-    root_node = create_root_node()
+    root_node = create_root_node(r)
     nodes.append(root_node)
     for i in range(r):
         leaf_node = create_leaf_node(i + 1, r)
@@ -84,7 +85,10 @@ def main():
     bd_run = BdScRun(nodes, Path("output/bdsc/cs"))
     bd_run.run()
 
-    assert_approximately_equal(root_node.alg_root.bm.obj_bound[-1], 0.2482)
+    # optimal = 3 * (3 / 4 - 1 / 32 / (1 + r / 2)) - 2
+    optimal = 0.2031
+
+    assert_approximately_equal(root_node.alg_root.bm.obj_bound[-1], optimal)
 
 
 if __name__ == "__main__":

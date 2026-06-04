@@ -16,6 +16,7 @@ from .message import (
 from ..node._alg import IAlgRoot
 from pyodsp.solver.pyomo_solver import PyomoSolver
 from pyodsp.alg.bm.bm import BundleMethod
+from pyodsp.alg.const import STATUS_NOT_FINISHED
 from pyodsp.dec.node._message import NodeIdx
 from pyodsp.dec.node.cut_aggregator import CutAggregator
 
@@ -73,7 +74,7 @@ class BdScAlgRootBm(IAlgRoot):
                 cuts_list = self.cut_aggregator.get_aggregate_cuts(up_messages)
                 for cuts in cuts_list:
                     for cut in cuts:
-                        for var_id, coeff in cut.coeffs().items():
+                        for var_id, coeff in cut.coeffs.items():
                             cut.coeffs[var_id] = coeff / (1 + tau_average)
 
                 start = time.time()
@@ -86,6 +87,7 @@ class BdScAlgRootBm(IAlgRoot):
                 cuts_list = None
                 assert self.rho is not None
                 self.rho = self.rho + c_average / (1 + tau_average)
+                status = STATUS_NOT_FINISHED
 
         return status, BdScDnMessage(self.solution, self.rho, cuts_list, self.objective)
 

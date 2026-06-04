@@ -14,7 +14,7 @@ from pyodsp.dec.bdsc.alg_root_bm import BdScAlgRootBm
 from pyodsp.dec.bdsc.alg_leaf_pyomo import BdScAlgLeafPyomo
 from pyodsp.dec.bdsc.run import BdScRun
 
-from utils import assert_approximately_equal
+from utils import get_args, assert_approximately_equal
 
 
 def first_stage(model: pyo.ConcreteModel, r: int):
@@ -68,15 +68,16 @@ def create_leaf_node(i: int, r: int, solver="appsi_highs"):
 
 
 def main():
+    args = get_args()
 
     r = 2
 
     nodes = []
     group = []
-    root_node = create_root_node(r)
+    root_node = create_root_node(r, args.solver)
     nodes.append(root_node)
     for i in range(r):
-        leaf_node = create_leaf_node(i + 1, r)
+        leaf_node = create_leaf_node(i + 1, r, args.solver)
         nodes.append(leaf_node)
         root_node.add_child(i + 1, multiplier=1 / r)
         group.append(i + 1)

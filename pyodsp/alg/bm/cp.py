@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from pyomo.environ import ScalarVar, Constraint
+from pyomo.environ import ScalarVar, Constraint, Objective, minimize
 
 from pyodsp.solver.pyomo_solver import PyomoSolver
 from .cuts_manager import CutsManager, CutInfo
@@ -10,14 +10,39 @@ from ..params import BM_ABS_TOLERANCE
 
 
 class CuttingPlaneMethod:
+    """Cutting-plane master problem, always solved as a minimization.
+
+    A maximize problem is handled by negating (via `self._sign`) the true
+    objective's contribution, all incoming cut coefficients/rhs/objective
+    values, and reported theta/objective values back on the way out — the
+    cut/theta bookkeeping itself never branches on optimization direction.
+    """
+
     def __init__(self, solver: PyomoSolver, force: bool = False) -> None:
         self.solver = solver
         self.cuts_manager = CutsManager()
         self.current_solution: list[float] = []
         self.force = force
+        self._sign = 1.0 if solver.is_minimize() else -1.0
 
     def is_minimize(self) -> bool:
         return self.solver.is_minimize()
+
+    def get_sign(self) -> float:
+        return self._sign
+
+    def build_theta_objective(self, theta_vars) -> None:
+        """Wire theta into the master's working objective (`_mod_obj`),
+        which is always solved as minimize regardless of the true sense.
+        """
+        solver = self.solver
+        solver.original_objective.deactivate()
+        if solver.model.component("_mod_obj") is not None:
+            solver.model.del_component("_mod_obj")
+        modified_expr = self._sign * solver.original_objective.expr + sum(
+            theta_vars[i] for i in range(len(theta_vars))
+        )
+        solver.model._mod_obj = Objective(expr=modified_expr, sense=minimize)
 
     def get_cuts(self) -> list[list[CutInfo]]:
         return self.cuts_manager.get_cuts()
@@ -32,7 +57,7 @@ class CuttingPlaneMethod:
         return self.solver.get_original_objective_value()
 
     def get_objective_value(self) -> float:
-        return self.solver.get_objective_value()
+        return self._sign * self.solver.get_objective_value()
 
     def get_parent_objective_value(self) -> float:
         return self.solver.get_parent_objective_value()
@@ -54,9 +79,11 @@ class CuttingPlaneMethod:
     def get_current_solution(self) -> list[float]:
         return self.current_solution
 
-    def get_theta_value(self, idx: int) -> float:
+    def get_theta_value(self, idx: int) -> float | None:
         theta = self.solver.model._theta[idx]
-        return theta.value
+        if theta.value is None:
+            return None
+        return self._sign * theta.value
 
     def get_relaxed_objective(self) -> float | None:
         if not self.solver.is_optimal():
@@ -93,35 +120,20 @@ class CuttingPlaneMethod:
         theta_val = theta.value
         cut_num = self.cuts_manager.get_num_optimality(idx)
         vars = self.get_vars()
+        sign = self._sign
 
-        if self.solver.is_minimize():
-            # Minimization
-            if (
-                not self.force
-                and theta_val is not None
-                and theta_val >= cut.objective_value - BM_ABS_TOLERANCE
-            ):
-                # No need to add the cut
-                return False
+        if (
+            not self.force
+            and theta_val is not None
+            and theta_val >= sign * cut.objective_value - BM_ABS_TOLERANCE
+        ):
+            # No need to add the cut
+            return False
 
-            constraint = Constraint(
-                expr=sum(coeff * vars[j] for j, coeff in cut.coeffs.items()) + theta
-                >= cut.rhs
-            )
-        else:
-            # Maximization
-            if (
-                not self.force
-                and theta_val is not None
-                and theta_val <= cut.objective_value + BM_ABS_TOLERANCE
-            ):
-                # No need to add the cut
-                return False
-
-            constraint = Constraint(
-                expr=sum(coeff * vars[j] for j, coeff in cut.coeffs.items()) + theta
-                <= cut.rhs
-            )
+        constraint = Constraint(
+            expr=sum(sign * coeff * vars[j] for j, coeff in cut.coeffs.items()) + theta
+            >= sign * cut.rhs
+        )
 
         self.solver.model.add_component(f"_optimality_cut_{idx}_{cut_num}", constraint)
 
@@ -134,17 +146,12 @@ class CuttingPlaneMethod:
     def _add_feasibility_cut(self, idx: int, cut: FeasibilityCut) -> bool:
         cut_num = self.cuts_manager.get_num_feasibility(idx)
         vars = self.get_vars()
+        sign = self._sign
 
-        if self.solver.is_minimize():
-            # Minimization
-            constraint = Constraint(
-                expr=sum(coeff * vars[j] for j, coeff in cut.coeffs.items()) >= cut.rhs
-            )
-        else:
-            # Maximization
-            constraint = Constraint(
-                expr=sum(coeff * vars[j] for j, coeff in cut.coeffs.items()) <= cut.rhs
-            )
+        constraint = Constraint(
+            expr=sum(sign * coeff * vars[j] for j, coeff in cut.coeffs.items())
+            >= sign * cut.rhs
+        )
         self.solver.model.add_component(f"_feasibility_cut_{idx}_{cut_num}", constraint)
 
         self.cuts_manager.append_cut(

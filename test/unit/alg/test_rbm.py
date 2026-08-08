@@ -17,6 +17,9 @@ class FakeCpm:
     def is_minimize(self):
         return self._is_minimize
 
+    def get_sign(self):
+        return 1.0 if self._is_minimize else -1.0
+
 
 def make_rbm(is_minimize=True, theta_values=None, num_cuts=1, subobj_bounds=None):
     rbm = RestrictedBundleMethod.__new__(RestrictedBundleMethod)

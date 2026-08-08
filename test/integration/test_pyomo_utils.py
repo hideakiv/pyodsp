@@ -6,7 +6,6 @@ from pyodsp.solver.pyomo_utils import (
     update_linear_terms_in_objective,
     add_terms_to_objective,
     update_quad_terms_in_objective,
-    add_quad_terms_to_objective,
 )
 
 
@@ -58,7 +57,11 @@ def test_update_linear_terms_in_objective_replaces_previous_mod_obj():
     assert pyo.value(solver.model._mod_obj.expr) == 13.0
 
 
-def test_update_quad_terms_in_objective_adds_penalty_when_minimizing():
+def test_update_quad_terms_in_objective_always_adds_the_penalty():
+    # update_quad_terms_in_objective is only ever called on a `_mod_obj` that
+    # CuttingPlaneMethod.build_theta_objective already built as minimize-sense
+    # (regardless of the true optimization direction), so the penalty is
+    # always added — there is no separate "maximize" behavior to test here.
     solver = make_solver(sense=pyo.minimize)
     add_terms_to_objective(solver, [solver.model.x, solver.model.y])
 
@@ -71,20 +74,7 @@ def test_update_quad_terms_in_objective_adds_penalty_when_minimizing():
     # mod_obj (linear, x=1,y=0): (x+2y) + (x+y) = 1 + 1 = 2
     # quad term: 0.5 * 2.0 * ((1-0)^2 + (0-0)^2) = 1.0 -> total 3.0
     assert pyo.value(solver.model._mod_quad_obj.expr) == 3.0
-
-
-def test_update_quad_terms_in_objective_subtracts_penalty_when_maximizing():
-    solver = make_solver(sense=pyo.maximize)
-    add_terms_to_objective(solver, [solver.model.x, solver.model.y])
-
-    update_quad_terms_in_objective(
-        solver, [solver.model.x, solver.model.y], center=[0.0, 0.0], penalty=2.0
-    )
-
-    solver.model.x.set_value(1.0)
-    solver.model.y.set_value(0.0)
-    # same linear part = 2.0, but the quad term is subtracted for maximize: 2.0 - 1.0 = 1.0
-    assert pyo.value(solver.model._mod_quad_obj.expr) == 1.0
+    assert solver.model._mod_quad_obj.sense == pyo.minimize
 
 
 def test_update_quad_terms_in_objective_replaces_previous_mod_quad_obj():
@@ -100,18 +90,3 @@ def test_update_quad_terms_in_objective_replaces_previous_mod_quad_obj():
     )
 
     assert solver.model._mod_quad_obj is not first
-
-
-def test_add_quad_terms_to_objective_deactivates_linear_mod_obj():
-    solver = make_solver()
-
-    add_quad_terms_to_objective(
-        solver,
-        [solver.model.x, solver.model.y],
-        [solver.model.x, solver.model.y],
-        center=[0.0, 0.0],
-        penalty=1.0,
-    )
-
-    assert solver.model._mod_obj.active is False
-    assert solver.model._mod_quad_obj.active is True

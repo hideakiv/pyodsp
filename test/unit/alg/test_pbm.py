@@ -23,6 +23,9 @@ class FakeCpm:
     def is_minimize(self):
         return self._is_minimize
 
+    def get_sign(self):
+        return 1.0 if self._is_minimize else -1.0
+
 
 def make_pbm(is_minimize=True, relaxed_objective=0.0, current_solution=None, center=None):
     pbm = ProximalBundleMethod.__new__(ProximalBundleMethod)

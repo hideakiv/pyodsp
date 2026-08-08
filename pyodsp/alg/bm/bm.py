@@ -8,7 +8,6 @@ import pandas as pd
 from pyomo.environ import Var, ScalarVar, Reals, RangeSet
 
 from pyodsp.solver.pyomo_solver import PyomoSolver
-from pyodsp.solver.pyomo_utils import add_terms_to_objective
 
 from .cuts import CutList
 from .cuts_manager import CutInfo
@@ -180,13 +179,11 @@ class BundleMethod:
             self.cpm.purge_cuts()
 
     def _update_objective(self, subobj_bounds: List[float]):
+        sign = self.cpm.get_sign()
+
         def theta_bounds(model, i):
-            if self.is_minimize():
-                # Minimization
-                return (subobj_bounds[i], None)
-            else:
-                # Maximization
-                return (None, subobj_bounds[i])
+            bound = subobj_bounds[i]
+            return (None, None) if bound is None else (sign * bound, None)
 
         solver = self.cpm.get_solver()
 
@@ -194,7 +191,7 @@ class BundleMethod:
             RangeSet(0, self.num_cuts - 1), domain=Reals, bounds=theta_bounds
         )
 
-        add_terms_to_objective(solver, solver.model._theta)
+        self.cpm.build_theta_objective(solver.model._theta)
 
     def get_theta_value(self) -> list[float]:
         return [self.cpm.get_theta_value(i) for i in range(self.num_cuts)]

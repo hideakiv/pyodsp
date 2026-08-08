@@ -23,16 +23,14 @@ def make_leaf(max_iteration=20):
     return leaf, model
 
 
-def test_build_raises_when_maximizing():
+def test_construction_rejects_maximize():
     model = pyo.ConcreteModel()
     model.x = pyo.Var(domain=pyo.Reals)
     model.obj = pyo.Objective(expr=model.x, sense=pyo.maximize)
     solver = PyomoSolver(model, SolverConfig("appsi_highs"), [model.x])
-    leaf = BdScAlgLeafPyomo(solver, SolverConfig("ipopt"))
-    leaf.set_logger(idx=0, depth=1, level=20)
 
-    with pytest.raises(ValueError, match="Maximization is not supported"):
-        leaf.build()
+    with pytest.raises(ValueError, match="only accepts minimize"):
+        BdScAlgLeafPyomo(solver, SolverConfig("ipopt"))
 
 
 def test_get_up_message_converges_and_returns_optimality_cut():

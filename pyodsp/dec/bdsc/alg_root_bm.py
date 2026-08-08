@@ -23,6 +23,13 @@ from pyodsp.dec.node.cut_aggregator import CutAggregator
 
 class BdScAlgRootBm(IAlgRoot):
     def __init__(self, solver: PyomoSolver, max_iteration=1000) -> None:
+        if not solver.is_minimize():
+            raise ValueError(
+                "Benders decomposition with scaled cuts only accepts minimize "
+                "problems; negate the objective (see "
+                "pyomo_utils.negate_objective_sense) before constructing the "
+                "solver."
+            )
         self.bm = BundleMethod(solver, max_iteration)
         self.step_time: List[float] = []
 

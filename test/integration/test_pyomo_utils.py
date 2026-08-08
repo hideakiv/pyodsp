@@ -1,4 +1,6 @@
+import pandas as pd
 import pyomo.environ as pyo
+import pytest
 
 from pyodsp.solver.pyomo_solver import PyomoSolver, SolverConfig
 from pyodsp.solver.pyomo_utils import (
@@ -6,6 +8,8 @@ from pyodsp.solver.pyomo_utils import (
     update_linear_terms_in_objective,
     add_terms_to_objective,
     update_quad_terms_in_objective,
+    negate_objective_sense,
+    negate_saved_objective_csv,
 )
 
 
@@ -90,3 +94,79 @@ def test_update_quad_terms_in_objective_replaces_previous_mod_quad_obj():
     )
 
     assert solver.model._mod_quad_obj is not first
+
+
+def test_negate_objective_sense_flips_maximize_to_minimize():
+    model = pyo.ConcreteModel()
+    model.x = pyo.Var()
+    model.obj = pyo.Objective(expr=3 * model.x + 1, sense=pyo.maximize)
+
+    negate_objective_sense(model)
+
+    assert model.obj.sense == pyo.minimize
+    model.x.set_value(2.0)
+    assert pyo.value(model.obj.expr) == -7.0  # -(3*2+1)
+
+
+def test_negate_objective_sense_flips_minimize_to_maximize():
+    model = pyo.ConcreteModel()
+    model.x = pyo.Var()
+    model.obj = pyo.Objective(expr=3 * model.x + 1, sense=pyo.minimize)
+
+    negate_objective_sense(model)
+
+    assert model.obj.sense == pyo.maximize
+    model.x.set_value(2.0)
+    assert pyo.value(model.obj.expr) == -7.0
+
+
+def test_negate_objective_sense_is_its_own_inverse():
+    model = pyo.ConcreteModel()
+    model.x = pyo.Var()
+    model.obj = pyo.Objective(expr=3 * model.x + 1, sense=pyo.maximize)
+
+    negate_objective_sense(model)
+    negate_objective_sense(model)
+
+    assert model.obj.sense == pyo.maximize
+    model.x.set_value(2.0)
+    assert pyo.value(model.obj.expr) == 7.0
+
+
+def test_negate_objective_sense_raises_when_no_active_objective():
+    model = pyo.ConcreteModel()
+    model.x = pyo.Var()
+
+    with pytest.raises(ValueError, match="No active objective"):
+        negate_objective_sense(model)
+
+
+def test_negate_saved_objective_csv_negates_bm_csv(tmp_path):
+    pd.DataFrame({"obj_bound": [1.0, 2.0], "obj_val": [3.0, None]}).to_csv(
+        tmp_path / "bm.csv"
+    )
+
+    negate_saved_objective_csv(tmp_path)
+
+    df = pd.read_csv(tmp_path / "bm.csv", index_col=0)
+    assert df["obj_bound"].tolist() == [-1.0, -2.0]
+    assert df["obj_val"].tolist()[0] == -3.0
+    assert pd.isna(df["obj_val"].tolist()[1])
+
+
+def test_negate_saved_objective_csv_negates_pbm_csv(tmp_path):
+    pd.DataFrame(
+        {"obj_bound": [1.0], "center_val": [2.0], "obj_val": [3.0]}
+    ).to_csv(tmp_path / "pbm.csv")
+
+    negate_saved_objective_csv(tmp_path)
+
+    df = pd.read_csv(tmp_path / "pbm.csv", index_col=0)
+    assert df["obj_bound"].tolist() == [-1.0]
+    assert df["center_val"].tolist() == [-2.0]
+    assert df["obj_val"].tolist() == [-3.0]
+
+
+def test_negate_saved_objective_csv_raises_when_neither_file_exists(tmp_path):
+    with pytest.raises(FileNotFoundError):
+        negate_saved_objective_csv(tmp_path)

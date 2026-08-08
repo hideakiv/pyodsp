@@ -24,6 +24,12 @@ from pyodsp.alg.params import DEC_CUT_ABS_TOL
 
 class BdAlgLeafPyomo(IAlgLeaf):
     def __init__(self, solver: PyomoSolver):
+        if not solver.is_minimize():
+            raise ValueError(
+                "Benders decomposition only accepts minimize problems; "
+                "negate the objective (see pyomo_utils.negate_objective_sense) "
+                "before constructing the solver."
+            )
         self.solver = solver
         self.solver.model.dual = Suffix(direction=Suffix.IMPORT)
         self.step_time: List[float] = []

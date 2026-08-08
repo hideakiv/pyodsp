@@ -30,6 +30,13 @@ class BdScAlgLeafPyomo(IAlgLeaf):
     def __init__(
         self, solver: PyomoSolver, master_config: SolverConfig, max_iteration=1000
     ):
+        if not solver.is_minimize():
+            raise ValueError(
+                "Benders decomposition with scaled cuts only accepts minimize "
+                "problems; negate the objective (see "
+                "pyomo_utils.negate_objective_sense) before constructing the "
+                "solver."
+            )
         self.cgsp = BundleMethod(solver, max_iteration, force=True)
         self.mc = MasterCreator(
             is_minimize=self.cgsp.is_minimize(), solver_config=master_config
@@ -42,11 +49,7 @@ class BdScAlgLeafPyomo(IAlgLeaf):
         self.cgsp.set_logger(
             node_id=f"{self.idx}_cgsp", depth=1, level=self.level
         )  # TODO: pass actual node id and depth
-        if self.cgsp.is_minimize():
-            self.cgsp.build(1, [-1e9])  # temporary bound
-        else:
-            raise ValueError("Maximization is not supported yet")
-            self.cgsp.build(1, [1e9])
+        self.cgsp.build(1, [-1e9])  # temporary bound
 
     def pass_init_dn_message(self, message: BdScInitDnMessage) -> None:
         if self.is_minimize() != message.get_is_minimize():
@@ -61,10 +64,7 @@ class BdScAlgLeafPyomo(IAlgLeaf):
         objective = message.get_objective()
         cut_list = message.get_cut()
         subobj_bound = sum(message.get_subobj_bounds())  # TODO: update only once
-        if self.is_minimize():
-            self.cgsp.cpm.solver.model._theta[0].setlb(subobj_bound)
-        else:
-            raise NotImplementedError("Maximization not implemented yet")
+        self.cgsp.cpm.solver.model._theta[0].setlb(subobj_bound)
 
         self._fix_variables(solution)
         self._fix_parent_objective(objective)

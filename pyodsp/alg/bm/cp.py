@@ -1,5 +1,7 @@
+import json
 from pathlib import Path
 
+import pandas as pd
 from pyomo.environ import ScalarVar, Constraint, Objective, minimize
 
 from pyodsp.solver.pyomo_solver import PyomoSolver
@@ -7,6 +9,8 @@ from .cuts_manager import CutsManager, NonPurgingCutsManager, CutInfo
 from .cuts import CutList, OptimalityCut, FeasibilityCut
 
 from ..params import BM_ABS_TOLERANCE
+
+CUTS_FILE = "cuts.csv"
 
 
 class CuttingPlaneMethod:
@@ -173,3 +177,77 @@ class CuttingPlaneMethod:
 
     def save(self, dir: Path) -> None:
         self.solver.save(dir)
+        self.save_cuts(dir)
+
+    def save_cuts(self, dir: Path) -> None:
+        """Write the active cuts to cuts.csv.
+
+        These are the durable part of what a master has learned: the cuts
+        describe its value function over the coupling variables, and hold
+        for any state, unlike sol.csv or a dumped model — both of which
+        are conditioned on whatever the coupling variables happened to be
+        fixed to at the last solve. Coefficients are keyed by coupling
+        variable name so the file stands on its own; load_cuts maps them
+        back to positions.
+        """
+        var_names = [var.name for var in self.get_vars()]
+        rows = []
+        for group in self.get_cuts():
+            for cut_info in group:
+                cut = cut_info.cut
+                is_optimality = isinstance(cut, OptimalityCut)
+                rows.append(
+                    {
+                        "idx": cut_info.idx,
+                        "type": "optimality" if is_optimality else "feasibility",
+                        "rhs": cut.rhs,
+                        "objective_value": (
+                            cut.objective_value if is_optimality else None
+                        ),
+                        "coeffs": json.dumps(
+                            {var_names[j]: coeff for j, coeff in cut.coeffs.items()}
+                        ),
+                    }
+                )
+        df = pd.DataFrame(
+            rows, columns=["idx", "type", "rhs", "objective_value", "coeffs"]
+        )
+        df.to_csv(Path(dir) / CUTS_FILE, index=False)
+
+    def load_cuts(self, dir: Path) -> list[CutList]:
+        """Read cuts.csv back into one CutList per theta index.
+
+        Coefficients are matched to this master's coupling variables by
+        name, so a saved value function can be reinstated onto a rebuilt
+        model (see BundleMethod.restore_cuts) as long as it couples on the
+        same variables — their order is allowed to differ.
+        """
+        df = pd.read_csv(Path(dir) / CUTS_FILE)
+        positions = {var.name: j for j, var in enumerate(self.get_vars())}
+        cuts_list: list[CutList] = [CutList() for _ in range(self.num_cuts)]
+        for row in df.itertuples(index=False):
+            coeffs = {}
+            for name, coeff in json.loads(row.coeffs).items():
+                if name not in positions:
+                    raise ValueError(
+                        f"Saved cut references coupling variable '{name}', which "
+                        "this master does not have"
+                    )
+                coeffs[positions[name]] = float(coeff)
+            idx = int(row.idx)
+            if idx >= self.num_cuts:
+                raise ValueError(
+                    f"Saved cut belongs to group {idx}, but this master only has "
+                    f"{self.num_cuts} group(s) — it was built with different groups"
+                )
+            if row.type == "optimality":
+                cut = OptimalityCut(
+                    coeffs=coeffs,
+                    rhs=float(row.rhs),
+                    info={},
+                    objective_value=float(row.objective_value),
+                )
+            else:
+                cut = FeasibilityCut(coeffs=coeffs, rhs=float(row.rhs), info={})
+            cuts_list[idx].append(cut)
+        return cuts_list

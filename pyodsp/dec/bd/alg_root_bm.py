@@ -109,6 +109,13 @@ class BdAlgRootBm(IAlgRoot):
         df = pd.DataFrame(self.step_time, columns=["step_time"])
         df.to_csv(path, index=False)
 
+    def restore_cuts(self, dir: Path) -> None:
+        """Reinstate the value function saved by a previous run's save."""
+        self.bm.restore_cuts(dir)
+
+    def get_solver(self) -> PyomoSolver:
+        return self.bm.get_solver()
+
     def is_minimize(self) -> bool:
         return self.bm.is_minimize()
 

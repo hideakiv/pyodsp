@@ -138,6 +138,9 @@ class BdAlgLeafPyomo(IAlgLeaf):
         }
         return FeasibilityCut(coeffs=sparse_coeff, rhs=rhs, info={})
 
+    def get_solver(self) -> PyomoSolver:
+        return self.solver
+
     def set_logger(self, idx: NodeIdx, depth: int, level: int) -> None:
         pass
 

@@ -204,6 +204,20 @@ class BundleMethod:
         self.cpm.eliminate_cuts(all_names)
         self.add_cuts(cuts_list)
 
+    def restore_cuts(self, dir: Path) -> None:
+        """Reinstate the cuts a previous run saved (see save) into this
+        freshly built master, replacing whatever it currently holds.
+
+        This is what makes the saved value function reusable: rebuild the
+        model exactly as the run built it, restore, and the master prices
+        the future the same way it did at the end of the run — without
+        depending on the state it was last solved at.
+        """
+        self.replace_cuts(self.cpm.load_cuts(dir))
+
+    def get_solver(self) -> PyomoSolver:
+        return self.cpm.get_solver()
+
     def _update_objective(self, subobj_bounds: List[float]):
         sign = self.cpm.get_sign()
 

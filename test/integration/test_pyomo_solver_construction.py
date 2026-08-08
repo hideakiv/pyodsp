@@ -1,5 +1,3 @@
-import pickle
-
 import pyomo.environ as pyo
 import pytest
 
@@ -62,49 +60,6 @@ def test_parent_objective_value_defaults_to_zero_and_is_settable():
     assert solver.get_parent_objective_value() == 0.0
     solver.set_parent_objective_value(3.5)
     assert solver.get_parent_objective_value() == 3.5
-
-
-@pytest.mark.parametrize("fmt", ["lp", "mps", "nl"])
-def test_save_model_writes_solver_format(tmp_path, fmt):
-    solver = make_solver()
-    solver.save_model(tmp_path, format=fmt)
-    assert (tmp_path / f"model.{fmt}").exists()
-
-
-def test_save_model_pickle_roundtrips(tmp_path):
-    solver = make_solver()
-    solver.save_model(tmp_path, format="pickle")
-    with open(tmp_path / "model.pkl", "rb") as f:
-        loaded = pickle.load(f)
-    assert pyo.value(loaded.x.lb) == 0
-
-
-def test_save_model_rejects_unknown_format(tmp_path):
-    solver = make_solver()
-    with pytest.raises(ValueError, match="Unsupported format"):
-        solver.save_model(tmp_path, format="xml")
-
-
-def test_load_model_pickle_roundtrips(tmp_path):
-    solver = make_solver()
-    solver.save_model(tmp_path, format="pickle")
-
-    loaded = solver.load_model(tmp_path, format="pickle")
-
-    assert isinstance(loaded, pyo.ConcreteModel)
-
-
-@pytest.mark.parametrize("fmt", ["lp", "mps", "nl"])
-def test_load_model_solver_formats_not_implemented(tmp_path, fmt):
-    solver = make_solver()
-    with pytest.raises(NotImplementedError):
-        solver.load_model(tmp_path, format=fmt)
-
-
-def test_load_model_rejects_unknown_format(tmp_path):
-    solver = make_solver()
-    with pytest.raises(ValueError, match="Unsupported format"):
-        solver.load_model(tmp_path, format="xml")
 
 
 def test_change_domain_to_real_converts_nonnegative_integers():

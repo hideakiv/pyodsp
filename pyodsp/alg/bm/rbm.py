@@ -35,7 +35,9 @@ class RestrictedBundleMethod:
         self.penalty = penalty
         self.center_val = []
 
-    def set_logger(self, node_id: int, depth: int, level: int = logging.INFO) -> None:
+    def set_logger(
+        self, node_id: int | str, depth: int, level: int = logging.INFO
+    ) -> None:
         method = "Regularized Bundle Method"
         self.logger = BmLogger(method, node_id, depth, level)
 

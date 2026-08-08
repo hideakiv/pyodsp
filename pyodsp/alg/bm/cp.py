@@ -167,6 +167,15 @@ class CuttingPlaneMethod:
         return True
 
     def increment_cuts(self) -> None:
+        if not self.solver.has_solution():
+            # Ageing judges a cut by its slack at the current point, and
+            # there is no point yet. Cuts can be in the master before its
+            # first solve — seeded from a previous master (see
+            # BdScAlgLeafPyomo._create_master) or restored from disk (see
+            # BundleMethod.restore_cuts) — and ageing them against an
+            # unsolved model would both fail to evaluate and, if it could,
+            # retire cuts that were never observed slack.
+            return
         self.cuts_manager.increment()
 
     def purge_cuts(self) -> None:

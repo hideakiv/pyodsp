@@ -37,7 +37,9 @@ class BundleMethod:
         self.status: int = STATUS_NOT_FINISHED
         self.start_time = time.time()
 
-    def set_logger(self, node_id: int, depth: int, level: int = logging.INFO) -> None:
+    def set_logger(
+        self, node_id: int | str, depth: int, level: int = logging.INFO
+    ) -> None:
         method = "Bundle Method"
         self.logger = BmLogger(method, node_id, depth, level)
 

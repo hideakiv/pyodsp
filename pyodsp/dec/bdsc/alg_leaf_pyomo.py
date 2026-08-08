@@ -1,29 +1,30 @@
-from typing import List
-from pathlib import Path
-import time
-import pandas as pd
 import logging
+import time
+from pathlib import Path
+from typing import List
 
-from pyomo.environ import value, Constraint
+import pandas as pd
+from pyomo.environ import Constraint, value
 
+from pyodsp.alg.bm.bm import BundleMethod
+from pyodsp.alg.bm.cuts import Cut, CutList, FeasibilityCut, OptimalityCut
+from pyodsp.alg.bm.pbm import ProximalBundleMethod
+from pyodsp.alg.const import STATUS_NOT_FINISHED
+from pyodsp.alg.params import DEC_CUT_ABS_TOL
+from pyodsp.solver.pyomo_solver import PyomoSolver, SolverConfig
+from pyodsp.solver.pyomo_utils import update_linear_terms_in_objective
+
+from ..node._alg import IAlgLeaf
+from ..node._message import NodeIdx
 from .master_creator import MasterCreator
 from .message import (
-    BdScInitDnMessage,
-    BdScInitUpMessage,
+    BdScDnMessage,
     BdScFinalDnMessage,
     BdScFinalUpMessage,
-    BdScDnMessage,
+    BdScInitDnMessage,
+    BdScInitUpMessage,
     BdScUpMessage,
 )
-from ..node._message import NodeIdx
-from ..node._alg import IAlgLeaf
-from pyodsp.solver.pyomo_utils import update_linear_terms_in_objective
-from pyodsp.alg.bm.bm import BundleMethod
-from pyodsp.alg.bm.pbm import ProximalBundleMethod
-from pyodsp.alg.bm.cuts import Cut, OptimalityCut, FeasibilityCut, CutList
-from pyodsp.solver.pyomo_solver import PyomoSolver, SolverConfig
-from pyodsp.alg.params import DEC_CUT_ABS_TOL
-from pyodsp.alg.const import STATUS_NOT_FINISHED
 
 
 class BdScAlgLeafPyomo(IAlgLeaf):
@@ -49,13 +50,21 @@ class BdScAlgLeafPyomo(IAlgLeaf):
         )
         self.max_iteration = max_iteration
         self.step_time: List[float] = []
-        self.cgmp_id = 0
+        # columns carried over from the previous trial point — see _sync_cuts
+        self._cgmp_cuts: List[Cut] = []
+        self._subobj_bound: float | None = None
 
     def build(self) -> None:
+        # this node's own depth: the cgsp and cgmp are its two inner solvers,
+        # not nodes of their own, so they sit at the depth of the leaf that
+        # runs them and are told apart by the suffix on the id
         self.cgsp.set_logger(
-            node_id=f"{self.idx}_cgsp", depth=1, level=self.level
-        )  # TODO: pass actual node id and depth
-        self.cgsp.build(1, [-1e9])  # temporary bound
+            node_id=f"{self.idx}_cgsp", depth=self.depth, level=self.level
+        )
+        # A placeholder floor under theta: the real one is the root's, and it
+        # cannot be known here yet — see _set_subobj_bound, which installs it
+        # when the first trial point arrives.
+        self.cgsp.build(1, [-1e9])
 
     def pass_init_dn_message(self, message: BdScInitDnMessage) -> None:
         if self.is_minimize() != message.get_is_minimize():
@@ -69,39 +78,113 @@ class BdScAlgLeafPyomo(IAlgLeaf):
         rho = message.get_rho()
         objective = message.get_objective()
         cut_list = message.get_cut_list()
-        subobj_bound = sum(message.get_subobj_bounds())  # TODO: update only once
-        self.cgsp.cpm.solver.model._theta[0].setlb(subobj_bound)
 
+        self._set_subobj_bound(message.get_subobj_bounds())
+        self._sync_cuts(cut_list)
         self._fix_variables(solution)
         self._fix_parent_objective(objective)
         self._create_master(solution, rho)
-        if cut_list is not None:
-            # the message carries the master's whole cut set, so mirror it
-            # wholesale rather than appending — that is what keeps this
-            # subproblem's cuts identical to the master's across the
-            # master's own drops and refusals
-            if len(cut_list) != self.cgsp.num_cuts:
-                raise ValueError(
-                    f"Master sent {len(cut_list)} cut group(s), but this "
-                    f"subproblem prices {self.cgsp.num_cuts}; Benders "
-                    "decomposition with scaled cuts needs the root's children "
-                    "in a single group (see DecNodeParent.set_groups)"
-                )
-            self.cgsp.replace_cuts(cut_list)
         self.cgsp.reset_iteration()
 
+    def _set_subobj_bound(self, subobj_bounds: List[float | None]) -> None:
+        """Install the floor under the cgsp's theta. Only the first call does.
+
+        The root works these bounds out in its own build(), from bounds its
+        children report, and they do not change afterwards — but it has no
+        way to hand them over any earlier than this: at init time those
+        bounds are still travelling *up* from the leaves, so
+        BdScInitDnMessage cannot carry them. They ride along on every dn
+        message instead, and the first to arrive is the one that counts. A
+        later change is refused rather than applied: raising this floor
+        shrinks the cgsp, which would quietly invalidate every column the
+        cgmp has collected since (see _sync_cuts).
+        """
+        if len(subobj_bounds) != self.cgsp.num_cuts:
+            raise ValueError(
+                f"Master sent {len(subobj_bounds)} subproblem bound(s), but "
+                f"this subproblem prices {self.cgsp.num_cuts}; Benders "
+                "decomposition with scaled cuts needs the root's children in "
+                "a single group (see DecNodeParent.set_groups)"
+            )
+        if any(bound is None for bound in subobj_bounds):
+            raise ValueError(
+                "Benders decomposition with scaled cuts needs a bound on every "
+                "child's objective to put a floor under the column-generation "
+                "subproblem; call set_bound on each leaf node"
+            )
+
+        bound = sum(subobj_bounds)
+        if self._subobj_bound is None:
+            self._subobj_bound = bound
+            self.cgsp.cpm.solver.model._theta[0].setlb(bound)
+        elif abs(bound - self._subobj_bound) > DEC_CUT_ABS_TOL:
+            raise ValueError(
+                f"The subproblem bound changed from {self._subobj_bound} to "
+                f"{bound}; it is read once, from the first trial point to "
+                "arrive, and taken as fixed from then on"
+            )
+
+    def _sync_cuts(self, cut_list: list[CutList] | None) -> None:
+        """Mirror the master's cuts, and decide whether the columns the cgmp
+        has already generated survive into the next one.
+
+        Each cgmp cut records a column — a point (x, theta) the cgsp
+        produced — and bounds alpha below by that column's value. It stays
+        valid exactly as long as that column stays feasible for the cgsp, so
+        a cut the master *added* retires the collected columns: the cgsp
+        shrinks under it. Anything that relaxes the cgsp (a cut the master
+        purged) leaves them valid, and so does a new trial point on its own
+        — y and rho appear only in the cgmp's objective (see
+        MasterCreator.create), never in these cuts. The only other thing
+        that could shrink the cgsp, the floor under theta, is fixed for the
+        run (see _set_subobj_bound).
+        """
+        if cut_list is None:
+            # the master's cuts are unchanged, so every column still holds
+            return
+
+        # the message carries the master's whole cut set, so mirror it
+        # wholesale rather than appending — that is what keeps this
+        # subproblem's cuts identical to the master's across the master's
+        # own drops and refusals
+        if len(cut_list) != self.cgsp.num_cuts:
+            raise ValueError(
+                f"Master sent {len(cut_list)} cut group(s), but this "
+                f"subproblem prices {self.cgsp.num_cuts}; Benders "
+                "decomposition with scaled cuts needs the root's children "
+                "in a single group (see DecNodeParent.set_groups)"
+            )
+        held = self._cut_keys(c.cut for group in self.cgsp.get_cuts() for c in group)
+        incoming = self._cut_keys(cut for group in cut_list for cut in group)
+        if incoming - held:
+            self._cgmp_cuts = []
+        self.cgsp.replace_cuts(cut_list)
+
+    @staticmethod
+    def _cut_keys(cuts) -> set:
+        return {
+            (type(cut).__name__, cut.rhs, tuple(sorted(cut.coeffs.items())))
+            for cut in cuts
+        }
+
     def _create_master(self, solution: List[float], rho: float) -> None:
-        master = self.mc.create(
-            solution, rho
-        )  # NOTE: maybe we can reuse the master from the previous iteration
+        master = self.mc.create(solution, rho)
         self.cgmp = ProximalBundleMethod(master, self.max_iteration)
+        # a stable id: successive masters are the same component at
+        # successive trial points, so they share one logger rather than
+        # leaving a new one behind on every call
         self.cgmp.set_logger(
-            node_id=f"{self.idx}_cgmp_{self.cgmp_id}", depth=1, level=self.level
+            node_id=f"{self.idx}_cgmp", depth=self.depth, level=self.level
         )
-        self.cgmp_id += 1
         init_solution = [0.0 for _ in range(len(solution) + 1)]
         self.cgmp.set_init_solution(init_solution)
         self.cgmp.build(1)
+        if self._cgmp_cuts:
+            # start from the columns that are still valid rather than making
+            # column generation rediscover them, each at the price of a cgsp
+            # solve. The master itself is rebuilt because its objective is a
+            # function of the new y and rho.
+            self.cgmp.add_cuts([CutList(list(self._cgmp_cuts))])
 
     def pass_final_dn_message(self, message: BdScFinalDnMessage) -> None:
         pass
@@ -144,8 +227,6 @@ class BdScAlgLeafPyomo(IAlgLeaf):
         self._unfix_variables()
         for _ in range(self.max_iteration):
             if _ > 0:
-                # print("cgsp", cuts_list[0][0])
-                # breakpoint()
                 status, solution, objective = self.cgmp.run_step(cuts_list)
                 if status != STATUS_NOT_FINISHED:
                     break
@@ -155,8 +236,6 @@ class BdScAlgLeafPyomo(IAlgLeaf):
                 tau = 0.0
                 beta = [0.0 for var in self.cgsp.get_vars()]
             self._update_cgsp_objective(beta, tau)
-            # print("cgmp", beta, tau)
-            # breakpoint()
             self.cgsp.cpm.solve()
             qy = self.cgsp.get_original_objective_value()
             x = [value(var) for var in self.cgsp.get_vars()]
@@ -172,6 +251,10 @@ class BdScAlgLeafPyomo(IAlgLeaf):
             )
             cuts_list = [CutList([cgcut])]
         self.step_time.append(time.time() - start)
+
+        # carry the master's surviving cuts (its own dominance and aging
+        # decisions already applied) into the next trial point
+        self._cgmp_cuts = [c.cut for group in self.cgmp.cpm.get_cuts() for c in group]
 
         c = self.cgmp.cpm.get_objective_value()
         alpha = self.cgmp.cpm.get_theta_value(0)

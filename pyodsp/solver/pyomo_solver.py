@@ -76,6 +76,14 @@ class PyomoSolver(Solver):
             return None
         return pyo.value(self.original_objective)
 
+    def has_solution(self) -> bool:
+        """Whether a solve has put values into this model's variables.
+
+        False before the first solve, and after one that produced no
+        solution — in both cases nothing in the model can be evaluated.
+        """
+        return self._results is not None and len(self._results["Solution"]) > 0
+
     def get_vars(self) -> List[pyo.ScalarVar]:
         return self.vars
 

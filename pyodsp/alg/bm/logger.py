@@ -1,13 +1,21 @@
 import logging
 
+INDENT = "  "
+
 
 class BmLogger:
+    """Logging for one solver, indented by how deep in the decomposition it
+    sits: the root's output stays flush left and each level below it steps
+    in, so a nested solver's lines read as belonging to the one above.
+    """
+
     def __init__(
-        self, method: str, node_id: int, depth: int, level: int = logging.INFO
+        self, method: str, node_id: int | str, depth: int, level: int = logging.INFO
     ) -> None:
         self.method = method
         self.node_id = node_id
         self.depth = depth
+        self.indent = INDENT * max(depth, 0)
         # Create a logger object
         self.logger = logging.getLogger(f"{method} {node_id}")
         self.logger.setLevel(level)
@@ -28,15 +36,18 @@ class BmLogger:
             self.logger.addHandler(ch)
 
     def log_initialization(self, **kwargs) -> None:
-        self.logger.info(f"Node: {self.node_id} - Starting {self.method}")
+        self.log_info(f"Starting {self.method}")
         for key, var in kwargs.items():
-            self.logger.info(f"Node: {self.node_id} - {key}: {var}")
+            self.log_info(f"{key}: {var}")
+
+    def _format(self, message: str) -> str:
+        return f"{self.indent}Node: {self.node_id} - {message}"
 
     def log_info(self, message: str) -> None:
-        self.logger.info(f"Node: {self.node_id} - {message}")
+        self.logger.info(self._format(message))
 
     def log_debug(self, message: str) -> None:
-        self.logger.debug(f"Node: {self.node_id} - {message}")
+        self.logger.debug(self._format(message))
 
     def log_sub_problem(self, idx, cut_type: str, coefficients, constant) -> None:
         self.log_debug(f"\t{idx}\t{cut_type}\t{coefficients}\t{constant}")

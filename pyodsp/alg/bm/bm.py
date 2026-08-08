@@ -1,4 +1,5 @@
 from typing import List, Tuple
+from copy import deepcopy
 from pathlib import Path
 import time
 import logging
@@ -186,8 +187,15 @@ class BundleMethod:
         """A snapshot of currently active cuts as CutList objects (dropping
         the constraint/age/trial_point bookkeeping), suitable for relaying
         to another BundleMethod via replace_cuts.
+
+        The cuts are copied, so a recipient sharing this process (see
+        BdScAlgLeafPyomo) cannot reach back into this master's own cuts —
+        callers do rescale cuts in place (see BdScAlgRootBm.run_step), and
+        a snapshot that aliased them would not stay a snapshot.
         """
-        return [CutList([c.cut for c in group]) for group in self.get_cuts()]
+        return [
+            CutList([deepcopy(c.cut) for c in group]) for group in self.get_cuts()
+        ]
 
     def replace_cuts(self, cuts_list: List[CutList]) -> None:
         """Replace every currently active cut with exactly the given set,

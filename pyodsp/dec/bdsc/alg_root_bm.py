@@ -63,6 +63,17 @@ class BdScAlgRootBm(IAlgRoot):
     def run_step(
         self, up_messages: dict[NodeIdx, BdScUpMessage] | None
     ) -> Tuple[int, BdScDnMessage]:
+        """Advance the master and tell the column-generation subproblems
+        which cuts it now holds.
+
+        The dn message carries the master's *whole* current cut set
+        whenever the master takes a step, not just the cuts added by that
+        step: a subproblem cannot arrive at the same set by replaying the
+        additions, because the master also drops cuts (aging) and declines
+        them (dominance, similarity) based on solves the subproblem never
+        performs. When the master does not step, its cuts are unchanged and
+        None is sent, meaning "keep what you have".
+        """
         if up_messages is None:
             cuts_list = None
             start = time.time()
@@ -71,6 +82,7 @@ class BdScAlgRootBm(IAlgRoot):
             self.rho = sum(self.bm.get_theta_value())
             self.solution = solution
             self.objective = objective
+            dn_cut_list = self.bm.get_cut_list()
         else:
             c_average = 0.0
             tau_average = 0.0
@@ -91,13 +103,15 @@ class BdScAlgRootBm(IAlgRoot):
                 self.rho = sum(self.bm.get_theta_value())
                 self.solution = solution
                 self.objective = objective
+                dn_cut_list = self.bm.get_cut_list()
             else:
-                cuts_list = None
+                # the master did not step, so its cuts did not change
+                dn_cut_list = None
                 assert self.rho is not None
                 self.rho = self.rho + c_average / (1 + tau_average)
                 status = STATUS_NOT_FINISHED
         return status, BdScDnMessage(
-            self.solution, self.rho, cuts_list, self.subobj_bounds, self.objective
+            self.solution, self.rho, dn_cut_list, self.subobj_bounds, self.objective
         )
 
     def add_cuts(self, up_messages: dict[NodeIdx, BdScUpMessage]) -> None:

@@ -120,7 +120,7 @@ def test_bdsc_dn_message_roundtrip():
 
     assert message.get_solution() == [1.0]
     assert message.get_rho() == 0.5
-    assert message.get_cut() is cut_list
+    assert message.get_cut_list() is cut_list
     assert message.get_subobj_bounds() == [0.0]
     assert message.get_objective() == 0.0
 

@@ -3,7 +3,6 @@ from pathlib import Path
 import logging
 
 from .logger import SddpLogger
-from ..bd.message import BdDnMessage
 from ..node._node import INode
 from ..graph.lattice_mpi import LatticeMpi
 
@@ -39,9 +38,11 @@ class SddpRunMpi:
         )
 
     def run(self, init_solution: List[float] | None = None) -> None:
-        if init_solution is None:
-            dn_message = None
-        else:
-            dn_message = BdDnMessage(init_solution)
+        if init_solution is not None:
+            raise NotImplementedError(
+                "SDDP does not support an initial solution: every iteration's "
+                "forward pass begins by solving the root, which sets the "
+                "first-stage state itself, so there is nowhere to inject one."
+            )
 
-        self.graph.run(dn_message)
+        self.graph.run()

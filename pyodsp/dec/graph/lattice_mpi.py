@@ -69,7 +69,7 @@ class LatticeMpi(Lattice):
         self.comm = MPI.COMM_WORLD
         self.rank = self.comm.Get_rank()
 
-    def run(self, init_solution: None = None) -> None:
+    def run(self) -> None:
         if self.rank == 0:
             self.logger.log_initialization()
         self._run_init()

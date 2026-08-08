@@ -80,7 +80,13 @@ class Lattice:
                     if not isinstance(node, INodeInner):
                         raise ValueError(f"Stage {stage} must be inner node.")
 
-    def run(self, init_solution: DnMessage | None = None):
+    def run(self) -> None:
+        """Run SDDP to convergence.
+
+        Unlike Tree/HubAndSpoke, this takes no initial solution: each
+        iteration's forward pass starts from the root's own solve, so
+        there is nowhere for a caller-supplied one to enter.
+        """
         self.logger.log_initialization()
         self._run_init()
         self._run_main()

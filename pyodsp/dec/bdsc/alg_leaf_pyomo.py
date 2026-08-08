@@ -37,7 +37,13 @@ class BdScAlgLeafPyomo(IAlgLeaf):
                 "pyomo_utils.negate_objective_sense) before constructing the "
                 "solver."
             )
-        self.cgsp = BundleMethod(solver, max_iteration, force=True)
+        # The column-generation subproblem must price against exactly the
+        # master's cuts, so it makes no add/drop decisions of its own:
+        # force=True bypasses its dominance check and purgeable=False stops
+        # it aging cuts out on its own schedule. Both would otherwise be
+        # decided from this subproblem's solves, which are not the master's.
+        # It still drops cuts when told to — see pass_dn_message.
+        self.cgsp = BundleMethod(solver, max_iteration, force=True, purgeable=False)
         self.mc = MasterCreator(
             is_minimize=self.cgsp.is_minimize(), solver_config=master_config
         )
@@ -62,7 +68,7 @@ class BdScAlgLeafPyomo(IAlgLeaf):
         solution = message.get_solution()
         rho = message.get_rho()
         objective = message.get_objective()
-        cut_list = message.get_cut()
+        cut_list = message.get_cut_list()
         subobj_bound = sum(message.get_subobj_bounds())  # TODO: update only once
         self.cgsp.cpm.solver.model._theta[0].setlb(subobj_bound)
 
@@ -70,7 +76,18 @@ class BdScAlgLeafPyomo(IAlgLeaf):
         self._fix_parent_objective(objective)
         self._create_master(solution, rho)
         if cut_list is not None:
-            self.cgsp.add_cuts(cut_list)
+            # the message carries the master's whole cut set, so mirror it
+            # wholesale rather than appending — that is what keeps this
+            # subproblem's cuts identical to the master's across the
+            # master's own drops and refusals
+            if len(cut_list) != self.cgsp.num_cuts:
+                raise ValueError(
+                    f"Master sent {len(cut_list)} cut group(s), but this "
+                    f"subproblem prices {self.cgsp.num_cuts}; Benders "
+                    "decomposition with scaled cuts needs the root's children "
+                    "in a single group (see DecNodeParent.set_groups)"
+                )
+            self.cgsp.replace_cuts(cut_list)
         self.cgsp.reset_iteration()
 
     def _create_master(self, solution: List[float], rho: float) -> None:

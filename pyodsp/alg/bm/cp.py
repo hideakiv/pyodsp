@@ -3,7 +3,7 @@ from pathlib import Path
 from pyomo.environ import ScalarVar, Constraint, Objective, minimize
 
 from pyodsp.solver.pyomo_solver import PyomoSolver
-from .cuts_manager import CutsManager, CutInfo
+from .cuts_manager import CutsManager, NonPurgingCutsManager, CutInfo
 from .cuts import CutList, OptimalityCut, FeasibilityCut
 
 from ..params import BM_ABS_TOLERANCE
@@ -18,9 +18,11 @@ class CuttingPlaneMethod:
     cut/theta bookkeeping itself never branches on optimization direction.
     """
 
-    def __init__(self, solver: PyomoSolver, force: bool = False) -> None:
+    def __init__(
+        self, solver: PyomoSolver, force: bool = False, purgeable: bool = True
+    ) -> None:
         self.solver = solver
-        self.cuts_manager = CutsManager()
+        self.cuts_manager = CutsManager() if purgeable else NonPurgingCutsManager()
         self.current_solution: list[float] = []
         self.force = force
         self._sign = 1.0 if solver.is_minimize() else -1.0
@@ -165,6 +167,9 @@ class CuttingPlaneMethod:
 
     def purge_cuts(self) -> None:
         self.cuts_manager.purge(self.solver.model)
+
+    def eliminate_cuts(self, names: list[str]) -> None:
+        self.cuts_manager.eliminate_cuts(self.solver.model, names)
 
     def save(self, dir: Path) -> None:
         self.solver.save(dir)

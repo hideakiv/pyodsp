@@ -21,14 +21,23 @@ from pyodsp.dec.node.cut_aggregator import CutAggregator
 
 
 class BdAlgRootBm(IAlgRoot):
-    def __init__(self, solver: PyomoSolver, max_iteration=1000) -> None:
+    def __init__(
+        self, solver: PyomoSolver, max_iteration=1000, purgeable: bool = True
+    ) -> None:
         if not solver.is_minimize():
             raise ValueError(
                 "Benders decomposition only accepts minimize problems; "
                 "negate the objective (see pyomo_utils.negate_objective_sense) "
                 "before constructing the solver."
             )
-        self.bm = BundleMethod(solver, max_iteration)
+        # A non-purgeable (replica) node must never make its own add/purge
+        # decisions — force=True so replace_cuts's wholesale resync isn't
+        # filtered by a dominance check evaluated against this replica's
+        # own (generally stale, since it never solves the same trial
+        # points as the source of truth) theta value.
+        self.bm = BundleMethod(
+            solver, max_iteration, force=not purgeable, purgeable=purgeable
+        )
         self.step_time: List[float] = []
 
     def get_vars(self) -> List[ScalarVar]:

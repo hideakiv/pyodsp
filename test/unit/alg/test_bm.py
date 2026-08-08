@@ -16,6 +16,7 @@ class FakeCpm:
         self.theta_values = theta_values
         self.purge_calls = 0
         self.increment_calls = 0
+        self.eliminated_names = None
 
     def get_theta_value(self, idx):
         return self.theta_values[idx]
@@ -26,8 +27,16 @@ class FakeCpm:
     def purge_cuts(self):
         self.purge_calls += 1
 
+    def eliminate_cuts(self, names):
+        self.eliminated_names = names
 
-def make_bm(theta_values=None, num_cuts=1, subobj_bounds=None, max_iteration=1000):
+
+def make_bm(
+    theta_values=None,
+    num_cuts=1,
+    subobj_bounds=None,
+    max_iteration=1000,
+):
     bm = BundleMethod.__new__(BundleMethod)
     bm.cpm = FakeCpm(theta_values or [0.0] * num_cuts)
     bm.max_iteration = max_iteration

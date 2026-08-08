@@ -80,7 +80,7 @@ def test_run_forwards_raises_when_multipliers_do_not_sum_to_one():
     lattice.nodes = {}
 
     with pytest.raises(ValueError, match="must sum to 1"):
-        lattice._run_forwards()
+        lattice._run_forwards(np.random.default_rng(0))
 
 
 def test_termination_converges_when_bound_matches_confidence_interval():

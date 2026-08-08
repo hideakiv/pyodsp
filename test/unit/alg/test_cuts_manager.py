@@ -1,16 +1,20 @@
+import itertools
+
 import pytest
 
 from pyodsp.alg.bm import cuts_manager as cuts_manager_module
-from pyodsp.alg.bm.cuts_manager import CutsManager, CutInfo
+from pyodsp.alg.bm.cuts_manager import CutsManager, CutInfo, NonPurgingCutsManager
 from pyodsp.alg.bm.cuts import Cut, OptimalityCut, FeasibilityCut
+
+_fake_constraint_ids = itertools.count()
 
 
 class FakeConstraint:
-    def __init__(self, lslack=1.0, uslack=1.0):
+    def __init__(self, lslack=1.0, uslack=1.0, name=None):
         self.deactivated = False
         self._lslack = lslack
         self._uslack = uslack
-        self.name = "fake_constraint"
+        self.name = name if name is not None else f"fake_constraint_{next(_fake_constraint_ids)}"
 
     def deactivate(self):
         self.deactivated = True
@@ -146,8 +150,11 @@ def test_increment_does_not_age_single_active_cut():
 
 
 class FakeModel:
+    def __init__(self):
+        self.deleted_names = []
+
     def del_component(self, name):
-        pass
+        self.deleted_names.append(name)
 
 
 def test_purge_removes_cuts_past_max_age(monkeypatch):
@@ -160,10 +167,12 @@ def test_purge_removes_cuts_past_max_age(monkeypatch):
     )
     manager.append_cut(make_cut_info(0, {0: 2.0}, 5.0, OptimalityCut, age=0))
 
-    manager.purge(FakeModel())
+    model = FakeModel()
+    manager.purge(model)
 
     assert manager.get_num_cuts() == 1
     assert old_constraint.deactivated is True
+    assert model.deleted_names == [old_constraint.name]
 
 
 def test_purge_keeps_cuts_within_max_age(monkeypatch):
@@ -172,6 +181,124 @@ def test_purge_keeps_cuts_within_max_age(monkeypatch):
     manager.build(1)
     manager.append_cut(make_cut_info(0, {0: 1.0}, 1.0, OptimalityCut, age=1))
 
-    manager.purge(FakeModel())
+    model = FakeModel()
+    manager.purge(model)
 
     assert manager.get_num_cuts() == 1
+    assert model.deleted_names == []
+
+
+def test_eliminate_cuts_removes_only_named_cuts():
+    manager = CutsManager()
+    manager.build(1)
+    keep = FakeConstraint()
+    remove = FakeConstraint()
+    manager.append_cut(make_cut_info(0, {0: 1.0}, 1.0, OptimalityCut, constraint=keep))
+    manager.append_cut(make_cut_info(0, {0: 2.0}, 5.0, OptimalityCut, constraint=remove))
+
+    model = FakeModel()
+    manager.eliminate_cuts(model, [remove.name])
+
+    assert manager.get_num_cuts() == 1
+    assert manager.get_cuts()[0][0].constraint is keep
+    assert remove.deactivated is True
+    assert keep.deactivated is False
+    assert model.deleted_names == [remove.name]
+
+
+def test_eliminate_cuts_ignores_unknown_names():
+    manager = CutsManager()
+    manager.build(1)
+    manager.append_cut(make_cut_info(0, {0: 1.0}, 1.0, OptimalityCut))
+
+    manager.eliminate_cuts(FakeModel(), ["does_not_exist"])
+
+    assert manager.get_num_cuts() == 1
+
+
+def test_eliminate_cuts_does_nothing_for_empty_names():
+    manager = CutsManager()
+    manager.build(1)
+    manager.append_cut(make_cut_info(0, {0: 1.0}, 1.0, OptimalityCut))
+
+    model = FakeModel()
+    manager.eliminate_cuts(model, [])
+
+    assert manager.get_num_cuts() == 1
+    assert model.deleted_names == []
+
+
+def test_non_purging_manager_increment_does_not_age_cuts():
+    manager = NonPurgingCutsManager()
+    manager.build(1)
+    constraint = FakeConstraint(lslack=1.0, uslack=1.0)
+    manager.append_cut(
+        make_cut_info(0, {0: 1.0}, 1.0, OptimalityCut, constraint=constraint)
+    )
+    manager.append_cut(make_cut_info(0, {0: 2.0}, 5.0, OptimalityCut))
+
+    manager.increment()
+
+    assert manager.get_cuts()[0][0].age == 0
+
+
+def test_non_purging_manager_purge_removes_nothing(monkeypatch):
+    monkeypatch.setattr(cuts_manager_module, "BM_MAX_CUT_AGE", 1)
+    manager = NonPurgingCutsManager()
+    manager.build(1)
+    manager.append_cut(make_cut_info(0, {0: 1.0}, 1.0, OptimalityCut, age=100))
+
+    model = FakeModel()
+    manager.purge(model)
+
+    assert model.deleted_names == []
+    assert manager.get_num_cuts() == 1
+
+
+def test_non_purging_manager_still_eliminates_when_instructed():
+    manager = NonPurgingCutsManager()
+    manager.build(1)
+    remove = FakeConstraint()
+    manager.append_cut(make_cut_info(0, {0: 1.0}, 1.0, OptimalityCut, constraint=remove))
+
+    manager.eliminate_cuts(FakeModel(), [remove.name])
+
+    assert manager.get_num_cuts() == 0
+    assert remove.deactivated is True
+
+
+def test_purging_and_non_purging_managers_stay_synchronized(monkeypatch):
+    # simulates the intended workflow (see BundleMethod.replace_cuts, which
+    # LatticeMpi drives): a master CutsManager purges based on its own age
+    # tracking, and a replica NonPurgingCutsManager resyncs by clearing
+    # everything and mirroring the master's surviving cuts wholesale —
+    # never deciding independently what's stale.
+    monkeypatch.setattr(cuts_manager_module, "BM_MAX_CUT_AGE", 1)
+    master = CutsManager()
+    replica = NonPurgingCutsManager()
+    master.build(1)
+    replica.build(1)
+
+    stale = FakeConstraint(lslack=1.0, uslack=1.0)
+    fresh = FakeConstraint(lslack=0.0, uslack=0.0)
+    for manager in (master, replica):
+        manager.append_cut(
+            make_cut_info(0, {0: 1.0}, 1.0, OptimalityCut, constraint=stale, age=5)
+        )
+        manager.append_cut(
+            make_cut_info(0, {0: 2.0}, 5.0, OptimalityCut, constraint=fresh)
+        )
+
+    master.purge(FakeModel())
+
+    survivors = [c for cuts in master.get_cuts() for c in cuts]
+    replica.eliminate_cuts(
+        FakeModel(), [c.constraint.name for cuts in replica.get_cuts() for c in cuts]
+    )
+    for cut_info in survivors:
+        replica.append_cut(cut_info)
+
+    assert [c.constraint for c in master.get_cuts()[0]] == [
+        c.constraint for c in replica.get_cuts()[0]
+    ]
+    assert [c.constraint for c in master.get_cuts()[0]] == [fresh]

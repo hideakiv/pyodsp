@@ -19,9 +19,13 @@ from ..const import *
 
 class BundleMethod:
     def __init__(
-        self, solver: PyomoSolver, max_iteration=1000, force: bool = False
+        self,
+        solver: PyomoSolver,
+        max_iteration=1000,
+        force: bool = False,
+        purgeable: bool = True,
     ) -> None:
-        self.cpm = CuttingPlaneMethod(solver, force)
+        self.cpm = CuttingPlaneMethod(solver, force, purgeable)
 
         self.max_iteration = max_iteration
         self.iteration = 0
@@ -177,6 +181,28 @@ class BundleMethod:
         self.cpm.increment_cuts()
         if self.iteration % BM_PURGE_FREQ == 0:
             self.cpm.purge_cuts()
+
+    def get_cut_list(self) -> List[CutList]:
+        """A snapshot of currently active cuts as CutList objects (dropping
+        the constraint/age/trial_point bookkeeping), suitable for relaying
+        to another BundleMethod via replace_cuts.
+        """
+        return [CutList([c.cut for c in group]) for group in self.get_cuts()]
+
+    def replace_cuts(self, cuts_list: List[CutList]) -> None:
+        """Replace every currently active cut with exactly the given set,
+        bypassing this BundleMethod's own add/dominance decisions.
+
+        Intended for a force=True replica (see BdAlgRootBm's purgeable
+        flag) mirroring another BundleMethod's cuts precisely (via
+        get_cut_list). Incrementally replaying add_cuts calls without the
+        same interleaved solves the source of truth performed would make
+        an independently-evaluated dominance check diverge from it —
+        replacing wholesale avoids re-deciding anything.
+        """
+        all_names = [c.constraint.name for group in self.get_cuts() for c in group]
+        self.cpm.eliminate_cuts(all_names)
+        self.add_cuts(cuts_list)
 
     def _update_objective(self, subobj_bounds: List[float]):
         sign = self.cpm.get_sign()

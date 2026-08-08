@@ -47,6 +47,29 @@ def test_build_computes_independent_bounds_per_group():
     assert root.bm.subobj_bounds == [5.0, 7.0]
 
 
+def test_purgeable_true_by_default_and_does_not_force_add():
+    solver = PyomoSolver(*_root_model_and_vars())
+    root = BdAlgRootBm(solver)
+
+    assert root.bm.cpm.cuts_manager.__class__.__name__ == "CutsManager"
+    assert root.bm.cpm.force is False
+
+
+def test_purgeable_false_uses_non_purging_manager_and_forces_add():
+    solver = PyomoSolver(*_root_model_and_vars())
+    root = BdAlgRootBm(solver, purgeable=False)
+
+    assert root.bm.cpm.cuts_manager.__class__.__name__ == "NonPurgingCutsManager"
+    assert root.bm.cpm.force is True
+
+
+def _root_model_and_vars():
+    model = pyo.ConcreteModel()
+    model.x = pyo.Var(domain=pyo.Reals, bounds=(-100, 100))
+    model.obj = pyo.Objective(expr=model.x, sense=pyo.minimize)
+    return model, SolverConfig("appsi_highs"), [model.x]
+
+
 def make_coupling_model_and_vars():
     model = pyo.ConcreteModel()
     model.x = pyo.Var(domain=pyo.Reals)

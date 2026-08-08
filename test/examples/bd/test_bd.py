@@ -61,6 +61,15 @@ def test_sddp():
         assert result.returncode == 0
 
 
+def test_sddp_mpi():
+    result = subprocess.run(
+        ["mpiexec", "-n", "3", "python", "examples/aircon/sddp_mpi.py"],
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0
+
+
 def test_bdsc():
     for solver in solvers:
         result = subprocess.run(

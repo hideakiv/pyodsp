@@ -18,6 +18,7 @@ BM_LAMBDA_BOUND = 1e6
 DEC_CUT_ABS_TOL = 1e-9
 SDDP_REL_TOLERANCE = 1e-3
 SDDP_IMPROVE_TOLERANCE = 1e-3
+SDDP_SEED = 42
 
 
 # Function to load parameters from a JSON file
@@ -38,7 +39,8 @@ def load_params_from_file(file_path):
         BM_LAMBDA_BOUND, \
         DEC_CUT_ABS_TOL, \
         SDDP_REL_TOLERANCE, \
-        SDDP_IMPROVE_TOLERANCE
+        SDDP_IMPROVE_TOLERANCE, \
+        SDDP_SEED
     try:
         with open(file_path, "r") as f:
             params = json.load(f)
@@ -62,6 +64,7 @@ def load_params_from_file(file_path):
             SDDP_IMPROVE_TOLERANCE = params.get(
                 "SDDP_IMPROVE_TOLERANCE", SDDP_IMPROVE_TOLERANCE
             )
+            SDDP_SEED = params.get("SDDP_SEED", SDDP_SEED)
     except FileNotFoundError:
         print(f"Parameter file {file_path} not found. Using default values.")
     except json.JSONDecodeError:

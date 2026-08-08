@@ -69,6 +69,20 @@ def test_verify_nodes_accepts_valid_three_stage_lattice(tmp_path):
     assert lattice.leaves == [leaf]
 
 
+def test_run_forwards_raises_when_multipliers_do_not_sum_to_one():
+    lattice = make_lattice()
+    lattice.num_stages = 2
+    fake_root = MagicMock()
+    fake_root.get_idx.return_value = 0
+    fake_root.get_children.return_value = [1, 2]
+    fake_root.get_multiplier.side_effect = lambda idx: {1: 0.5, 2: 0.6}[idx]
+    lattice.root = fake_root
+    lattice.nodes = {}
+
+    with pytest.raises(ValueError, match="must sum to 1"):
+        lattice._run_forwards()
+
+
 def test_termination_converges_when_bound_matches_confidence_interval():
     objectives = [9.0, 10.0, 11.0, 10.0, 10.0]
     lattice = make_lattice(sample_size=len(objectives))

@@ -369,3 +369,5 @@ class PyomoSolver(Solver):
             var.domain = pyo.Reals
         elif var.domain is pyo.NonPositiveIntegers:
             var.domain = pyo.NonPositiveReals
+        elif var.domain is pyo.Binary:
+            var.domain = pyo.Reals

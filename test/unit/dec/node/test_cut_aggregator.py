@@ -23,6 +23,36 @@ def test_aggregates_single_group_of_optimality_cuts():
     assert result.objective_value == 15.0
 
 
+def test_keeps_info_when_group_has_single_optimality_cut():
+    groups = [[1]]
+    multipliers = {1: 1.0}
+    aggregator = CutAggregator(groups, multipliers)
+
+    cut = OptimalityCut(coeffs={0: 1.0}, rhs=1.0, info={"solution": [1.0]}, objective_value=1.0)
+    up_messages = {1: FakeUpMessage(cut=cut)}
+
+    aggregate_cuts = aggregator.get_aggregate_cuts(up_messages)
+
+    assert aggregate_cuts[0][0].info == {"solution": [1.0]}
+
+
+def test_drops_info_when_group_has_multiple_optimality_cuts():
+    # info has no defined merge semantics across cuts from different children,
+    # so an ambiguous aggregate must not silently expose one arbitrary child's
+    # info as if it represented the whole group.
+    groups = [[1, 2]]
+    multipliers = {1: 1.0, 2: 1.0}
+    aggregator = CutAggregator(groups, multipliers)
+
+    cut1 = OptimalityCut(coeffs={0: 1.0}, rhs=1.0, info={"solution": [1.0]}, objective_value=1.0)
+    cut2 = OptimalityCut(coeffs={0: 1.0}, rhs=1.0, info={"solution": [2.0]}, objective_value=1.0)
+    up_messages = {1: FakeUpMessage(cut=cut1), 2: FakeUpMessage(cut=cut2)}
+
+    aggregate_cuts = aggregator.get_aggregate_cuts(up_messages)
+
+    assert aggregate_cuts[0][0].info == {}
+
+
 def test_weights_coefficients_by_multiplier():
     groups = [[1, 2]]
     multipliers = {1: 1.0, 2: 3.0}

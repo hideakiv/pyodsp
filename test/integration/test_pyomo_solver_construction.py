@@ -42,8 +42,12 @@ def test_is_minimize_false_for_maximize_sense():
 
 def test_get_original_objective_value_returns_zero_before_solve():
     solver = make_solver()
-    # FIXME(pinned): documented bug — returns 0 rather than None when no
-    # solve has happened yet (see pyomo_solver.py get_original_objective_value).
+    # Not actually a bug: CuttingPlaneMethod.add_cuts() relies on this to
+    # bootstrap obj_val to a real number on the very first call (before the
+    # solver has ever solved), so ProximalBundleMethod/RestrictedBundleMethod
+    # can seed center_val on their first run_step. Returning None here instead
+    # reproduces the crash the source's FIXME comment refers to — see
+    # pbm.py::_null_step_penalty_update, which indexes an empty center_val.
     assert solver.get_original_objective_value() == 0
 
 
@@ -127,11 +131,9 @@ def test_change_domain_to_real_converts_nonpositive_integers():
     assert var.domain is pyo.NonPositiveReals
 
 
-def test_change_domain_to_real_leaves_binary_domain_unchanged():
-    # FIXME(pinned): documented gap — Binary is not one of the three
-    # handled domains, so _change_domain_to_real silently no-ops on it.
+def test_change_domain_to_real_converts_binary():
     solver = make_solver()
     var = pyo.Var(domain=pyo.Binary)
     var.construct()
     solver._change_domain_to_real(var)
-    assert var.domain is pyo.Binary
+    assert var.domain is pyo.Reals

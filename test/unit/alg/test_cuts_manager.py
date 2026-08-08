@@ -1,6 +1,8 @@
+import pytest
+
 from pyodsp.alg.bm import cuts_manager as cuts_manager_module
 from pyodsp.alg.bm.cuts_manager import CutsManager, CutInfo
-from pyodsp.alg.bm.cuts import OptimalityCut, FeasibilityCut
+from pyodsp.alg.bm.cuts import Cut, OptimalityCut, FeasibilityCut
 
 
 class FakeConstraint:
@@ -57,6 +59,18 @@ def test_append_cut_counts_feasibility_cuts():
     manager.append_cut(make_cut_info(0, {0: 1.0}, 1.0, FeasibilityCut))
     assert manager.get_num_feasibility(0) == 1
     assert manager.get_num_optimality(0) == 0
+
+
+def test_append_cut_raises_on_unrecognized_cut_type():
+    manager = CutsManager()
+    manager.build(1)
+    plain_cut = Cut(coeffs={0: 1.0}, rhs=1.0, info={})
+    cut_info = CutInfo(
+        constraint=FakeConstraint(), cut=plain_cut, idx=0, trial_point=[], age=0
+    )
+
+    with pytest.raises(ValueError, match="Invalid cut type"):
+        manager.append_cut(cut_info)
 
 
 def test_append_cut_deduplicates_similar_cut():

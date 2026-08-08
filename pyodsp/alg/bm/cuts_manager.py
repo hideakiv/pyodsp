@@ -44,7 +44,7 @@ class CutsManager:
         elif isinstance(cut_info.cut, FeasibilityCut):
             self._num_feasibility[idx] += 1
         else:
-            ValueError("Invalid cut type")
+            raise ValueError("Invalid cut type")
         if self._is_similar(cut_info):
             cut_info.constraint.deactivate()
         else:

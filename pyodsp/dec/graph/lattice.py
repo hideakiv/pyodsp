@@ -214,6 +214,12 @@ class Lattice:
         for stage in range(1, self.num_stages):
             # randomly sample node in the next stage
             prob = [node.get_multiplier(node_idx) for node_idx in node.get_children()]
+            prob_sum = sum(prob)
+            if abs(prob_sum - 1.0) > 1e-9:
+                raise ValueError(
+                    f"Multipliers for children of node {node.get_idx()} must "
+                    f"sum to 1 to be used as sampling probabilities, got {prob_sum}"
+                )
             sampled_idx = np.random.choice(node.get_children(), p=prob)
             node = self.nodes[sampled_idx]
             path.append(node.get_idx())

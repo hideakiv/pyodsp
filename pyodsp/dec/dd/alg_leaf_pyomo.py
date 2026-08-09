@@ -23,6 +23,12 @@ from pyodsp.solver.pyomo_utils import update_linear_terms_in_objective
 
 class DdAlgLeafPyomo(IAlgLeaf):
     def __init__(self, solver: PyomoSolver):
+        if not solver.is_minimize():
+            raise ValueError(
+                "Dual decomposition only accepts minimize problems; negate "
+                "the objective (see pyomo_utils.negate_objective_sense) "
+                "before constructing the solver."
+            )
         self.solver = solver
         self.step_time: List[float] = []
         self._is_minimize = self.solver.is_minimize()

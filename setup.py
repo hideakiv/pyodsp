@@ -12,5 +12,7 @@ setup(
         "pandas",
         "Pyomo",
         "pytest",
+        "highspy",
+        "scipy",
     ],
 )

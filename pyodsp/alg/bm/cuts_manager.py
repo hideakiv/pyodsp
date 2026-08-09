@@ -44,7 +44,7 @@ class CutsManager:
         elif isinstance(cut_info.cut, FeasibilityCut):
             self._num_feasibility[idx] += 1
         else:
-            ValueError("Invalid cut type")
+            raise ValueError("Invalid cut type")
         if self._is_similar(cut_info):
             cut_info.constraint.deactivate()
         else:
@@ -77,18 +77,53 @@ class CutsManager:
                         cut.age = 0
 
     def purge(self, model: ConcreteModel) -> None:
-        def below_max(cut: CutInfo) -> bool:
-            below = cut.age < BM_MAX_CUT_AGE
-            if not below:
-                cut.constraint.deactivate()
-                model.del_component(cut.constraint.name)
-            return below
+        """Remove cuts older than BM_MAX_CUT_AGE."""
+        to_eliminate = [
+            cut.constraint.name
+            for cuts in self._active_cuts
+            for cut in cuts
+            if cut.age >= BM_MAX_CUT_AGE
+        ]
+        self.eliminate_cuts(model, to_eliminate)
 
+    def eliminate_cuts(self, model: ConcreteModel, names: List[str]) -> None:
+        """Deactivate and remove specific cuts by constraint name.
+
+        Used by purge() (age-based) and by BundleMethod.replace_cuts to
+        clear a replica's cuts wholesale before mirroring another
+        BundleMethod's snapshot.
+        """
+        names = set(names)
+        if not names:
+            return
         for cuts in self._active_cuts:
-            cuts[:] = [cut for cut in cuts if below_max(cut)]
+            for cut in cuts:
+                if cut.constraint.name in names:
+                    cut.constraint.deactivate()
+                    model.del_component(cut.constraint.name)
+            cuts[:] = [cut for cut in cuts if cut.constraint.name not in names]
 
     def get_cuts(self) -> List[List[CutInfo]]:
         return self._active_cuts
 
     def get_num_cuts(self) -> int:
         return sum(len(cut_list) for cut_list in self._active_cuts)
+
+
+class NonPurgingCutsManager(CutsManager):
+    """A CutsManager that never purges on its own — no age tracking, no
+    automatic removal — but still purges when explicitly instructed via
+    eliminate_cuts (inherited unchanged).
+
+    Intended for synchronized replicas (e.g. parallel SDDP Monte Carlo
+    simulation workers) that must keep a cut list identical to a master
+    CutsManager's without independently deciding what's stale — see
+    LatticeMpi, which mirrors the master's cuts wholesale each sync round
+    via BundleMethod.replace_cuts.
+    """
+
+    def increment(self) -> None:
+        pass
+
+    def purge(self, model: ConcreteModel) -> None:
+        pass

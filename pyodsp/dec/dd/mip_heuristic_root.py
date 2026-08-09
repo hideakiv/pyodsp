@@ -98,15 +98,20 @@ class MipHeuristicRoot(IMipHeuristicRoot):
                 ),
             )
 
+            # CuttingPlaneMethod always builds cuts as `... >= sign * cut.rhs`
+            # (sign = 1.0 if the *master*'s own Pyomo objective sense is
+            # minimize, else -1.0). DD's master is intentionally built with
+            # the sense opposite the true problem (see master_creator.py),
+            # so the master is minimize exactly when the true problem is
+            # maximize: sign = 1.0 if not self.is_minimize else -1.0.
+            sign = 1.0 if not self.is_minimize else -1.0
+
             obj = 0.0
             for j, cutinfo in enumerate(cutlist):
-                if self.is_minimize:
-                    rhs = cutinfo.constraint.upper
-                else:
-                    rhs = cutinfo.constraint.lower
+                rhs = cutinfo.constraint.lower
                 assert rhs is not None
 
-                obj += rhs * minkowski_vars[j]
+                obj += sign * rhs * minkowski_vars[j]
 
             self.master.model._dd_obj.expr += obj
 

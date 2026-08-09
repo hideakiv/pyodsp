@@ -24,10 +24,7 @@ from ..params import (
 )
 from ..const import *
 from pyodsp.solver.pyomo_solver import PyomoSolver
-from pyodsp.solver.pyomo_utils import (
-    add_quad_terms_to_objective,
-    update_quad_terms_in_objective,
-)
+from pyodsp.solver.pyomo_utils import update_quad_terms_in_objective
 
 """
 Kiwiel, K. C. (1990). 
@@ -57,7 +54,9 @@ class ProximalBundleMethod:
         self.iter_since_update = 0
         self.e_v = np.inf
 
-    def set_logger(self, node_id: int, depth: int, level: int = logging.INFO) -> None:
+    def set_logger(
+        self, node_id: int | str, depth: int, level: int = logging.INFO
+    ) -> None:
         method = "Proximal Bundle Method"
         self.logger = BmLogger(method, node_id, depth, level)
 
@@ -239,24 +238,18 @@ class ProximalBundleMethod:
         center_val = self.center_val[-1]
         approx_val = self.cpm.get_relaxed_objective()
         predicted_diff = approx_val - center_val
+        sign = self.cpm.get_sign()
 
-        if self.is_minimize():
-            # Minimization
-            return obj_val <= center_val + PBM_ML * predicted_diff
-        else:
-            # Maximization
-            return obj_val >= center_val + PBM_ML * predicted_diff
+        return sign * obj_val <= sign * (center_val + PBM_ML * predicted_diff)
 
     def _update_objective(self, subobj_bounds: List[float] | None):
+        sign = self.cpm.get_sign()
+
         def theta_bounds(model, i):
             if subobj_bounds is None:
                 return (None, None)
-            if self.is_minimize():
-                # Minimization
-                return (subobj_bounds[i], None)
-            else:
-                # Maximization
-                return (None, subobj_bounds[i])
+            bound = subobj_bounds[i]
+            return (None, None) if bound is None else (sign * bound, None)
 
         solver = self.cpm.get_solver()
 
@@ -264,13 +257,9 @@ class ProximalBundleMethod:
             RangeSet(0, self.num_cuts - 1), domain=Reals, bounds=theta_bounds
         )
 
-        add_quad_terms_to_objective(
-            solver,
-            solver.model._theta,
-            solver.vars,
-            self.center,
-            self.penalty,
-        )
+        self.cpm.build_theta_objective(solver.model._theta)
+        solver.model._mod_obj.deactivate()
+        update_quad_terms_in_objective(solver, solver.vars, self.center, self.penalty)
 
     def _update_center(self, center: List[float]) -> None:
         self.center = center
@@ -282,10 +271,8 @@ class ProximalBundleMethod:
         center_val = self.center_val[-1]
         approx_val = self.cpm.get_relaxed_objective()
         predicted_diff = approx_val - center_val
-        if self.is_minimize():
-            penalty_too_large = obj_val <= center_val + PBM_MR * predicted_diff
-        else:
-            penalty_too_large = obj_val >= center_val + PBM_MR * predicted_diff
+        sign = self.cpm.get_sign()
+        penalty_too_large = sign * obj_val <= sign * (center_val + PBM_MR * predicted_diff)
 
         if penalty_too_large and self.iter_since_update > 0:
             u = 2 * self.penalty * (1 - (obj_val - center_val) / predicted_diff)
@@ -327,10 +314,8 @@ class ProximalBundleMethod:
         d = np.array(self.cpm.get_current_solution()) - np.array(self.center)
 
         p = np.linalg.norm(-self.penalty * d, ord=2)
-        if self.is_minimize():
-            alpha_tilde = -(p**2) / self.penalty - predicted_diff
-        else:
-            alpha_tilde = p**2 / self.penalty - predicted_diff
+        sign = self.cpm.get_sign()
+        alpha_tilde = -sign * (p**2) / self.penalty - predicted_diff
 
         self.e_v = min(self.e_v, p + abs(alpha_tilde))
         alpha = self._get_alpha(cuts_list)

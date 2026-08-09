@@ -9,12 +9,17 @@ from ..node._logger import ILogger
 from ..node._node import INode, INodeRoot, INodeLeaf, INodeInner
 from ..node._message import (
     DnMessage,
+    UpMessage,
     NodeIdx,
 )
 from ..utils import create_directory
 
 
-from pyodsp.alg.params import SDDP_REL_TOLERANCE, SDDP_IMPROVE_TOLERANCE
+from pyodsp.alg.params import (
+    SDDP_REL_TOLERANCE,
+    SDDP_IMPROVE_TOLERANCE,
+    SDDP_SEED,
+)
 
 
 class Lattice:
@@ -38,6 +43,8 @@ class Lattice:
         self.confidence_level = confidence_level
         self.is_minimize = True
         create_directory(self.filedir)
+
+        self._last_dn_messages: Dict[NodeIdx, DnMessage] = {}
 
         self.prev_samples = None
 
@@ -73,7 +80,13 @@ class Lattice:
                     if not isinstance(node, INodeInner):
                         raise ValueError(f"Stage {stage} must be inner node.")
 
-    def run(self, init_solution: DnMessage | None = None):
+    def run(self) -> None:
+        """Run SDDP to convergence.
+
+        Unlike Tree/HubAndSpoke, this takes no initial solution: each
+        iteration's forward pass starts from the root's own solve, so
+        there is nowhere for a caller-supplied one to enter.
+        """
         self.logger.log_initialization()
         self._run_init()
         self._run_main()
@@ -132,28 +145,76 @@ class Lattice:
             raise ValueError("Root node not found")
         bound = -1e9
         for iteration in range(self.max_iteration):
-            np.random.seed(42 + self.sample_size + iteration)
             bound = self._run_root()
             if iteration % self.sample_frequency == self.sample_frequency - 1:
                 if self._termination(bound):
                     break
             else:
-                self._run_forwards()
+                self._run_forwards(self._iteration_rng(iteration))
 
             bound = self._run_backwards()
 
-    def _termination(self, bound: float) -> bool:
+    def _sample_rng(self, sample_idx: int) -> np.random.Generator:
+        """The generator for Monte Carlo sample `sample_idx`.
+
+        Keyed by the *global* sample index rather than by call order, so a
+        sample follows the same scenario path no matter which round it is
+        drawn in (_termination's prev_samples comparison is only
+        meaningful if it does) and no matter which rank runs it (see
+        LatticeMpi, whose results are therefore independent of rank
+        count).
+
+        spawn_key addresses the same child SeedSequence that
+        SeedSequence(SDDP_SEED).spawn(n)[sample_idx] would produce, but
+        directly, without spawning the whole list. Unlike seeding with
+        consecutive integers, children of a SeedSequence are
+        statistically independent by construction.
+        """
+        return np.random.default_rng(
+            np.random.SeedSequence(SDDP_SEED, spawn_key=(sample_idx,))
+        )
+
+    def _iteration_rng(self, iteration: int) -> np.random.Generator:
+        """The generator for the trunk forward pass of `iteration`, offset
+        past the sample indices so a trunk pass never replays a simulation
+        stream.
+        """
+        return np.random.default_rng(
+            np.random.SeedSequence(SDDP_SEED, spawn_key=(self.sample_size + iteration,))
+        )
+
+    def _collect_samples(self) -> List[float]:
+        """The Monte Carlo sampling loop used to estimate the objective's
+        confidence interval in _termination. Each sample only depends on
+        the current (frozen) set of cuts — this is the embarrassingly
+        parallel step LatticeMpi distributes across ranks.
+        """
         objectives = []
-        for _ in range(self.sample_size):
-            np.random.seed(42 + _)
-            objective = self._run_forwards()
+        for i in range(self.sample_size):
+            objective = self._run_forwards(self._sample_rng(i))
             objectives.append(objective)
+        return objectives
+
+    def _confidence_interval(self, samples: List[float]) -> tuple[float, float]:
+        """Student-t confidence interval of the sample mean. When every
+        sample is identical the standard error is zero and scipy would
+        return (nan, nan) — the interval then collapses onto the mean.
+        """
+        mean = float(np.mean(samples))
+        scale = float(st.sem(samples))
+        if not scale > 0.0:
+            return mean, mean
         ci_d, ci_u = st.t.interval(
             confidence=self.confidence_level,
-            df=len(objectives) - 1,
-            loc=np.mean(objectives),
-            scale=st.sem(objectives),
+            df=len(samples) - 1,
+            loc=mean,
+            scale=scale,
         )
+        return float(ci_d), float(ci_u)
+
+    def _termination(self, bound: float) -> bool:
+        objectives = self._collect_samples()
+        ci_d, ci_u = self._confidence_interval(objectives)
         self.logger.log_info(
             f"lower: {ci_d}, upper: {ci_u}, confidence: {self.confidence_level}"
         )
@@ -185,12 +246,7 @@ class Lattice:
             if all_zero:
                 no_improve = True
             else:
-                diff_ci_d, diff_ci_u = st.t.interval(
-                    confidence=self.confidence_level,
-                    df=len(sample_diffs) - 1,
-                    loc=np.mean(sample_diffs),
-                    scale=st.sem(sample_diffs),
-                )
+                _, diff_ci_u = self._confidence_interval(sample_diffs)
                 no_improve = diff_ci_u < SDDP_IMPROVE_TOLERANCE
 
         if no_improve:
@@ -207,14 +263,20 @@ class Lattice:
 
         return self.root.alg_root.bm.get_objective_value()  # FIXME: properly access
 
-    def _run_forwards(self) -> float:
+    def _run_forwards(self, rng: np.random.Generator) -> float:
         node = self.root
         assert node is not None
         path = [node.get_idx()]
         for stage in range(1, self.num_stages):
             # randomly sample node in the next stage
             prob = [node.get_multiplier(node_idx) for node_idx in node.get_children()]
-            sampled_idx = np.random.choice(node.get_children(), p=prob)
+            prob_sum = sum(prob)
+            if abs(prob_sum - 1.0) > 1e-9:
+                raise ValueError(
+                    f"Multipliers for children of node {node.get_idx()} must "
+                    f"sum to 1 to be used as sampling probabilities, got {prob_sum}"
+                )
+            sampled_idx = rng.choice(node.get_children(), p=prob)
             node = self.nodes[sampled_idx]
             path.append(node.get_idx())
 
@@ -229,6 +291,7 @@ class Lattice:
     def _run_forward(self, node: INodeRoot) -> float:
         node.reset()
         status, dn_message = node.run_step(None)
+        self._last_dn_messages[node.get_idx()] = dn_message
 
         for child_id in node.get_children():
             child = self.nodes[child_id]
@@ -240,7 +303,7 @@ class Lattice:
         for stage in range(self.num_stages - 1, 0, -1):
             self._run_backward(stage)
 
-    def _run_backward(self, stage: int) -> None:
+    def _run_backward(self, stage: int) -> Dict[NodeIdx, UpMessage]:
         assert stage > 0
         up_messages = {}
         for child_id in self.stages[stage]:
@@ -263,6 +326,8 @@ class Lattice:
             node = self.nodes[node_idx]
             assert isinstance(node, INodeRoot)
             node.add_cuts(up_messages)
+
+        return up_messages
 
     def _save(self) -> None:
         for node in self.nodes.values():

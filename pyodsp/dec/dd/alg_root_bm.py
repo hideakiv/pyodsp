@@ -36,6 +36,12 @@ class DdAlgRootBm(IAlgRoot):
         max_iteration=1000,
         mode: str | None = None,
     ) -> None:
+        if not is_minimize:
+            raise ValueError(
+                "Dual decomposition only accepts minimize problems; negate "
+                "every node's objective (see "
+                "pyomo_utils.negate_objective_sense) and pass is_minimize=True."
+            )
         self.coupling_model = coupling_model
         self.vars_dn = vars_dn
         self._init_check()

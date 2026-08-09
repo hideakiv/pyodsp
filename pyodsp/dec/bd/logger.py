@@ -17,8 +17,12 @@ class BdLogger(ILogger):
         formatter = logging.Formatter("%(levelname)s - %(message)s")
         ch.setFormatter(formatter)
 
-        # Add the handler to the logger
-        self.logger.addHandler(ch)
+        # Add the handler to the logger. getLogger returns the same object
+        # for a given name, so guard against stacking a second handler (and
+        # duplicating every line) when the same node is constructed twice —
+        # e.g. rebuilding nodes to restore a saved policy.
+        if not self.logger.handlers:
+            self.logger.addHandler(ch)
 
     def log_info(self, text: str):
         self.logger.info(text)

@@ -32,7 +32,7 @@ class CutAggregator:
         new_coeff = {}
         new_constant = 0
         new_objective = 0
-        new_info = {}
+        contributing_info = []
         feasibility_cuts = []
         for multiplier, cut in zip(multipliers, cuts):
             if isinstance(cut, OptimalityCut):
@@ -41,9 +41,14 @@ class CutAggregator:
                         new_coeff[i] = new_coeff.get(i, 0) + multiplier * coeff
                     new_constant += multiplier * cut.rhs
                     new_objective += multiplier * cut.objective_value
-                    new_info = cut.info
+                    contributing_info.append(cut.info)
             elif isinstance(cut, FeasibilityCut):
                 feasibility_cuts.append(cut)
+        # `info` has no defined merge semantics across multiple cuts (its only
+        # consumer, MipHeuristicRoot, assumes a single contributing child per
+        # group); silently keeping one arbitrary cut's info would misrepresent
+        # the aggregate, so only propagate it when there is exactly one.
+        new_info = contributing_info[0] if len(contributing_info) == 1 else {}
         if len(feasibility_cuts) > 0:
             return CutList(feasibility_cuts)
         return CutList(

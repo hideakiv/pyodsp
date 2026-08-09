@@ -66,7 +66,7 @@ class BdScDnMessage(DnMessage):
     ) -> None:
         self.solution = solution
         self.rho = rho
-        self.cut = cut_list
+        self.cut_list = cut_list
         self.subobj_bounds = subobj_bounds
         self.objective = objective
 
@@ -76,8 +76,13 @@ class BdScDnMessage(DnMessage):
     def get_rho(self):
         return self.rho
 
-    def get_cut(self):
-        return self.cut
+    def get_cut_list(self) -> list[CutList] | None:
+        """The master's complete current cut set, or None if it is
+        unchanged since the last message. Recipients mirror it wholesale
+        rather than appending — see BdScAlgRootBm.run_step for why the
+        increment alone is not enough.
+        """
+        return self.cut_list
 
     def get_subobj_bounds(self) -> list[float]:
         return self.subobj_bounds

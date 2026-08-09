@@ -14,10 +14,7 @@ from .cuts_manager import CutInfo
 from ..params import BM_ABS_TOLERANCE, BM_REL_TOLERANCE, BM_PURGE_FREQ, BM_TIME_LIMIT
 from ..const import *
 from pyodsp.solver.pyomo_solver import PyomoSolver
-from pyodsp.solver.pyomo_utils import (
-    add_quad_terms_to_objective,
-    update_quad_terms_in_objective,
-)
+from pyodsp.solver.pyomo_utils import update_quad_terms_in_objective
 
 
 class RestrictedBundleMethod:
@@ -38,7 +35,9 @@ class RestrictedBundleMethod:
         self.penalty = penalty
         self.center_val = []
 
-    def set_logger(self, node_id: int, depth: int, level: int = logging.INFO) -> None:
+    def set_logger(
+        self, node_id: int | str, depth: int, level: int = logging.INFO
+    ) -> None:
         method = "Regularized Bundle Method"
         self.logger = BmLogger(method, node_id, depth, level)
 
@@ -203,23 +202,17 @@ class RestrictedBundleMethod:
         if len(self.center_val) == 0 or self.center_val[-1] is None:
             return False
 
-        if self.is_minimize():
-            # Minimization
-            return self.obj_val[-1] <= self.center_val[-1]
-        else:
-            # Maximization
-            return self.obj_val[-1] >= self.center_val[-1]
+        sign = self.cpm.get_sign()
+        return sign * self.obj_val[-1] <= sign * self.center_val[-1]
 
     def _update_objective(self, subobj_bounds: List[float] | None):
+        sign = self.cpm.get_sign()
+
         def theta_bounds(model, i):
             if subobj_bounds is None:
                 return (None, None)
-            if self.is_minimize():
-                # Minimization
-                return (subobj_bounds[i], None)
-            else:
-                # Maximization
-                return (None, subobj_bounds[i])
+            bound = subobj_bounds[i]
+            return (None, None) if bound is None else (sign * bound, None)
 
         solver = self.cpm.get_solver()
 
@@ -227,13 +220,9 @@ class RestrictedBundleMethod:
             RangeSet(0, self.num_cuts - 1), domain=Reals, bounds=theta_bounds
         )
 
-        add_quad_terms_to_objective(
-            solver,
-            solver.model._theta,
-            solver.vars,
-            self.center,
-            self.penalty,
-        )
+        self.cpm.build_theta_objective(solver.model._theta)
+        solver.model._mod_obj.deactivate()
+        update_quad_terms_in_objective(solver, solver.vars, self.center, self.penalty)
 
     def _update_center(self, center: List[float]) -> None:
         self.center = center

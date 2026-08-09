@@ -1,4 +1,5 @@
 from typing import List, Tuple
+from copy import deepcopy
 from pathlib import Path
 import time
 import logging
@@ -8,7 +9,6 @@ import pandas as pd
 from pyomo.environ import Var, ScalarVar, Reals, RangeSet
 
 from pyodsp.solver.pyomo_solver import PyomoSolver
-from pyodsp.solver.pyomo_utils import add_terms_to_objective
 
 from .cuts import CutList
 from .cuts_manager import CutInfo
@@ -20,9 +20,13 @@ from ..const import *
 
 class BundleMethod:
     def __init__(
-        self, solver: PyomoSolver, max_iteration=1000, force: bool = False
+        self,
+        solver: PyomoSolver,
+        max_iteration=1000,
+        force: bool = False,
+        purgeable: bool = True,
     ) -> None:
-        self.cpm = CuttingPlaneMethod(solver, force)
+        self.cpm = CuttingPlaneMethod(solver, force, purgeable)
 
         self.max_iteration = max_iteration
         self.iteration = 0
@@ -33,7 +37,9 @@ class BundleMethod:
         self.status: int = STATUS_NOT_FINISHED
         self.start_time = time.time()
 
-    def set_logger(self, node_id: int, depth: int, level: int = logging.INFO) -> None:
+    def set_logger(
+        self, node_id: int | str, depth: int, level: int = logging.INFO
+    ) -> None:
         method = "Bundle Method"
         self.logger = BmLogger(method, node_id, depth, level)
 
@@ -179,14 +185,55 @@ class BundleMethod:
         if self.iteration % BM_PURGE_FREQ == 0:
             self.cpm.purge_cuts()
 
+    def get_cut_list(self) -> List[CutList]:
+        """A snapshot of currently active cuts as CutList objects (dropping
+        the constraint/age/trial_point bookkeeping), suitable for relaying
+        to another BundleMethod via replace_cuts.
+
+        The cuts are copied, so a recipient sharing this process (see
+        BdScAlgLeafPyomo) cannot reach back into this master's own cuts —
+        callers do rescale cuts in place (see BdScAlgRootBm.run_step), and
+        a snapshot that aliased them would not stay a snapshot.
+        """
+        return [
+            CutList([deepcopy(c.cut) for c in group]) for group in self.get_cuts()
+        ]
+
+    def replace_cuts(self, cuts_list: List[CutList]) -> None:
+        """Replace every currently active cut with exactly the given set,
+        bypassing this BundleMethod's own add/dominance decisions.
+
+        Intended for a force=True replica (see BdAlgRootBm's purgeable
+        flag) mirroring another BundleMethod's cuts precisely (via
+        get_cut_list). Incrementally replaying add_cuts calls without the
+        same interleaved solves the source of truth performed would make
+        an independently-evaluated dominance check diverge from it —
+        replacing wholesale avoids re-deciding anything.
+        """
+        all_names = [c.constraint.name for group in self.get_cuts() for c in group]
+        self.cpm.eliminate_cuts(all_names)
+        self.add_cuts(cuts_list)
+
+    def restore_cuts(self, dir: Path) -> None:
+        """Reinstate the cuts a previous run saved (see save) into this
+        freshly built master, replacing whatever it currently holds.
+
+        This is what makes the saved value function reusable: rebuild the
+        model exactly as the run built it, restore, and the master prices
+        the future the same way it did at the end of the run — without
+        depending on the state it was last solved at.
+        """
+        self.replace_cuts(self.cpm.load_cuts(dir))
+
+    def get_solver(self) -> PyomoSolver:
+        return self.cpm.get_solver()
+
     def _update_objective(self, subobj_bounds: List[float]):
+        sign = self.cpm.get_sign()
+
         def theta_bounds(model, i):
-            if self.is_minimize():
-                # Minimization
-                return (subobj_bounds[i], None)
-            else:
-                # Maximization
-                return (None, subobj_bounds[i])
+            bound = subobj_bounds[i]
+            return (None, None) if bound is None else (sign * bound, None)
 
         solver = self.cpm.get_solver()
 
@@ -194,7 +241,7 @@ class BundleMethod:
             RangeSet(0, self.num_cuts - 1), domain=Reals, bounds=theta_bounds
         )
 
-        add_terms_to_objective(solver, solver.model._theta)
+        self.cpm.build_theta_objective(solver.model._theta)
 
     def get_theta_value(self) -> list[float]:
         return [self.cpm.get_theta_value(i) for i in range(self.num_cuts)]

@@ -8,10 +8,35 @@ from pyodsp.dec.node.dec_node import DecNodeRoot, DecNodeLeaf, DecNodeInner
 from pyodsp.dec.bd.alg_root_bm import BdAlgRootBm
 from pyodsp.dec.bd.alg_leaf_pyomo import BdAlgLeafPyomo
 from pyodsp.dec.sddp.run import SddpRun
+from pyodsp.dec.sddp.policy import SddpPolicy
 from pyodsp.solver.pyomo_solver import PyomoSolver, SolverConfig
+
+FILEDIR = Path("output/aircon/sddp")
 
 
 def main(solver="appsi_highs", agg=False):
+    nodes = build_nodes(solver, agg)
+
+    sddp_run = SddpRun(nodes, FILEDIR)
+    sddp_run.run()
+    assert_approximately_equal(nodes[0][0].alg_root.bm.obj_bound[-1], 6.25)
+
+    # What the run leaves behind is a decision rule, not just the last
+    # forward pass's numbers: ask each stage what it would do for an
+    # inventory we pick, and check the saved cuts alone reproduce it.
+    policy = SddpPolicy(nodes)
+    restored = SddpPolicy.from_saved(build_nodes(solver, agg), FILEDIR)
+    for state in ([0.0], [1.0], [2.0]):
+        assert_approximately_equal(
+            restored.evaluate(1, state).total_cost,
+            policy.evaluate(1, state).total_cost,
+        )
+
+    trajectory = policy.simulate([0, 1, 3])
+    print("cost along path 0 -> 1 -> 3:", sum(s.stage_cost for s in trajectory))
+
+
+def build_nodes(solver, agg):
     demand = [[1], [1, 3], [1, 3]]
 
     node00 = create_root(0, demand[0][0], solver, agg)
@@ -20,11 +45,7 @@ def main(solver="appsi_highs", agg=False):
     node20 = create_leaf(3, demand[2][0], solver)
     node21 = create_leaf(4, demand[2][1], solver)
 
-    nodes = [[node00], [node10, node11], [node20, node21]]
-
-    sddp_run = SddpRun(nodes, Path("output/aircon/sddp"))
-    sddp_run.run()
-    assert_approximately_equal(nodes[0][0].alg_root.bm.obj_bound[-1], 6.25)
+    return [[node00], [node10, node11], [node20, node21]]
 
 
 def create_root(idx, demand, solver_name, agg=False):

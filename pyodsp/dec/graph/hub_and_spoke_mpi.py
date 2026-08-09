@@ -29,6 +29,7 @@ class HubAndSpokeMpi(HubAndSpoke):
         super().__init__(nodes, logger, filedir, max_iteration)
         self.comm = MPI.COMM_WORLD
         self.rank = self.comm.Get_rank()
+        self.size = self.comm.Get_size()
 
         self._gather_node_rank_map()
 
@@ -70,13 +71,16 @@ class HubAndSpokeMpi(HubAndSpoke):
         super()._init_root()
         assert self.root is not None
 
-        init_messages: Dict[int, Dict[NodeIdx, InitDnMessage]] = {}
+        # Every other rank blocks waiting for this, so give one to each —
+        # including any rank that ended up with no leaves, which would
+        # otherwise wait for a message that never comes.
+        init_messages: Dict[int, Dict[NodeIdx, InitDnMessage]] = {
+            target: {} for target in range(1, self.size)
+        }
         for child_id in self.root.get_children():
             target = self.node_rank_map[child_id]
             if target == 0:
                 continue
-            if target not in init_messages:
-                init_messages[target] = {}
             init_messages[target][child_id] = self.root.get_init_dn_message(
                 child_id=child_id
             )
@@ -177,12 +181,17 @@ class HubAndSpokeMpi(HubAndSpoke):
         if self.root is None:
             raise ValueError("root node not found")
 
-        # split solutions
-        solutions_dict: Dict[int, Dict[int, FinalDnMessage]] = {}
+        # split solutions — as in _init_root, every other rank is waiting on
+        # this, so each gets a message even if it holds no leaves
+        solutions_dict: Dict[int, Dict[int, FinalDnMessage]] = {
+            target: {} for target in range(1, self.size)
+        }
         for child_id in self.root.get_children():
             target = self.node_rank_map[child_id]
-            if target not in solutions_dict:
-                solutions_dict[target] = {}
+            if target == 0:
+                # rank 0 finalizes the leaves it holds itself, in
+                # _run_final_core; nothing here ever receives tag 1
+                continue
             message = self.root.get_final_dn_message(
                 node_id=target, groups=self.root.get_groups()
             )

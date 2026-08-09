@@ -35,6 +35,8 @@ converting every result back; and finding a valid bound for each
 subproblem.
 """
 
+from .analysis import SpAnalysis, analyze
+from .mean import mean_scenario
 from .problem import StochasticProgram
 from .result import ScenarioOutcome, SpResult
 from .scenario import Scenario, ScenarioSet
@@ -42,6 +44,9 @@ from .state import StateSpec, StateView
 
 __all__ = [
     "Scenario",
+    "SpAnalysis",
+    "analyze",
+    "mean_scenario",
     "ScenarioOutcome",
     "ScenarioSet",
     "SpResult",

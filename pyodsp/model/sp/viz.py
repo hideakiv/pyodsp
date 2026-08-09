@@ -185,3 +185,108 @@ def plot_all(result, directory, *, theme: str = "light") -> List[Path]:
         except ValueError:
             continue
     return written
+
+
+def plot_information_value(analysis, path=None, *, theme: str = "light"):
+    """WS, RP and EEV on one scale, with EVPI and VSS as the gaps.
+
+    The three are the same quantity — expected objective — under three
+    states of knowledge, so they share an axis and the comparison is the
+    chart. What the reader is after is the two distances between them,
+    which are drawn as spans rather than left to be subtracted by eye.
+    """
+    colors = theme_colors(theme)
+    rows = [
+        ("WS", analysis.ws, "perfect information"),
+        ("RP", analysis.rp.objective, "stochastic program"),
+        ("EEV", analysis.eev, "mean-value decision"),
+    ]
+    present = [(label, value, note) for label, value, note in rows if value is not None]
+    if len(present) < 2:
+        raise ValueError(
+            "Nothing to compare: the analysis produced fewer than two of "
+            "WS, RP and EEV."
+        )
+
+    labels = [f"{label}\n{note}" for label, _, note in present]
+    values = [value for _, value, _ in present]
+
+    fig, axes = figure(colors, size=(7.6, 0.72 * len(present) + 2.2))
+    positions = list(range(len(present)))[::-1]
+    # RP is the one the other two are measured against, so it carries the
+    # accent colour and the reference points recede.
+    bar_colors = [
+        colors["series_2"] if label == "RP" else colors["series_1"]
+        for label, _, _ in present
+    ]
+    axes.barh(positions, values, color=bar_colors, height=0.5, linewidth=0)
+    axes.set_yticks(positions, labels)
+
+    fmt = formatter(values)
+    span = max(abs(v) for v in values) or 1.0
+    for position, value in zip(positions, values):
+        axes.annotate(
+            fmt(value),
+            xy=(value + 0.012 * span, position),
+            color=colors["secondary"],
+            fontsize=9,
+            va="center",
+            ha="left",
+        )
+
+    _annotate_gaps(axes, colors, present, positions, fmt, span)
+
+    if any(value < 0 for value in values):
+        axes.axvline(0, color=colors["axis"], linewidth=1.0)
+
+    axes.set_xlabel("Expected objective", color=colors["secondary"], fontsize=9.5)
+    style_axes(axes, colors, grid_axis="x")
+    subtitle = "maximize" if analysis.is_maximize else "minimize"
+    if analysis.eev_infeasible:
+        subtitle += " · the mean-value decision is infeasible in some scenario"
+    titles(axes, colors, f"{analysis.name} — value of information", subtitle)
+    axes.margins(x=0.20, y=0.22)
+    return finish(fig, path, colors)
+
+
+def _annotate_gaps(axes, colors, present, positions, fmt, span):
+    """Draw EVPI and VSS as the distances they are."""
+    by_label = {
+        label: (value, position)
+        for (label, value, _), position in zip(present, positions)
+    }
+    gaps = [
+        ("EVPI", "WS", "RP"),
+        ("VSS", "RP", "EEV"),
+    ]
+    for name, start, end in gaps:
+        if start not in by_label or end not in by_label:
+            continue
+        (x0, y0), (x1, y1) = by_label[start], by_label[end]
+        if abs(x1 - x0) < 1e-12 * max(1.0, span):
+            continue
+        y = (y0 + y1) / 2.0
+        axes.annotate(
+            "",
+            xy=(x1, y),
+            xytext=(x0, y),
+            arrowprops=dict(
+                arrowstyle="<->",
+                color=colors["muted"],
+                linewidth=1.2,
+                shrinkA=0,
+                shrinkB=0,
+            ),
+        )
+        axes.annotate(
+            f"{name}  {fmt(abs(x1 - x0))}",
+            xy=((x0 + x1) / 2.0, y),
+            xytext=(0, 6),
+            textcoords="offset points",
+            color=colors["text"],
+            fontsize=9,
+            ha="center",
+            va="bottom",
+            # the arrow runs underneath, so the label needs its own ground
+            bbox=dict(facecolor=colors["surface"], edgecolor="none", pad=1.5),
+        )

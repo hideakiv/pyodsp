@@ -20,6 +20,7 @@ from .builders import (
     build_first_stage_model,
     scan_integers,
 )
+from .analysis import MEASURES
 from .result import SpResult, read_result
 from .scenario import Scenario, ScenarioSet, as_scenario_set
 from .state import resolve_state_specs
@@ -436,6 +437,33 @@ class StochasticProgram:
             )
         create_directory(self.output_dir)
         solver.save(self.output_dir)
+
+    def analyze(
+        self,
+        *,
+        measures: Sequence[str] = MEASURES,
+        mean_scenario_data: Mapping[str, Any] | None = None,
+    ):
+        """What the uncertainty is worth: EVPI and VSS.
+
+        Solves this program, then the reference problems the two measures
+        compare it against — one solve per scenario for EVPI, two more
+        for VSS. See pyodsp.model.sp.analysis for what each means.
+
+            analysis = sp.analyze()
+            print(analysis.summary())
+            analysis.plot()
+
+        Args:
+            measures: Which of 'evpi' and 'vss' to compute; each skips
+                the other's solves when left out.
+            mean_scenario_data: Entries to use for the expected-value
+                problem instead of the averaged ones — the way out for
+                data that has no meaningful mean.
+        """
+        from .analysis import analyze
+
+        return analyze(self, measures=measures, mean_scenario_data=mean_scenario_data)
 
     # -- introspection -----------------------------------------------------
 

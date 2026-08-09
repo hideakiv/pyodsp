@@ -70,8 +70,14 @@ def figure(theme: Dict[str, str], size=(8.0, 4.5)):
     return fig, axes
 
 
-def style_axes(axes, theme: Dict[str, str]) -> None:
-    """Recede the frame so the data carries the chart."""
+def style_axes(axes, theme: Dict[str, str], *, grid_axis: str = "y") -> None:
+    """Recede the frame so the data carries the chart.
+
+    Args:
+        grid_axis: Which axis carries the gridlines — 'y' for vertical
+            bars and lines, 'x' for horizontal bars, where a y-grid would
+            just draw lines through the bars.
+    """
     for side in ("top", "right"):
         axes.spines[side].set_visible(False)
     for side in ("left", "bottom"):
@@ -80,7 +86,7 @@ def style_axes(axes, theme: Dict[str, str]) -> None:
     axes.tick_params(colors=theme["muted"], labelsize=9, length=0)
     for label in axes.get_xticklabels() + axes.get_yticklabels():
         label.set_color(theme["secondary"])
-    axes.grid(axis="y", color=theme["grid"], linewidth=1.0, alpha=1.0)
+    axes.grid(axis=grid_axis, color=theme["grid"], linewidth=1.0, alpha=1.0)
     axes.set_axisbelow(True)
 
 

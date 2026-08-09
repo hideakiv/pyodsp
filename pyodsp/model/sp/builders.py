@@ -45,6 +45,7 @@ from .state import (
     relax_integer_variables,
     replicate_free,
     state_labels,
+    uncovered_first_stage_variables,
 )
 
 ROOT_IDX = 0
@@ -75,6 +76,7 @@ class BuildContext:
     auto_bound: bool
     relax_recourse: bool
     heuristic: bool
+    validate: bool
 
 
 @dataclass
@@ -162,7 +164,8 @@ def _build_recourse_model(
         ctx.recourse_fn(model, state, scenario), "recourse", scenario
     )
     _reject_user_objective(model, "recourse")
-    _reject_state_replacement(model, ctx.specs, before, scenario)
+    if ctx.validate:
+        _reject_state_replacement(model, ctx.specs, before, scenario)
     return model, recourse_expr, first_expr, flatten(model, ctx.specs)
 
 
@@ -199,6 +202,47 @@ def _reject_state_replacement(
             "out. Rename the recourse variable, and reach the first-stage "
             f"value through `state.{sorted(replaced)[0]}`."
         )
+
+
+def _require_complete_state(ctx: BuildContext, method: str) -> None:
+    """Reject a partial state vector where the algorithm cannot survive one.
+
+    Benders is fine with one: its master keeps the whole first stage, and
+    a first-stage variable the recourse never reads simply stays there.
+    The other two embed the first stage inside every scenario, and then a
+    variable left out of the state vector is silently no longer a
+    first-stage variable at all:
+
+    - BDSC prices columns over each scenario's own feasible set, which now
+      includes the whole first stage. A first-stage variable outside the
+      coupling vector is one the scenario may set freely and never report,
+      so the columns describe a larger set than the master is restricted
+      to and the resulting cuts do not bound it.
+    - DD ties the scenarios together with non-anticipativity constraints,
+      which are built over the state vector alone. A first-stage variable
+      outside it gets an independent copy per scenario with nothing
+      equating them — a here-and-now decision quietly turned into a
+      wait-and-see one.
+    """
+    if not ctx.validate:
+        return
+    missing = uncovered_first_stage_variables(ctx.reference_model, ctx.specs)
+    if not missing:
+        return
+
+    reason = (
+        "prices columns over each scenario's own feasible set"
+        if method == "bdsc"
+        else "makes the scenarios agree only on the state vector"
+    )
+    raise ValueError(
+        f"{method.upper()} needs every first-stage variable in the state "
+        f"vector, but {missing} were left out of state=[...]. {method.upper()} "
+        f"{reason}, so a first-stage variable outside it is not held to one "
+        "value across scenarios — it stops being a first-stage decision. "
+        "Drop the state=[...] argument to couple all of them, or use "
+        "method='bd', whose master keeps the first stage to itself."
+    )
 
 
 def _coupling_vars_for_benders(model: pyo.ConcreteModel, state_vars: Sequence) -> List:
@@ -335,7 +379,7 @@ def build_bd(ctx: BuildContext) -> BuiltProblem:
         # Benders cuts come from LP duals, which an integer recourse does
         # not have. scan_integers only probed one scenario, so this is the
         # check that actually holds for the model being built.
-        remaining = integer_variables(model, exclude=state_vars)
+        remaining = integer_variables(model, exclude=state_vars) if ctx.validate else []
         if remaining:
             raise ValueError(
                 f"Scenario {scenario.name!r} still has integer recourse "
@@ -370,12 +414,16 @@ def build_bd(ctx: BuildContext) -> BuiltProblem:
 
 
 def build_bdsc(ctx: BuildContext) -> BuiltProblem:
+    _require_complete_state(ctx, "bdsc")
+
     root_model = ctx.reference_model
     _set_objective(root_model, ctx.reference_expr, ctx.is_maximize)
 
     coupling_dn = flatten(root_model, ctx.specs)
     root_solver = PyomoSolver(root_model, ctx.solver_config, coupling_dn)
-    root_alg = BdScAlgRootBm(root_solver, max_iteration=ctx.max_iteration)
+    root_alg = BdScAlgRootBm(
+        root_solver, max_iteration=ctx.max_iteration, validate=ctx.validate
+    )
     root = DecNodeRoot(ROOT_IDX, root_alg, log_level_root=ctx.log_level)
 
     built = BuiltProblem(
@@ -427,6 +475,8 @@ def build_bdsc(ctx: BuildContext) -> BuiltProblem:
 
 
 def build_dd(ctx: BuildContext) -> BuiltProblem:
+    _require_complete_state(ctx, "dd")
+
     if len(ctx.scenarios) < 2:
         raise ValueError(
             "Dual decomposition needs at least two scenarios: with one there "

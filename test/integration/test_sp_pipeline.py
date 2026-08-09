@@ -189,6 +189,87 @@ def test_only_the_named_state_is_coupled():
     assert built.labels == ["shared"]
 
 
+def _partial_state_program(**kwargs):
+    """A first stage with a variable deliberately left out of the state."""
+    kwargs.setdefault("log_level", logging.CRITICAL)
+    sp = StochasticProgram("partial", auto_bound=False, **kwargs)
+
+    @sp.first_stage(state=["shared"])
+    def first_stage(m):
+        m.shared = pyo.Var(bounds=(0, 20), domain=pyo.NonNegativeReals)
+        m.private = pyo.Var(bounds=(0, 20), domain=pyo.NonNegativeReals)
+        m.link = pyo.Constraint(expr=m.private >= m.shared)
+        return 2.0 * m.shared + m.private
+
+    @sp.recourse
+    def recourse(m, state, scenario):
+        m.short = pyo.Var(bounds=(0, 20), domain=pyo.NonNegativeReals)
+        m.meet = pyo.Constraint(expr=state.shared + m.short >= scenario["demand"])
+        return 7.0 * m.short
+
+    sp.set_scenarios([{"name": n, "demand": d} for n, d in DEMAND.items()])
+    return sp
+
+
+def test_benders_tolerates_a_first_stage_variable_outside_the_state():
+    # Its master keeps the whole first stage, so an uncoupled first-stage
+    # variable simply stays there and never needs to reach a scenario.
+    sp = _partial_state_program()
+    built = sp.build()
+
+    assert sp.resolved_method == "bd"
+    assert built.labels == ["shared"]
+
+
+@pytest.mark.parametrize("method", ["bdsc", "dd"])
+def test_the_embedding_algorithms_require_every_first_stage_variable(method):
+    # Both put a copy of the first stage inside every scenario, so a
+    # variable outside the state vector gets an independent value per
+    # scenario with nothing holding them equal — it silently stops being a
+    # here-and-now decision.
+    sp = _partial_state_program(method=method)
+
+    with pytest.raises(ValueError, match=r"needs every first-stage variable"):
+        sp.build()
+
+
+def test_the_message_names_the_variables_and_the_way_out():
+    sp = _partial_state_program(method="dd")
+
+    with pytest.raises(ValueError) as excinfo:
+        sp.build()
+
+    message = str(excinfo.value)
+    assert "'private'" in message
+    assert "Drop the state=[...] argument" in message
+    assert "method='bd'" in message
+
+
+def test_an_integer_recourse_that_reroutes_to_bdsc_is_checked_too():
+    # method='bd' with a partial state is fine until integrality sends it
+    # to BDSC, which is not — the switch must not smuggle past the check.
+    sp = StochasticProgram("partial_int", auto_bound=False, log_level=logging.CRITICAL)
+
+    @sp.first_stage(state=["shared"])
+    def first_stage(m):
+        m.shared = pyo.Var(bounds=(0, 20), domain=pyo.NonNegativeReals)
+        m.private = pyo.Var(bounds=(0, 20), domain=pyo.NonNegativeReals)
+        m.link = pyo.Constraint(expr=m.private >= m.shared)
+        return 2.0 * m.shared + m.private
+
+    @sp.recourse
+    def recourse(m, state, scenario):
+        m.short = pyo.Var(bounds=(0, 20), domain=pyo.NonNegativeIntegers)
+        m.meet = pyo.Constraint(expr=state.shared + m.short >= scenario["demand"])
+        return 7.0 * m.short
+
+    sp.set_scenarios([{"name": n, "demand": d} for n, d in DEMAND.items()])
+
+    with pytest.warns(UserWarning, match="Switching to Benders with scaled cuts"):
+        with pytest.raises(ValueError, match=r"needs every first-stage variable"):
+            sp.build()
+
+
 def test_dual_decomposition_replicates_the_state_once_per_scenario():
     sp = make(method="dd")
     built = sp.build()
@@ -381,3 +462,66 @@ def test_describe_reports_the_algorithm_it_settled_on():
     assert "bdsc" in text
     assert "asked for bd" in text
     assert "scenarios       : 2" in text
+
+
+# -- the bypass -------------------------------------------------------------
+
+
+def test_validate_false_lets_a_partial_state_through_to_bdsc():
+    # The requirement still holds; it simply stops being enforced.
+    sp = _partial_state_program(method="bdsc", validate=False)
+
+    built = sp.build()
+
+    assert sp.resolved_method == "bdsc"
+    assert built.labels == ["shared"]
+
+
+def test_validate_false_skips_the_state_replacement_check():
+    sp = StochasticProgram(
+        "unchecked", auto_bound=False, validate=False, log_level=logging.CRITICAL
+    )
+
+    @sp.first_stage
+    def first_stage(m):
+        m.x = pyo.Var(bounds=(0, 1))
+        return m.x
+
+    @sp.recourse
+    def recourse(m, state, scenario):
+        m.x = pyo.Var(bounds=(0, 1))  # would normally be rejected
+        return m.x
+
+    sp.set_scenarios([{"name": "a"}])
+
+    assert sp.build().method == "bd"
+
+
+def test_validate_false_skips_the_dual_decomposition_warning():
+    sp = make(method="dd", integer_recourse_vars=True, validate=False)
+
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        sp.build()
+
+    assert [w for w in caught if issubclass(w.category, UserWarning)] == []
+    assert sp.resolved_method == "dd"
+
+
+def test_validate_false_does_not_disturb_a_clean_problem():
+    checked = make().build()
+    unchecked = make(validate=False).build()
+
+    assert checked.labels == unchecked.labels
+    assert checked.method == unchecked.method
+
+
+def test_bd_still_adapts_to_an_integer_recourse_without_validation():
+    # Choosing between bd and bdsc is not a check — it decides which
+    # algorithm is correct — so it survives validate=False.
+    sp = make(integer_recourse_vars=True, validate=False)
+
+    with pytest.warns(UserWarning, match="Switching to Benders with scaled cuts"):
+        sp.build()
+
+    assert sp.resolved_method == "bdsc"

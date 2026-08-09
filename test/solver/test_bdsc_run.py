@@ -50,3 +50,35 @@ def test_run_without_an_initial_solution_proceeds(tmp_path):
     run.run()
 
     assert (tmp_path / "node0" / "cuts.csv").exists()
+
+
+def test_root_rejects_a_first_stage_variable_outside_the_coupling_list():
+    """BDSC is built for two-stage stochastic programs.
+
+    Its subproblems each hold a copy of the first stage, so a first-stage
+    variable they can set but never report leaves the master pricing
+    against a wider feasible set than its own — the run converges on the
+    wrong problem rather than failing.
+    """
+    model = pyo.ConcreteModel()
+    model.x = pyo.Var(domain=pyo.Reals, bounds=(0, 10))
+    model.aux = pyo.Var(domain=pyo.Reals, bounds=(0, 10))
+    model.link = pyo.Constraint(expr=model.aux >= model.x)
+    model.obj = pyo.Objective(expr=model.x + model.aux, sense=pyo.minimize)
+
+    solver = PyomoSolver(model, SolverConfig("appsi_highs"), [model.x])
+
+    with pytest.raises(ValueError, match="every first-stage variable"):
+        BdScAlgRootBm(solver)
+
+
+def test_the_completeness_check_can_be_skipped():
+    model = pyo.ConcreteModel()
+    model.x = pyo.Var(domain=pyo.Reals, bounds=(0, 10))
+    model.aux = pyo.Var(domain=pyo.Reals, bounds=(0, 10))
+    model.link = pyo.Constraint(expr=model.aux >= model.x)
+    model.obj = pyo.Objective(expr=model.x + model.aux, sense=pyo.minimize)
+
+    solver = PyomoSolver(model, SolverConfig("appsi_highs"), [model.x])
+
+    assert BdScAlgRootBm(solver, validate=False) is not None

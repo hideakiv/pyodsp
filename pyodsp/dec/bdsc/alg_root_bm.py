@@ -4,7 +4,7 @@ import time
 import pandas as pd
 import logging
 
-from pyomo.environ import ScalarVar
+from pyomo.environ import ScalarVar, Var
 
 from .message import (
     BdScInitDnMessage,
@@ -21,8 +21,56 @@ from pyodsp.dec.node._message import NodeIdx
 from pyodsp.dec.node.cut_aggregator import CutAggregator
 
 
+def _verify_state_is_complete(solver: PyomoSolver) -> None:
+    """Every first-stage variable must be a coupling variable.
+
+    This algorithm was built for two-stage stochastic programs, and it
+    prices columns over each subproblem's own feasible set — which
+    contains a copy of the whole first stage (see examples/bdsc/cs.py).
+    A first-stage variable the subproblems can set but never report is
+    one the master never constrains them on, so the generated columns
+    describe a larger set than the master is restricted to and the cuts
+    built from them do not bound it. The run still converges; it
+    converges on the wrong problem.
+
+    The root's model is the first stage, so anything on it outside the
+    coupling list is exactly that kind of variable.
+    """
+    coupled = {id(var) for var in solver.get_vars()}
+    missing = []
+    for component in solver.model.component_objects(Var, active=True):
+        for index in component:
+            var = component[index]
+            if id(var) not in coupled:
+                missing.append(var.name)
+
+    if missing:
+        raise ValueError(
+            "Benders decomposition with scaled cuts needs every first-stage "
+            f"variable in its coupling list, but {sorted(missing)[:5]}"
+            f"{'...' if len(missing) > 5 else ''} "
+            f"({len(missing)} in total) are not. Its subproblems each hold a "
+            "copy of the first stage, so a variable they can set without "
+            "reporting it leaves the master pricing against a feasible set "
+            "wider than its own. Add them to the coupling list, or use plain "
+            "Benders, whose master keeps the first stage to itself. Pass "
+            "validate=False to skip this check."
+        )
+
+
 class BdScAlgRootBm(IAlgRoot):
-    def __init__(self, solver: PyomoSolver, max_iteration=1000) -> None:
+    def __init__(
+        self, solver: PyomoSolver, max_iteration=1000, validate: bool = True
+    ) -> None:
+        """
+        Args:
+            solver: The first-stage model, coupling on every one of its
+                variables — see _verify_state_is_complete.
+            max_iteration: Iteration cap for the master.
+            validate: Whether to run the structural check above. Turning
+                it off skips one pass over the model's variables; the
+                requirement still holds, it just stops being enforced.
+        """
         if not solver.is_minimize():
             raise ValueError(
                 "Benders decomposition with scaled cuts needs a minimize model. PyomoSolver converts a "
@@ -30,6 +78,8 @@ class BdScAlgRootBm(IAlgRoot):
                 "with convert_maximize=False — that is reserved for the "
                 "internal masters whose sense is deliberately inverted."
             )
+        if validate:
+            _verify_state_is_complete(solver)
         self.bm = BundleMethod(solver, max_iteration)
         self.step_time: List[float] = []
 

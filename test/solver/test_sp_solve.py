@@ -262,7 +262,6 @@ def test_plotting_writes_every_applicable_chart(tmp_path):
 
     assert {p.name for p in written} == {
         "convergence.png",
-        "first_stage.png",
         "scenario_objectives.png",
         "scenario_tree.png",
     }

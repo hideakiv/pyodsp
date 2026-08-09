@@ -101,6 +101,16 @@ class StochasticProgram:
         heuristic: For dual decomposition, whether to recover a feasible
             solution with a MIP heuristic at the end. Without it you get
             a bound and no primal solution.
+        validate: Whether to run the structural checks on the models the
+            builders produce — that no scenario overwrote a state
+            variable, that no integer recourse variable reaches Benders,
+            and that BDSC and DD get the complete state vector. Each
+            costs a pass over a built model, and the last two need a
+            probe model of their own, so turning them off is worth it on
+            a large problem you have already run once. Nothing about the
+            requirements changes; they simply stop being enforced, and a
+            violation then produces a confidently wrong answer rather
+            than an error.
         log_level: Logging level for the algorithm's own output.
     """
 
@@ -119,6 +129,7 @@ class StochasticProgram:
         recourse_bound: float | None = None,
         auto_bound: bool = True,
         heuristic: bool = True,
+        validate: bool = True,
         log_level: int = logging.INFO,
     ) -> None:
         if method not in METHODS:
@@ -142,6 +153,7 @@ class StochasticProgram:
         self.recourse_bound = recourse_bound
         self.auto_bound = auto_bound
         self.heuristic = heuristic
+        self.validate = validate
         self.log_level = log_level
 
         self._first_stage_fn: Callable | None = None
@@ -292,6 +304,7 @@ class StochasticProgram:
             auto_bound=self.auto_bound,
             relax_recourse=relax_recourse,
             heuristic=self.heuristic,
+            validate=self.validate,
         )
 
     def resolve_method(self, ctx: BuildContext) -> tuple[str, bool]:
@@ -304,6 +317,12 @@ class StochasticProgram:
         scaled cuts or has its integrality relaxed away — never silently
         stays on plain Benders, which would return a wrong answer.
         """
+        # Probing costs a built model, so it only happens where the answer
+        # is used: 'bdsc' is taken as given, and for 'dd' the scan feeds a
+        # warning that validate=False has opted out of.
+        if self.method == "bdsc" or (self.method == "dd" and not self.validate):
+            return self.method, False
+
         scan = scan_integers(ctx)
         self._integers = scan
 
@@ -322,9 +341,6 @@ class StochasticProgram:
                     stacklevel=3,
                 )
             return "dd", False
-
-        if self.method == "bdsc":
-            return "bdsc", False
 
         if not scan.recourse:
             return "bd", False

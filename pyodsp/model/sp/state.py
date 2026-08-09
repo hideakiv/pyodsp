@@ -100,6 +100,23 @@ def resolve_state_specs(
     return specs
 
 
+def uncovered_first_stage_variables(
+    model: pyo.ConcreteModel, specs: Sequence[StateSpec]
+) -> List[str]:
+    """First-stage Var components the state vector leaves out.
+
+    Empty whenever `state` was left to default. Only an explicit subset
+    can produce anything here — which Benders tolerates and the other two
+    algorithms do not; see builders._require_complete_state.
+    """
+    covered = {spec.name for spec in specs}
+    return sorted(
+        component.local_name
+        for component in model.component_objects(pyo.Var, active=True)
+        if component.local_name not in covered
+    )
+
+
 def flatten(model: pyo.ConcreteModel, specs: Sequence[StateSpec]) -> List[VarData]:
     """The state vector of `model` as a flat list, in canonical order.
 

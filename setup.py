@@ -16,7 +16,7 @@ setup(
         "scipy",
     ],
     extras_require={
-        # pyodsp.model.sp.viz only; the rest of the package never imports it
+        # pyodsp.viz and pyodsp.model.sp.viz only; nothing else imports them
         "viz": ["matplotlib"],
     },
 )

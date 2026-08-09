@@ -20,12 +20,16 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
           cache: pip
+          # This project declares its dependencies in setup.py, which the pip
+          # cache does not look for on its own — it only globs requirements.txt
+          # and pyproject.toml, and errors out when it finds neither.
+          cache-dependency-path: setup.py
 
       # autodoc imports the package, so the runtime dependencies have to be
       # here too. mpi4py is mocked in conf.py rather than installed.

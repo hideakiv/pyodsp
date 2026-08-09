@@ -3,82 +3,13 @@ Pyomo interface for Decomposition of Structured Programs, inspired by [DSP](http
 
 Pyodsp offers distributed algorithms for programming models written in [Pyomo](https://www.pyomo.org/), and a stochastic programming front-end that puts them behind a model you write once per stage.
 
+Documentation is available [here](https://hideakiv.github.io/pyodsp/).
+
 ## Installation
 ```bash
 pip install -e .
 pip install -e ".[viz]"   # adds matplotlib, needed only for the plotting helpers
 ```
-
-## Documentation
-**[hideakiv.github.io/pyodsp](https://hideakiv.github.io/pyodsp/)** — a guide to
-both front-ends, [how the algorithm is chosen](https://hideakiv.github.io/pyodsp/guide/choosing-a-method.html),
-[risk measures](https://hideakiv.github.io/pyodsp/guide/risk.html),
-[EVPI/VSS](https://hideakiv.github.io/pyodsp/guide/analysis.html),
-[MPI](https://hideakiv.github.io/pyodsp/guide/mpi.html), and an
-[API reference](https://hideakiv.github.io/pyodsp/api/index.html) generated from
-the docstrings.
-
-To build it locally from `docs/`:
-
-```bash
-pip install -e ".[docs]"
-make -C docs html      # then open docs/_build/html/index.html
-make -C docs strict    # what CI should run: warnings are errors
-```
-
-## Quick start
-A two-stage stochastic program: describe the first stage, describe one scenario's recourse, hand over the scenarios.
-
-```python
-import pyomo.environ as pyo
-from pyodsp.model.sp import StochasticProgram
-
-sp = StochasticProgram("farmer", sense="max")
-
-@sp.first_stage
-def first_stage(m):
-    m.acres = pyo.Var(CROPS, domain=pyo.NonNegativeReals)
-    m.land = pyo.Constraint(expr=sum(m.acres[c] for c in CROPS) <= 500)
-    return -sum(COST[c] * m.acres[c] for c in CROPS)
-
-@sp.recourse
-def recourse(m, state, scenario):
-    m.sold = pyo.Var(CROPS, domain=pyo.NonNegativeReals)
-    m.balance = pyo.Constraint(
-        CROPS,
-        rule=lambda m, c: m.sold[c] == scenario["yield"][c] * state.acres[c],
-    )
-    return sum(PRICE[c] * m.sold[c] for c in CROPS)
-
-sp.set_scenarios({name: {"yield": y} for name, y in YIELDS.items()})
-result = sp.solve()
-print(result.summary())
-```
-
-`state.acres` is the scenario's own copy of the first-stage decision. The pipeline replicates the first-stage variables into each scenario, keeps the coupling lists aligned, converts a maximize program to the minimize form the algorithms require and converts every result back, finds a valid bound per subproblem, and picks the algorithm. `sp.describe()` reports what it decided; `sp.build()` does all of that without solving.
-
-Multistage problems are stated the same way, one builder for every stage, and solved by SDDP:
-
-```python
-from pyodsp.model.msp import MultistageProgram
-
-msp = MultistageProgram("inventory", sense="min", stage_bound=0.0)
-
-@msp.stage(state=["inventory"])
-def stage(m, state, node):
-    m.inventory = pyo.Var(bounds=(0, 100))      # what this stage passes on
-    m.buy = pyo.Var(bounds=(0, 50))
-    m.balance = pyo.Constraint(
-        expr=m.inventory == state.inventory + m.buy - node["demand"]
-    )
-    return COST * m.buy
-
-msp.set_initial_state(inventory=20.0)
-msp.set_realizations(realizations, stages=4)
-result = msp.solve()
-```
-
-`state.inventory` is what the previous stage left, `m.inventory` what this one leaves — a variable at every stage but the first, where it is the initial condition, which is why one builder covers the whole horizon.
 
 ## Features
 

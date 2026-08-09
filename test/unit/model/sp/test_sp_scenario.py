@@ -1,7 +1,7 @@
 import pandas as pd
 import pytest
 
-from pyodsp.model.sp.scenario import (
+from pyodsp.model.scenario import (
     Scenario,
     ScenarioSet,
     as_scenario_set,

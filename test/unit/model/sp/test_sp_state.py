@@ -1,7 +1,7 @@
 import pyomo.environ as pyo
 import pytest
 
-from pyodsp.model.sp.state import (
+from pyodsp.model.state import (
     add_state_link,
     appears_in_objective,
     domain_and_bounds,

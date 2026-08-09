@@ -17,6 +17,10 @@ def make_lattice(is_minimize=True, sample_size=5, confidence_level=0.95):
     lattice.sample_size = sample_size
     lattice.confidence_level = confidence_level
     lattice.prev_samples = None
+    # _termination records each convergence test, which needs somewhere to
+    # put it and the root's sense to report it in.
+    lattice.simulation_rounds = []
+    lattice.root = DecNodeParent(idx="0-0", alg_root=FakeAlgRoot())
     return lattice
 
 
@@ -147,3 +151,38 @@ def test_termination_matches_reference_statistical_no_improvement_formula():
     assert converged == expected_no_improve
     if not expected_no_improve:
         assert lattice.prev_samples == objectives
+
+
+def test_termination_records_the_interval_it_tested_with():
+    """The interval is what stands against the bound, so it is kept.
+
+    SDDP estimates that side by simulation rather than computing it, and
+    a run that only logged the interval could not report or draw it.
+    """
+    objectives = [9.0, 10.0, 11.0, 10.0, 10.0]
+    lattice = make_lattice(sample_size=len(objectives))
+    lattice._run_forwards = MagicMock(side_effect=objectives)
+
+    lattice._termination(bound=1e9, iteration=7)
+
+    assert len(lattice.simulation_rounds) == 1
+    round = lattice.simulation_rounds[0]
+    assert round.iteration == 7
+    assert round.sample_size == len(objectives)
+    assert round.confidence_level == 0.95
+    assert round.mean == pytest.approx(10.0)
+    assert round.lower <= round.mean <= round.upper
+
+
+def test_a_maximize_run_records_the_interval_in_its_own_units():
+    """Negating swaps which confidence limit is the lower one."""
+    objectives = [9.0, 10.0, 11.0, 10.0, 10.0]
+    lattice = make_lattice(sample_size=len(objectives))
+    lattice.root = DecNodeParent(idx="0-0", alg_root=FakeAlgRoot(sense_multiplier=-1.0))
+    lattice._run_forwards = MagicMock(side_effect=objectives)
+
+    lattice._termination(bound=1e9, iteration=3)
+
+    round = lattice.simulation_rounds[0]
+    assert round.mean == pytest.approx(-10.0)
+    assert round.lower <= round.mean <= round.upper

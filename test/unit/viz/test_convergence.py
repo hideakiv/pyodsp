@@ -112,3 +112,99 @@ def test_both_themes_render(tmp_path, theme):
 def test_an_unknown_theme_is_refused():
     with pytest.raises(ValueError, match="theme must be"):
         plot_convergence(history(), theme="neon")
+
+
+# -- a series the run never produced ----------------------------------------
+
+
+def test_a_series_with_no_values_is_left_out_of_the_legend(tmp_path):
+    """SDDP records no incumbent — it estimates that side by simulation.
+
+    A legend entry for a line that was never drawn claims data the run
+    does not have.
+    """
+    frame = history()
+    frame["incumbent"] = None
+
+    figure = plot_convergence(frame)
+    _, labels = figure.axes[0].get_legend_handles_labels()
+
+    assert labels == ["Bound"]
+    assert figure.axes[0].get_legend() is None
+
+
+def test_both_series_present_keeps_the_legend():
+    figure = plot_convergence(history())
+
+    assert figure.axes[0].get_legend() is not None
+
+
+# -- the simulated interval SDDP has instead of an incumbent ----------------
+
+
+def simulation(rows=2):
+    return pd.DataFrame(
+        {
+            "iteration": [9, 19][:rows],
+            "bound": [-2.0, -2.0][:rows],
+            "mean": [-1.6, -1.8][:rows],
+            "lower": [-1.9, -1.95][:rows],
+            "upper": [-1.3, -1.65][:rows],
+            "sample_size": [100, 100][:rows],
+            "confidence_level": [0.95, 0.95][:rows],
+        }
+    )
+
+
+def test_the_interval_is_drawn_when_there_is_no_incumbent(tmp_path):
+    """SDDP estimates the other side rather than computing it.
+
+    Error bars at the iterations actually tested, not a line implying a
+    value was known at every step.
+    """
+    frame = history()
+    frame["incumbent"] = None
+
+    figure = plot_convergence(frame, simulation=simulation())
+    _, labels = figure.axes[0].get_legend_handles_labels()
+
+    assert labels == ["Bound", "Simulated policy (95% CI)"]
+    # two series again, so the legend comes back
+    assert figure.axes[0].get_legend() is not None
+
+
+def test_the_confidence_level_is_named_in_the_legend():
+    frame = simulation()
+    frame["confidence_level"] = 0.9
+
+    figure = plot_convergence(history(), simulation=frame)
+    _, labels = figure.axes[0].get_legend_handles_labels()
+
+    assert "90% CI" in labels[-1]
+
+
+def test_an_empty_simulation_is_the_same_as_none(tmp_path):
+    frame = history()
+    frame["incumbent"] = None
+    empty = pd.DataFrame(columns=["iteration", "mean", "lower", "upper"])
+
+    figure = plot_convergence(frame, simulation=empty)
+    _, labels = figure.axes[0].get_legend_handles_labels()
+
+    assert labels == ["Bound"]
+
+
+def test_reading_a_simulation_a_run_never_wrote(tmp_path):
+    from pyodsp.viz.convergence import read_simulation
+
+    assert read_simulation(tmp_path) is None
+
+
+def test_reading_a_simulation_a_run_did_write(tmp_path):
+    from pyodsp.viz.convergence import read_simulation
+
+    simulation().to_csv(tmp_path / "simulation.csv", index=False)
+
+    frame = read_simulation(tmp_path)
+
+    assert list(frame["iteration"]) == [9, 19]

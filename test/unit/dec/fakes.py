@@ -19,6 +19,9 @@ from pyodsp.dec.node._message import (
 
 
 class FakeAlgRoot(IAlgRoot):
+    def __init__(self, sense_multiplier=1.0):
+        self._sense_multiplier = sense_multiplier
+
     def set_logger(self, idx, depth, level):
         pass
 
@@ -29,7 +32,7 @@ class FakeAlgRoot(IAlgRoot):
         return True
 
     def get_sense_multiplier(self):
-        return 1.0
+        return self._sense_multiplier
 
     def set_sense_multiplier(self, multiplier):
         pass

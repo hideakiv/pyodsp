@@ -25,7 +25,7 @@ from typing import Any, Dict, List, Sequence
 
 from .mean import mean_scenario
 from .result import SpResult
-from .scenario import Scenario, ScenarioSet
+from ..scenario import Scenario, ScenarioSet
 
 MEASURES = ("evpi", "vss")
 

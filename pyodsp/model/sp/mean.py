@@ -10,7 +10,7 @@ scenario, and refuse the rest by name rather than guess.
 
 from typing import Any, Dict, List, Sequence
 
-from .scenario import Scenario, ScenarioSet
+from ..scenario import Scenario, ScenarioSet
 
 MEAN_SCENARIO_NAME = "mean"
 

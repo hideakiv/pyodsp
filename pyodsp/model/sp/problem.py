@@ -22,8 +22,8 @@ from .builders import (
 )
 from .analysis import MEASURES
 from .result import SpResult, read_result
-from .scenario import Scenario, ScenarioSet, as_scenario_set
-from .state import resolve_state_specs
+from ..scenario import Scenario, ScenarioSet, as_scenario_set
+from ..state import resolve_state_specs
 
 DEFAULT_SOLVER = "appsi_highs"
 # BDSC prices its columns with a quadratic trust region, so its inner

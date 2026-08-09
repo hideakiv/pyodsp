@@ -138,3 +138,21 @@ def formatter(values: Sequence[float | None]):
         return lambda v: f"{v:.3g}"
     decimals = 0 if scale >= 100 else 1 if scale >= 10 else 2
     return lambda v: f"{v:,.{decimals}f}"
+
+
+def spread_labels(entries, span: float, *, threshold=0.07, offset=0.045):
+    """Nudge two end-of-line labels apart when they would overprint.
+
+    Series that converge — which is what a converged run looks like —
+    land on the same point, and two labels drawn there are unreadable.
+    Entries are dicts carrying at least a 'y'; they are adjusted in place
+    and returned.
+    """
+    if len(entries) != 2:
+        return entries
+    span = abs(span) or 1.0
+    if abs(entries[0]["y"] - entries[1]["y"]) < threshold * span:
+        middle = (entries[0]["y"] + entries[1]["y"]) / 2.0
+        entries[0]["y"] = middle + offset * span
+        entries[1]["y"] = middle - offset * span
+    return entries

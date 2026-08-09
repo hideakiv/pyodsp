@@ -1,7 +1,9 @@
+from dataclasses import dataclass
 from typing import List, Dict
 from pathlib import Path
 
 import numpy as np
+import pandas as pd
 import scipy.stats as st
 from pyodsp.alg.bm.cuts import OptimalityCut, FeasibilityCut
 
@@ -20,6 +22,23 @@ from pyodsp.alg.params import (
     SDDP_IMPROVE_TOLERANCE,
     SDDP_SEED,
 )
+
+
+SIMULATION_FILE = "simulation.csv"
+SIMULATION_SAMPLES_FILE = "simulation_samples.csv"
+
+
+@dataclass
+class SimulationRound:
+    """One convergence test: the bound, against a simulated interval."""
+
+    iteration: int
+    bound: float
+    mean: float
+    lower: float
+    upper: float
+    sample_size: int
+    confidence_level: float
 
 
 class Lattice:
@@ -46,6 +65,15 @@ class Lattice:
         self._last_dn_messages: Dict[NodeIdx, DnMessage] = {}
 
         self.prev_samples = None
+        # One entry per convergence test. SDDP's bound is deterministic but
+        # the other side is estimated by simulation, so what it has against
+        # the bound is an interval rather than an incumbent — recorded here
+        # so a finished run can report and plot it, not just log it.
+        self.simulation_rounds: List[SimulationRound] = []
+        # The individual draws behind the most recent round. Only the last
+        # is kept: it is the converged policy's cost distribution, and
+        # every round before it describes a policy that no longer exists.
+        self.simulation_samples: List[float] = []
 
     def _verify_nodes(self, nodes: List[List[INode]]) -> None:
         self.root: INodeRoot | None = None
@@ -143,7 +171,7 @@ class Lattice:
         for iteration in range(self.max_iteration):
             bound = self._run_root()
             if iteration % self.sample_frequency == self.sample_frequency - 1:
-                if self._termination(bound):
+                if self._termination(bound, iteration):
                     break
             else:
                 self._run_forwards(self._iteration_rng(iteration))
@@ -208,12 +236,13 @@ class Lattice:
         )
         return float(ci_d), float(ci_u)
 
-    def _termination(self, bound: float) -> bool:
+    def _termination(self, bound: float, iteration: int = -1) -> bool:
         objectives = self._collect_samples()
         ci_d, ci_u = self._confidence_interval(objectives)
         self.logger.log_info(
             f"lower: {ci_d}, upper: {ci_u}, confidence: {self.confidence_level}"
         )
+        self._record_simulation(iteration, objectives, ci_d, ci_u, bound)
         # Always a minimization here — PyomoSolver converts a maximize model
         # on construction — so the sample mean's upper confidence limit is
         # the side that meets the lower bound the algorithm drives up.
@@ -247,6 +276,37 @@ class Lattice:
         self.prev_samples = objectives
 
         return False
+
+    def _record_simulation(
+        self,
+        iteration: int,
+        objectives: List[float],
+        ci_d: float,
+        ci_u: float,
+        bound: float,
+    ) -> None:
+        """Keep one convergence test, in the units the models were written in.
+
+        The samples are in the internal minimize convention, like every
+        other objective value the algorithms handle; the root knows what
+        converting them back means.
+        """
+        assert self.root is not None
+        multiplier = self.root.get_sense_multiplier()
+        lower, upper = ci_d * multiplier, ci_u * multiplier
+        self.simulation_samples = [value * multiplier for value in objectives]
+        self.simulation_rounds.append(
+            SimulationRound(
+                iteration=iteration,
+                bound=bound * multiplier,
+                mean=float(np.mean(objectives)) * multiplier,
+                # Negating swaps which limit is which.
+                lower=min(lower, upper),
+                upper=max(lower, upper),
+                sample_size=len(objectives),
+                confidence_level=self.confidence_level,
+            )
+        )
 
     def _run_root(self) -> float:
         assert self.root is not None
@@ -323,3 +383,30 @@ class Lattice:
     def _save(self) -> None:
         for node in self.nodes.values():
             node.save(self.filedir)
+        self._save_simulation()
+
+    def _save_simulation(self) -> None:
+        """Write the convergence tests to simulation.csv.
+
+        Separate from a node's bm.csv because it belongs to the run rather
+        than to any one node, and because it is sampled every
+        sample_frequency iterations rather than every iteration.
+        """
+        pd.DataFrame(
+            [round.__dict__ for round in self.simulation_rounds],
+            columns=[
+                "iteration",
+                "bound",
+                "mean",
+                "lower",
+                "upper",
+                "sample_size",
+                "confidence_level",
+            ],
+        ).to_csv(self.filedir / SIMULATION_FILE, index=False)
+
+        # The draws behind the last round, for the empirical distribution
+        # the interval only summarizes.
+        pd.DataFrame({"objective": self.simulation_samples}).to_csv(
+            self.filedir / SIMULATION_SAMPLES_FILE, index=False
+        )

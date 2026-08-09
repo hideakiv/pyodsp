@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 
 from pyodsp.model.sp.mean import mean_scenario
-from pyodsp.model.sp.scenario import Scenario, ScenarioSet
+from pyodsp.model.scenario import Scenario, ScenarioSet
 
 
 def make(*data, probabilities=None):

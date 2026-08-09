@@ -2,7 +2,7 @@
 
 Neither is a problem you solve — each is a comparison between problems,
 so both come from running the stochastic program against two reference
-points (Birge and Louveaux, ch. 4):
+points (Birge and Louveaux, ch. 4)::
 
     WS   each scenario solved as if it were known in advance, averaged.
          The cost of a decision maker who sees the future.
@@ -10,7 +10,7 @@ points (Birge and Louveaux, ch. 4):
     EEV  the expected-value problem's decision, evaluated against every
          scenario. The cost of pretending the mean is the truth.
 
-For a minimization WS <= RP <= EEV, and the two gaps are
+For a minimization WS <= RP <= EEV, and the two gaps are::
 
     EVPI = RP - WS     what perfect information would be worth
     VSS  = EEV - RP    what modelling the uncertainty was worth

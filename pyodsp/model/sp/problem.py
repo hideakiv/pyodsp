@@ -53,7 +53,7 @@ class StochasticProgram:
     one representative scenario's recourse — and this class handles the
     decomposition: which algorithm suits the model, how the stages couple,
     objective-sense conversion, subproblem bounds, and reading results
-    back in your own units.
+    back in your own units::
 
         sp = StochasticProgram("farmer", sense="max")
 

@@ -13,7 +13,7 @@ from ..node._message import NodeIdx
 class LatticeMpi(Lattice):
     """Parallelized SDDP.
 
-    Unlike the other *_mpi.py graphs, every rank holds an identical copy
+    Unlike the other ``*_mpi.py`` graphs, every rank holds an identical copy
     of the whole lattice rather than a distinct slice of it — only rank 0
     ever generates cuts (runs the trunk forward pass and the backward
     pass). Every other rank exists solely to help evaluate the Monte Carlo

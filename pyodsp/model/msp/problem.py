@@ -34,7 +34,7 @@ class MultistageProgram:
     probabilities, objective-sense conversion, and reading results back.
 
     The state is the only thing stages share, and it appears twice in
-    every stage model — as the value received and the value passed on:
+    every stage model — as the value received and the value passed on::
 
         msp = MultistageProgram("inventory", sense="min")
 

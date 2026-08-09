@@ -1,6 +1,6 @@
 """Two-stage stochastic programming on top of pyodsp's decomposition algorithms.
 
-Describe the problem once per stage and let the pipeline decompose it:
+Describe the problem once per stage and let the pipeline decompose it::
 
     import pyomo.environ as pyo
     from pyodsp.model.sp import StochasticProgram

@@ -203,12 +203,13 @@ def add_state_link(
     and return the coupling variables to hand to the solver.
 
     Benders cuts here are assembled from the duals of the constraints the
-    coupling variables appear in (see dec.utils.get_nonzero_coefficients_
-    from_model). A state variable that only ever appears in the recourse
-    *objective* therefore contributes nothing to the cut's gradient while
-    still moving its right-hand side — a silently invalid cut. Giving that
-    variable a defining constraint puts the missing term back where the
-    cut generator can see it.
+    coupling variables appear in (see
+    ``dec.utils.get_nonzero_coefficients_from_model``). A state variable
+    that only ever appears in the recourse *objective* therefore
+    contributes nothing to the cut's gradient while still moving its
+    right-hand side — a silently invalid cut. Giving that variable a
+    defining constraint puts the missing term back where the cut
+    generator can see it.
     """
     n = len(state_vars)
     link_index = pyo.RangeSet(0, n - 1)

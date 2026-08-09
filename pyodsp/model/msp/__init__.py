@@ -1,6 +1,6 @@
 """Multistage stochastic programming on top of pyodsp's SDDP.
 
-Describe one stage; the pipeline builds the lattice:
+Describe one stage; the pipeline builds the lattice::
 
     import pyomo.environ as pyo
     from pyodsp.model.msp import MultistageProgram

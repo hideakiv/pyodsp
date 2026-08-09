@@ -30,6 +30,7 @@ class CuttingPlaneMethod:
         self.current_solution: list[float] = []
         self.force = force
         self._sign = 1.0 if solver.is_minimize() else -1.0
+        self._user_sense_multiplier: float | None = None
 
     def is_minimize(self) -> bool:
         return self.solver.is_minimize()
@@ -70,6 +71,41 @@ class CuttingPlaneMethod:
 
     def get_solver(self) -> PyomoSolver:
         return self.solver
+
+    def set_sense_multiplier(self, multiplier: float) -> None:
+        """Report in this sense instead of the master model's own.
+
+        For a master synthesized rather than supplied — dual
+        decomposition's Lagrangian master — the model here says nothing
+        about the sense the user wrote, so the caller supplies it.
+        """
+        self._user_sense_multiplier = multiplier
+
+    def get_sense_multiplier(self) -> float:
+        """-1.0 if the problem this master serves was written as maximize.
+
+        Distinct from `_sign`, which is about *this* master's own Pyomo
+        sense — dual decomposition's Lagrangian master is deliberately a
+        maximize model and has `_sign == -1` while serving a problem whose
+        multiplier may be either.
+        """
+        if self._user_sense_multiplier is not None:
+            return self._user_sense_multiplier
+        return self.solver.sense_multiplier
+
+    def to_user_units(self, value: float | None) -> float | None:
+        """One recorded value converted back to the caller's sense."""
+        return None if value is None else self.get_sense_multiplier() * value
+
+    def in_user_units(self, values: list[float | None]) -> list[float | None]:
+        """A recorded trajectory converted back to the caller's sense.
+
+        The iteration bookkeeping runs entirely in the converted (minimize)
+        units, so this is applied once, where values leave the algorithm.
+        """
+        if self.get_sense_multiplier() > 0.0:
+            return list(values)
+        return [None if v is None else -v for v in values]
 
     def build(self, num_cuts: int) -> None:
         self.num_cuts = num_cuts

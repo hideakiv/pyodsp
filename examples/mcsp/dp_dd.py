@@ -58,10 +58,10 @@ def create_master(
     heuristic = DpHeuristic(final_config, N)
     if pbm:
         alg_config = SolverConfig(solver_name="ipopt")
-        root_alg = DdAlgRootBm(m, True, alg_config, vars_dn, heuristic, mode="proximal")
+        root_alg = DdAlgRootBm(m, alg_config, vars_dn, heuristic, mode="proximal")
     else:
         alg_config = SolverConfig(solver_name=solver)
-        root_alg = DdAlgRootBm(m, True, alg_config, vars_dn, heuristic)
+        root_alg = DdAlgRootBm(m, alg_config, vars_dn, heuristic)
     root_node = DecNodeRoot(0, root_alg)
     return root_node
 

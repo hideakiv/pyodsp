@@ -1,15 +1,13 @@
 """Birge and Louveaux's farmer, wired to pyodsp.dec by hand.
 
-The farmer maximizes profit, but the decomposition algorithms only accept
-minimize problems, so this runs the three-step conversion documented on
-pyomo_utils.negate_objective_sense: negate every node's model before
-building its PyomoSolver, negate the bound passed to set_bound (it is in
-the same true-objective units), and negate the saved trajectory once the
-run is over. Values read back off a node are then in the internal
-(negated) convention and are negated to report.
+The farmer maximizes profit. The decomposition algorithms are
+minimize-only internally, but nothing here has to know that: PyomoSolver
+converts each maximize model when the solver is built and remembers the
+flip, so the bound below is stated in profit, the saved trajectory comes
+back in profit, and so does the reported optimum.
 
 See sp_pipeline.py for the same problem through pyodsp.model.sp, which
-does all of that — and the coupling-variable bookkeeping — itself.
+also handles the coupling-variable bookkeeping.
 """
 
 from pathlib import Path
@@ -17,10 +15,6 @@ from pathlib import Path
 import pyomo.environ as pyo
 
 from pyodsp.solver.pyomo_solver import PyomoSolver, SolverConfig
-from pyodsp.solver.pyomo_utils import (
-    negate_objective_sense,
-    negate_saved_objective_csv,
-)
 
 from pyodsp.dec.node.dec_node import DecNodeRoot, DecNodeLeaf
 from pyodsp.dec.bd.alg_root_bm import BdAlgRootBm
@@ -65,11 +59,6 @@ def objective_rule(model):
 
 
 model.objective = pyo.Objective(rule=objective_rule, sense=pyo.maximize)
-
-# Convert to the minimize form the algorithms require. This has to happen
-# before the PyomoSolver is built: the solver captures the active
-# objective as the one it reports as "original".
-negate_objective_sense(model)
 
 coupling_dn = [model.DevotedAcreage[crop] for crop in CROPS]
 config = SolverConfig(solver_name="appsi_highs")
@@ -163,11 +152,6 @@ for scenario, block in second_stage.items():
 
 second_stage_solver = {}
 for scenario, block in second_stage.items():
-    # Every node's model gets the same conversion, not just the root: the
-    # leaf algorithm rejects a maximize model too, and the two senses have
-    # to agree for the cuts to mean anything.
-    negate_objective_sense(block)
-
     coupling_vars_up = [block.DevotedAcreage[crop] for crop in CROPS]
     config = SolverConfig(solver_name="appsi_highs")
     second_stage_solver[scenario] = PyomoSolver(block, config, coupling_vars_up)
@@ -178,9 +162,8 @@ idx = 1
 for scenario, block in second_stage.items():
     alg = BdAlgLeafPyomo(second_stage_solver[scenario])
     leaf_node = DecNodeLeaf(idx, alg)
-    # The bound is in true objective units, so it negates with everything
-    # else: an upper bound on profit is a lower bound on negated profit.
-    leaf_node.set_bound(-RECOURSE_PROFIT_BOUND)
+    # Stated in the model's own units: an upper bound on scenario profit.
+    leaf_node.set_bound(RECOURSE_PROFIT_BOUND)
     leaf_nodes[scenario] = leaf_node
     root_node.add_child(idx, multiplier=1 / len(SCENARIOS))
     idx += 1
@@ -188,14 +171,7 @@ for scenario, block in second_stage.items():
 bd_run = BdRun([root_node, *leaf_nodes.values()], FILEDIR)
 bd_run.run()
 
-# The graph saves whatever sense the node's model had and has no notion of
-# "this was negated", so the root's trajectory is left in internal units
-# until it is corrected here. sol.csv needs no such fix, and the leaves
-# save no trajectory.
-negate_saved_objective_csv(FILEDIR / "node0")
-
-# Values read off the nodes are still in the internal convention.
-profit = -first_stage_alg.bm.obj_bound[-1]
+profit = first_stage_alg.bm.get_objective_bound()
 
 print(f"expected profit: {profit:,.2f}")
 for crop in CROPS:

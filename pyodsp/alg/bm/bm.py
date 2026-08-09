@@ -170,9 +170,23 @@ class BundleMethod:
 
         return False
 
+    def in_user_units(self, values: List[float | None]) -> List[float | None]:
+        return self.cpm.in_user_units(values)
+
+    def get_objective_bound(self) -> float | None:
+        """The latest bound on the optimum, in the caller's units."""
+        if not self.obj_bound:
+            return None
+        return self.cpm.to_user_units(self.obj_bound[-1])
+
     def save(self, dir: Path) -> None:
         path = dir / "bm.csv"
-        df = pd.DataFrame({"obj_bound": self.obj_bound, "obj_val": self.obj_val})
+        df = pd.DataFrame(
+            {
+                "obj_bound": self.in_user_units(self.obj_bound),
+                "obj_val": self.in_user_units(self.obj_val),
+            }
+        )
         df.to_csv(path)
         self.cpm.save(dir)
 
@@ -195,9 +209,7 @@ class BundleMethod:
         callers do rescale cuts in place (see BdScAlgRootBm.run_step), and
         a snapshot that aliased them would not stay a snapshot.
         """
-        return [
-            CutList([deepcopy(c.cut) for c in group]) for group in self.get_cuts()
-        ]
+        return [CutList([deepcopy(c.cut) for c in group]) for group in self.get_cuts()]
 
     def replace_cuts(self, cuts_list: List[CutList]) -> None:
         """Replace every currently active cut with exactly the given set,

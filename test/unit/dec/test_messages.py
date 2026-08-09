@@ -31,10 +31,9 @@ def make_cut():
 
 
 def test_bd_init_dn_message_roundtrip():
-    message = BdInitDnMessage(is_minimize=True)
+    message = BdInitDnMessage()
     message.set_depth(2)
 
-    assert message.get_is_minimize() is True
     assert message.get_depth() == 2
 
 
@@ -70,11 +69,10 @@ def test_bd_final_messages_roundtrip():
 
 def test_dd_init_dn_message_holds_coupling_matrix():
     matrix = [{0: 1.0}]
-    message = DdInitDnMessage(coupling_matrix=matrix, is_minimize=False)
+    message = DdInitDnMessage(coupling_matrix=matrix)
     message.set_depth(1)
 
     assert message.get_coupling_matrix() is matrix
-    assert message.get_is_minimize() is False
     assert message.get_depth() == 1
 
 
@@ -126,9 +124,8 @@ def test_bdsc_dn_message_roundtrip():
 
 
 def test_bdsc_init_and_final_messages_roundtrip():
-    init_dn = BdScInitDnMessage(is_minimize=True)
+    init_dn = BdScInitDnMessage()
     init_dn.set_depth(3)
-    assert init_dn.get_is_minimize() is True
     assert init_dn.get_depth() == 3
 
     init_up = BdScInitUpMessage()
@@ -140,3 +137,16 @@ def test_bdsc_init_and_final_messages_roundtrip():
     final_up = BdScFinalUpMessage(objective=1.0)
     final_up.set_objective(2.0)
     assert final_up.get_objective() == 2.0
+
+
+def test_init_up_message_carries_the_senses_of_the_model_it_came_from():
+    """How a parent learns whether its children were written as maximize.
+
+    Dual decomposition's root has no user model of its own, so this is
+    the only channel that tells it which units to report in.
+    """
+    message = BdInitUpMessage()
+    assert message.get_sense_multiplier() == 1.0
+
+    message.set_sense_multiplier(-1.0)
+    assert message.get_sense_multiplier() == -1.0

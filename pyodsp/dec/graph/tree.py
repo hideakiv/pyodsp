@@ -177,7 +177,12 @@ class Tree:
             raise ValueError("root node not found")
 
         message = self._run_final_core(self.root)
-        return message.get_objective()
+        # The algorithms work in the converted (minimize) units; the number
+        # reported at the end belongs in the units the models were written in.
+        objective = message.get_objective()
+        if objective is None:
+            return objective
+        return objective * self.root.get_sense_multiplier()
 
     def _run_final_core(
         self, node: INode, dn_message: FinalDnMessage | None = None

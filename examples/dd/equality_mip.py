@@ -27,11 +27,11 @@ def create_master(solver="appsi_highs", pbm=False) -> DecNodeRoot:
     if pbm:
         alg_config = SolverConfig(solver_name="ipopt")
         root_alg = DdAlgRootBm(
-            block, True, alg_config, vars_dn, heuristic, mode="proximal"
+            block, alg_config, vars_dn, heuristic, mode="proximal"
         )
     else:
         alg_config = SolverConfig(solver_name=solver)
-        root_alg = DdAlgRootBm(block, True, alg_config, vars_dn, heuristic)
+        root_alg = DdAlgRootBm(block, alg_config, vars_dn, heuristic)
     root_node = DecNodeRoot(0, root_alg)
     return root_node
 

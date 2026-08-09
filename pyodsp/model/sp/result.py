@@ -1,10 +1,10 @@
 """Reading a finished run back in the user's own objective units.
 
-Everything the algorithms produce is in internal minimize form. A
-maximize program was negated on the way in, so every number here is
-negated on the way out — including the trajectories already written to
-disk, which are corrected in place so the saved artifacts agree with the
-returned result.
+The algorithms work in the minimize form PyomoSolver converted the
+models to; each solver remembers whether it flipped, so the conversion
+back happens through `to_user_units` rather than by tracking a sign
+here. Saved trajectories are already written in the user's units by
+BundleMethod.save, so nothing on disk needs correcting.
 """
 
 from dataclasses import dataclass, field
@@ -12,8 +12,6 @@ from pathlib import Path
 from typing import Any, Dict, List
 
 import pandas as pd
-
-from pyodsp.solver.pyomo_utils import negate_saved_objective_csv
 
 STATE_CONSISTENCY_TOL = 1e-6
 
@@ -143,27 +141,23 @@ def _fmt(value: float | None) -> str:
 
 def read_result(program, built) -> SpResult:
     """Assemble an SpResult from the solved node graph."""
-    sign = -1.0 if program.is_maximize else 1.0
     scenarios = program.scenarios
-
-    _correct_saved_trajectories(program, built)
 
     outcomes: List[ScenarioOutcome] = []
     for scenario in scenarios:
         solver = built.leaf_solvers[scenario.name]
-        objective = solver.get_original_objective_value()
         outcomes.append(
             ScenarioOutcome(
                 name=scenario.name,
                 probability=scenario.probability,
-                objective=None if objective is None else sign * objective,
+                objective=solver.to_user_units(solver.get_original_objective_value()),
                 variables=solver.get_variable_values(),
             )
         )
 
     first_stage, flat, consistent = _read_first_stage(program, built)
-    objective = _total_objective(built, outcomes, sign)
-    bound = _final_bound(built, sign)
+    objective = _total_objective(built, outcomes)
+    bound = _final_bound(built)
     history = _read_history(program.output_dir)
 
     return SpResult(
@@ -180,26 +174,6 @@ def read_result(program, built) -> SpResult:
         first_stage_consistent=consistent,
         output_dir=Path(program.output_dir),
     )
-
-
-def _correct_saved_trajectories(program, built) -> None:
-    """Put the saved bm.csv trajectories back into the user's units.
-
-    The graph classes save whatever sense the node's model had, with no
-    notion of "this was negated" — so for a maximize program the files on
-    disk are left in internal form unless corrected here.
-    """
-    if not program.is_maximize:
-        return
-    root = Path(program.output_dir)
-    if not root.exists():
-        return
-    for node_dir in sorted(root.glob("node*")):
-        try:
-            negate_saved_objective_csv(node_dir)
-        except FileNotFoundError:
-            # Benders leaves save solutions and timings but no trajectory.
-            continue
 
 
 def _read_first_stage(program, built):
@@ -250,7 +224,7 @@ def _nest(built, labels: List[str], values: List[float | None]) -> Dict[str, Any
     return nested
 
 
-def _total_objective(built, outcomes, sign: float) -> float | None:
+def _total_objective(built, outcomes) -> float | None:
     """Expected objective of the returned solution, in the user's units."""
     if any(outcome.objective is None for outcome in outcomes):
         return None
@@ -261,23 +235,21 @@ def _total_objective(built, outcomes, sign: float) -> float | None:
         return sum(outcome.objective for outcome in outcomes)
 
     assert built.root_solver is not None
-    first_stage = built.root_solver.get_original_objective_value()
+    first_stage = built.root_solver.to_user_units(
+        built.root_solver.get_original_objective_value()
+    )
     if first_stage is None:
         return None
-    total = sign * first_stage
-    total += sum(o.probability * o.objective for o in outcomes)
-    return total
+    return first_stage + sum(o.probability * o.objective for o in outcomes)
 
 
-def _final_bound(built, sign: float) -> float | None:
-    """The master's last bound, read off the bundle method."""
+def _final_bound(built) -> float | None:
+    """The master's last bound, already in the user's units."""
     alg_root = getattr(built.root_node, "alg_root", None)
     bm = getattr(alg_root, "bm", None)
-    bounds = getattr(bm, "obj_bound", None)
-    if not bounds:
+    if bm is None:
         return None
-    last = bounds[-1]
-    return None if last is None else sign * last
+    return bm.get_objective_bound()
 
 
 def _read_history(output_dir: str | Path) -> pd.DataFrame:

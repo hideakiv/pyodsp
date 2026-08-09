@@ -59,11 +59,11 @@ def create_master(
     if pbm:
         alg_config = SolverConfig(solver_name="ipopt")
         root_alg = DdAlgRootBm(
-            model, True, alg_config, vars_dn, heuristics, mode="proximal"
+            model, alg_config, vars_dn, heuristics, mode="proximal"
         )
     else:
         alg_config = SolverConfig(solver_name=solver)
-        root_alg = DdAlgRootBm(model, True, alg_config, vars_dn, heuristics)
+        root_alg = DdAlgRootBm(model, alg_config, vars_dn, heuristics)
     root_node = DecNodeRoot(0, root_alg)
     return root_node
 

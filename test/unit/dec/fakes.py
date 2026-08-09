@@ -28,6 +28,12 @@ class FakeAlgRoot(IAlgRoot):
     def is_minimize(self):
         return True
 
+    def get_sense_multiplier(self):
+        return 1.0
+
+    def set_sense_multiplier(self, multiplier):
+        pass
+
     def build(self, groups, children_multipliers, children_bounds):
         pass
 
@@ -62,6 +68,9 @@ class FakeAlgLeaf(IAlgLeaf):
 
     def is_minimize(self):
         return True
+
+    def get_sense_multiplier(self):
+        return 1.0
 
     def build(self):
         pass
@@ -112,14 +121,21 @@ class FakeLogger(ILogger):
 
 
 class FakeInitUpMessage(InitUpMessage):
-    def __init__(self, bound=None):
+    def __init__(self, bound=None, sense_multiplier=1.0):
         self.bound = bound
+        self.sense_multiplier = sense_multiplier
 
     def set_bound(self, bound):
         self.bound = bound
 
     def get_bound(self):
         return self.bound
+
+    def set_sense_multiplier(self, multiplier):
+        self.sense_multiplier = multiplier
+
+    def get_sense_multiplier(self):
+        return self.sense_multiplier
 
 
 class FakeFinalUpMessage(FinalUpMessage):

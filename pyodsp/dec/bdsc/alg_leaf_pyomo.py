@@ -33,10 +33,10 @@ class BdScAlgLeafPyomo(IAlgLeaf):
     ):
         if not solver.is_minimize():
             raise ValueError(
-                "Benders decomposition with scaled cuts only accepts minimize "
-                "problems; negate the objective (see "
-                "pyomo_utils.negate_objective_sense) before constructing the "
-                "solver."
+                "Benders decomposition with scaled cuts needs a minimize model. PyomoSolver converts a "
+                "maximize one on construction, so this solver was built "
+                "with convert_maximize=False — that is reserved for the "
+                "internal masters whose sense is deliberately inverted."
             )
         # The column-generation subproblem must price against exactly the
         # master's cuts, so it makes no add/drop decisions of its own:
@@ -45,9 +45,7 @@ class BdScAlgLeafPyomo(IAlgLeaf):
         # decided from this subproblem's solves, which are not the master's.
         # It still drops cuts when told to — see pass_dn_message.
         self.cgsp = BundleMethod(solver, max_iteration, force=True, purgeable=False)
-        self.mc = MasterCreator(
-            is_minimize=self.cgsp.is_minimize(), solver_config=master_config
-        )
+        self.mc = MasterCreator(solver_config=master_config)
         self.max_iteration = max_iteration
         self.step_time: List[float] = []
         # columns carried over from the previous trial point — see _sync_cuts
@@ -67,8 +65,7 @@ class BdScAlgLeafPyomo(IAlgLeaf):
         self.cgsp.build(1, [-1e9])
 
     def pass_init_dn_message(self, message: BdScInitDnMessage) -> None:
-        if self.is_minimize() != message.get_is_minimize():
-            raise ValueError("Inconsistent optimization sense")
+        pass
 
     def get_init_up_message(self) -> BdScInitUpMessage:
         return BdScInitUpMessage()
@@ -283,5 +280,9 @@ class BdScAlgLeafPyomo(IAlgLeaf):
         df = pd.DataFrame(self.step_time, columns=["step_time"])
         df.to_csv(path, index=False)
 
+    def get_sense_multiplier(self) -> float:
+        return self.cgsp.get_solver().sense_multiplier
+
     def is_minimize(self) -> bool:
-        return self.cgsp.is_minimize()
+        # Always: PyomoSolver converts a maximize model on construction.
+        return True

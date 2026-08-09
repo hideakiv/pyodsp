@@ -41,7 +41,6 @@ class Lattice:
         self.sample_frequency = sample_frequency
         self.sample_size = sample_size
         self.confidence_level = confidence_level
-        self.is_minimize = True
         create_directory(self.filedir)
 
         self._last_dn_messages: Dict[NodeIdx, DnMessage] = {}
@@ -114,9 +113,6 @@ class Lattice:
         ]  # get first node in stage as representative
         assert isinstance(node, INodeRoot)
         init_dn_message = node.get_init_dn_message()
-
-        if stage == 0:
-            self.is_minimize = init_dn_message.get_is_minimize()
 
         for child_idx in self.stages[stage + 1]:
             child = self.nodes[child_idx]
@@ -218,15 +214,10 @@ class Lattice:
         self.logger.log_info(
             f"lower: {ci_d}, upper: {ci_u}, confidence: {self.confidence_level}"
         )
-        converged = False
-        if self.is_minimize:
-            converged = (
-                abs(ci_u - bound) / max(abs(ci_u), abs(bound)) < SDDP_REL_TOLERANCE
-            )
-        else:
-            converged = (
-                abs(ci_d - bound) / max(abs(ci_d), abs(bound)) < SDDP_REL_TOLERANCE
-            )
+        # Always a minimization here — PyomoSolver converts a maximize model
+        # on construction — so the sample mean's upper confidence limit is
+        # the side that meets the lower bound the algorithm drives up.
+        converged = abs(ci_u - bound) / max(abs(ci_u), abs(bound)) < SDDP_REL_TOLERANCE
 
         if converged:
             self.logger.log_info("SDDP termination with convergence.")

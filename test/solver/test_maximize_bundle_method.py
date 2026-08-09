@@ -1,14 +1,18 @@
-"""BD/BDSC/DD only accept minimize problems (see alg_root_bm.py /
-alg_leaf_pyomo.py __init__ guards) — a maximize problem must be converted
-to an equivalent minimize one first, via pyomo_utils.negate_objective_sense,
-with the final reported objective negated back. This module verifies both
-halves: that the guards reject maximize outright, and that the negate-step
-pattern reproduces hand-computed maximize optima end-to-end.
+"""Maximize problems, end to end, with no conversion step by the caller.
 
-alg/bm/ itself still handles maximize internally (CuttingPlaneMethod's
-sign-flip) — that's what makes DD's and BDSC's own dual-sense-inverted
-master problems work even though the *user-facing* sense is always
-minimize now. This module only exercises the user-facing restriction.
+BD/BDSC/SDDP/DD are minimize-only internally. PyomoSolver converts a
+maximize model on construction — before it captures original_objective,
+so that attribute and CuttingPlaneMethod's cached sign both describe the
+converted problem — and remembers the flip so results come back in the
+units the model was written in.
+
+Each optimum below is hand-computed in the *user's* maximize convention
+and asserted directly, with nothing negated by the test.
+
+The internal masters are the exception and stay as they are: dual
+decomposition's Lagrangian master and BDSC's pricing master are maximize
+problems on purpose, opt out of the conversion, and are turned into
+minimizations by CuttingPlaneMethod's sign flip as before.
 """
 
 from pathlib import Path
@@ -18,7 +22,6 @@ import pyomo.environ as pyo
 import pytest
 
 from pyodsp.solver.pyomo_solver import PyomoSolver, SolverConfig
-from pyodsp.solver.pyomo_utils import negate_objective_sense, negate_saved_objective_csv
 from pyodsp.dec.node.dec_node import DecNodeRoot, DecNodeLeaf
 from pyodsp.dec.bd.alg_root_bm import BdAlgRootBm
 from pyodsp.dec.bd.alg_leaf_pyomo import BdAlgLeafPyomo
@@ -30,54 +33,59 @@ from pyodsp.dec.bdsc.alg_root_bm import BdScAlgRootBm
 from pyodsp.dec.bdsc.alg_leaf_pyomo import BdScAlgLeafPyomo
 from pyodsp.dec.bdsc.run import BdScRun
 
+CONSTRUCTORS = [
+    lambda s: BdAlgRootBm(s),
+    lambda s: BdAlgLeafPyomo(s),
+    lambda s: DdAlgLeafPyomo(s),
+    lambda s: BdScAlgRootBm(s),
+    lambda s: BdScAlgLeafPyomo(s, SolverConfig("ipopt")),
+]
+CONSTRUCTOR_IDS = ["bd_root", "bd_leaf", "dd_leaf", "bdsc_root", "bdsc_leaf"]
 
-def _make_maximize_solver():
+
+def _make_maximize_solver(convert_maximize=True):
     model = pyo.ConcreteModel()
     model.x = pyo.Var(domain=pyo.Reals)
     model.obj = pyo.Objective(expr=model.x, sense=pyo.maximize)
-    return PyomoSolver(model, SolverConfig("appsi_highs"), [model.x])
+    return PyomoSolver(
+        model,
+        SolverConfig("appsi_highs"),
+        [model.x],
+        convert_maximize=convert_maximize,
+    )
 
 
-def test_bd_root_rejects_maximize():
-    with pytest.raises(ValueError, match="only accepts minimize"):
-        BdAlgRootBm(_make_maximize_solver())
+# -- every algorithm now accepts a maximize model ---------------------------
 
 
-def test_bd_leaf_rejects_maximize():
-    with pytest.raises(ValueError, match="only accepts minimize"):
-        BdAlgLeafPyomo(_make_maximize_solver())
+@pytest.mark.parametrize("construct", CONSTRUCTORS, ids=CONSTRUCTOR_IDS)
+def test_algorithms_accept_a_maximize_model_and_remember_the_flip(construct):
+    alg = construct(_make_maximize_solver())
+
+    assert alg.is_minimize() is True
+    assert alg.get_sense_multiplier() == -1.0
 
 
-def test_dd_root_rejects_maximize():
-    model = pyo.ConcreteModel()
-    model.x = pyo.Var()
-    with pytest.raises(ValueError, match="only accepts minimize"):
-        DdAlgRootBm(model, False, SolverConfig("appsi_highs"), {0: [model.x]})
+@pytest.mark.parametrize("construct", CONSTRUCTORS, ids=CONSTRUCTOR_IDS)
+def test_algorithms_still_reject_an_unconverted_maximize_model(construct):
+    # convert_maximize=False is reserved for the internal masters, so an
+    # algorithm handed such a solver indicates a bug rather than a user
+    # error — but it must not be solved as though it were a minimization.
+    with pytest.raises(ValueError, match="needs a minimize model"):
+        construct(_make_maximize_solver(convert_maximize=False))
 
 
-def test_dd_leaf_rejects_maximize():
-    with pytest.raises(ValueError, match="only accepts minimize"):
-        DdAlgLeafPyomo(_make_maximize_solver())
-
-
-def test_bdsc_root_rejects_maximize():
-    with pytest.raises(ValueError, match="only accepts minimize"):
-        BdScAlgRootBm(_make_maximize_solver())
-
-
-def test_bdsc_leaf_rejects_maximize():
-    with pytest.raises(ValueError, match="only accepts minimize"):
-        BdScAlgLeafPyomo(_make_maximize_solver(), SolverConfig("ipopt"))
-
+# -- Benders ----------------------------------------------------------------
 
 # True problem: maximize -x + theta1 + theta2, x in [0, 10]; leaf i
 # (i=1,2): maximize y_i s.t. y_i <= 5 - x, y_i in [0, 100].
 # g(x) = max(0, 5-x); f(x) = -x + 2*g(x); optimum at x*=0, f*=10.
+
+
 def _bd_create_root():
     model = pyo.ConcreteModel()
     model.x = pyo.Var(domain=pyo.Reals, bounds=(0, 10))
     model.obj = pyo.Objective(expr=-model.x, sense=pyo.maximize)
-    negate_objective_sense(model)  # now: minimize x
     solver = PyomoSolver(model, SolverConfig("appsi_highs"), [model.x])
     node = DecNodeRoot(0, BdAlgRootBm(solver))
     node.add_child(1, multiplier=1.0)
@@ -91,40 +99,54 @@ def _bd_create_leaf(idx):
     model.y = pyo.Var(domain=pyo.Reals, bounds=(0, 100))
     model.con = pyo.Constraint(expr=model.y <= 5 - model.prev_x)
     model.obj = pyo.Objective(expr=model.y, sense=pyo.maximize)
-    negate_objective_sense(model)  # now: minimize -y
     solver = PyomoSolver(model, SolverConfig("appsi_highs"), [model.prev_x])
     node = DecNodeLeaf(idx, BdAlgLeafPyomo(solver))
-    node.set_bound(-100)  # negated from the true (maximize) bound of 100
+    # In the model's own (maximize) units: y never exceeds 100.
+    node.set_bound(100)
     return node
 
 
-def test_benders_maximize_via_negate_step_matches_hand_computed_optimum(tmp_path):
+def test_benders_maximize_matches_hand_computed_optimum(tmp_path):
     root = _bd_create_root()
     nodes = [root, _bd_create_leaf(1), _bd_create_leaf(2)]
     BdRun(nodes, tmp_path, max_iteration=100).run()
 
     assert root.alg_root.get_vars()[0].value == pytest.approx(0.0, abs=1e-4)
-    # the algorithm solved the negated (minimize) problem; negate the
-    # reported bound back to recover the true maximize objective.
-    assert -root.alg_root.bm.obj_bound[-1] == pytest.approx(10.0, abs=1e-4)
+    assert root.alg_root.bm.get_objective_bound() == pytest.approx(10.0, abs=1e-4)
 
 
-def test_benders_maximize_saved_bound_needs_negate_saved_objective_csv(tmp_path):
+def test_benders_maximize_saves_its_trajectory_in_the_users_units(tmp_path):
     root = _bd_create_root()
     nodes = [root, _bd_create_leaf(1), _bd_create_leaf(2)]
     BdRun(nodes, tmp_path, max_iteration=100).run()
 
-    node_dir = tmp_path / "node0"
-    saved = pd.read_csv(node_dir / "bm.csv", index_col=0)
-    # run() saves whatever the (negated) model actually produced — the raw
-    # file is in the internal convention, not the true maximize one.
-    assert saved["obj_bound"].iloc[-1] == pytest.approx(-10.0, abs=1e-4)
+    saved = pd.read_csv(Path(tmp_path) / "node0" / "bm.csv", index_col=0)
 
-    negate_saved_objective_csv(node_dir)
+    # No post-hoc correction: the file is written in the maximize
+    # convention the models were declared in.
+    assert saved["obj_bound"].iloc[-1] == pytest.approx(10.0, abs=1e-4)
 
-    fixed = pd.read_csv(node_dir / "bm.csv", index_col=0)
-    assert fixed["obj_bound"].iloc[-1] == pytest.approx(10.0, abs=1e-4)
 
+def test_a_leaf_written_in_the_other_sense_is_rejected(tmp_path):
+    # The senses used to be compared after conversion, where they were
+    # trivially equal. The check now compares what the user wrote.
+    root = _bd_create_root()
+
+    model = pyo.ConcreteModel()
+    model.prev_x = pyo.Var(domain=pyo.Reals, bounds=(0, 10))
+    model.y = pyo.Var(domain=pyo.Reals, bounds=(0, 100))
+    model.con = pyo.Constraint(expr=model.y <= 5 - model.prev_x)
+    model.obj = pyo.Objective(expr=-model.y, sense=pyo.minimize)
+    solver = PyomoSolver(model, SolverConfig("appsi_highs"), [model.prev_x])
+    minimize_leaf = DecNodeLeaf(1, BdAlgLeafPyomo(solver))
+
+    nodes = [root, minimize_leaf, _bd_create_leaf(2)]
+
+    with pytest.raises(ValueError, match="Inconsistent optimization sense"):
+        BdRun(nodes, tmp_path, max_iteration=100).run()
+
+
+# -- dual decomposition -----------------------------------------------------
 
 COST = {1: 4, 2: 1, 3: 6}
 
@@ -138,7 +160,7 @@ def _create_dd_master(mode):
     block.c1 = pyo.Constraint(expr=3 * block.x1 + 2 * block.x2 + 4 * block.x3 == 17)
 
     solver_name = "ipopt" if mode == "proximal" else "appsi_highs"
-    root_alg = DdAlgRootBm(block, True, SolverConfig(solver_name), vars_dn, mode=mode)
+    root_alg = DdAlgRootBm(block, SolverConfig(solver_name), vars_dn, mode=mode)
     return DecNodeRoot(0, root_alg)
 
 
@@ -146,15 +168,21 @@ def _create_dd_sub(idx):
     block = pyo.ConcreteModel()
     block.x = pyo.Var(bounds=(1, 2))
     block.obj = pyo.Objective(expr=COST[idx] * block.x, sense=pyo.maximize)
-    negate_objective_sense(block)  # now: minimize -COST[idx]*x
     solver = PyomoSolver(block, SolverConfig("appsi_highs"), [block.x])
     return DecNodeLeaf(idx, DdAlgLeafPyomo(solver))
 
 
+def _run_dd(tmp_path, mode):
+    master = _create_dd_master(mode)
+    subs = [_create_dd_sub(i) for i in (1, 2, 3)]
+    for sub in subs:
+        master.add_child(sub.get_idx())
+    DdRun([master] + subs, tmp_path, max_iteration=200).run()
+    return master
+
+
 @pytest.mark.parametrize("mode", [None, "proximal"])
-def test_dual_decomposition_maximize_via_negate_step_matches_hand_computed_optimum(
-    tmp_path, mode
-):
+def test_dual_decomposition_maximize_matches_hand_computed_optimum(tmp_path, mode):
     # True problem: maximize 4*x1 + x2 + 6*x3 s.t. 3*x1+2*x2+4*x3=17, 1<=xi<=2.
     # Ratio test (coeff/constraint-coeff): x3=1.5 > x1=1.333 > x2=0.5, so
     # x1, x3 sit at their upper bound (2) and x2 absorbs the remaining slack.
@@ -162,17 +190,53 @@ def test_dual_decomposition_maximize_via_negate_step_matches_hand_computed_optim
     # only satisfied in aggregate at the optimal dual price — a degenerate
     # subproblem may report any feasible x2 in [1, 2], so only the bound is
     # asserted here, not the individual leaf solutions).
-    master = _create_dd_master(mode)
-    subs = [_create_dd_sub(i) for i in (1, 2, 3)]
+    master = _run_dd(tmp_path, mode)
+
+    # This root has no user model of its own — its master is the Lagrangian
+    # dual, synthesized from the coupling constraints — so the sense it
+    # reports in is the one its scenarios told it.
+    assert master.alg_root.get_sense_multiplier() == -1.0
+    assert master.alg_root.bm.get_objective_bound() == pytest.approx(21.5, abs=1e-3)
+
+
+def test_dual_decomposition_maximize_saves_in_the_users_units(tmp_path):
+    _run_dd(tmp_path, None)
+
+    saved = pd.read_csv(Path(tmp_path) / "node0" / "bm.csv", index_col=0)
+    assert saved["obj_bound"].iloc[-1] == pytest.approx(21.5, abs=1e-3)
+
+
+def test_dual_decomposition_rejects_scenarios_written_in_mixed_senses(tmp_path):
+    """The one root that cannot check against a model of its own.
+
+    A Benders root compares a child's sense with its own master's. Dual
+    decomposition's master is synthesized from the coupling constraints
+    and is a maximize problem no matter what the user wrote, so the
+    scenarios are the only authority — the first sets the sense and the
+    rest must agree, or which units results come back in would depend on
+    iteration order.
+    """
+    master = _create_dd_master(None)
+
+    minimize_sub = pyo.ConcreteModel()
+    minimize_sub.x = pyo.Var(bounds=(1, 2))
+    minimize_sub.obj = pyo.Objective(expr=-COST[2] * minimize_sub.x, sense=pyo.minimize)
+    odd_one_out = DecNodeLeaf(
+        2,
+        DdAlgLeafPyomo(
+            PyomoSolver(minimize_sub, SolverConfig("appsi_highs"), [minimize_sub.x])
+        ),
+    )
+
+    subs = [_create_dd_sub(1), odd_one_out, _create_dd_sub(3)]
     for sub in subs:
         master.add_child(sub.get_idx())
 
-    DdRun([master] + subs, tmp_path, max_iteration=200).run()
+    with pytest.raises(ValueError, match="Inconsistent optimization sense"):
+        DdRun([master] + subs, tmp_path, max_iteration=50).run()
 
-    # DD's master is a Lagrangian dual and is unaffected by the negate step
-    # (see module docstring); only the leaves were negated, so the reported
-    # bound must be negated back to recover the true maximize objective.
-    assert -master.alg_root.bm.obj_bound[-1] == pytest.approx(21.5, abs=1e-3)
+
+# -- Benders with scaled cuts -----------------------------------------------
 
 
 def _first_stage(model, r):
@@ -189,21 +253,17 @@ def _second_stage(model, s, r):
     model.obj_expr2 = -2 * model.y
 
 
-def test_bdsc_maximize_via_negate_step_matches_caroe_schultz_optimum(tmp_path):
-    # Caroe & Schultz (1999) instance (examples/bdsc/cs.py), known minimize
-    # optimum 0.2031. Framing it as the "true" problem the user actually
-    # wants to *maximize* is the negation: maximize -(obj_expr1+obj_expr2).
-    # Negating that back to minimize reproduces cs.py's original model
-    # exactly, so the algorithm (which only ever sees this — the one
-    # already-working combination of senses) still applies unmodified; the
-    # true maximize optimum is -0.2031.
+def test_bdsc_maximize_matches_caroe_schultz_optimum(tmp_path):
+    # Caroe & Schultz (1999) instance (examples/bdsc/cs.py), whose minimize
+    # optimum is 0.2031. Stated here as the maximize problem the user
+    # actually wants — maximize -(obj_expr1 + obj_expr2) — whose optimum is
+    # therefore -0.2031.
     r = 2
 
     def create_root():
         model = pyo.ConcreteModel()
         _first_stage(model, r)
         model.obj = pyo.Objective(expr=-model.obj_expr1, sense=pyo.maximize)
-        negate_objective_sense(model)
         solver = PyomoSolver(model, SolverConfig("appsi_highs"), [model.x])
         return DecNodeRoot(0, BdScAlgRootBm(solver))
 
@@ -212,14 +272,11 @@ def test_bdsc_maximize_via_negate_step_matches_caroe_schultz_optimum(tmp_path):
         _first_stage(model, r)
         _second_stage(model, s=i, r=r)
         model.obj = pyo.Objective(expr=-model.obj_expr2, sense=pyo.maximize)
-        negate_objective_sense(model)
         solver = PyomoSolver(model, SolverConfig("appsi_highs"), [model.x])
         leaf = BdScAlgLeafPyomo(solver, SolverConfig("ipopt"))
         node = DecNodeLeaf(i, leaf, log_level_leaf=0)
-        # true (maximize-convention) bound is 2.01 (-obj_expr2 <= 2.01,
-        # since cs.py established obj_expr2 >= -2.01); negate it the same
-        # way the model was negated, matching cs.py's own -2.01.
-        node.set_bound(-2.01)
+        # In the model's own (maximize) units: -obj_expr2 = 2*y <= 2.01.
+        node.set_bound(2.01)
         return node
 
     root_node = create_root()
@@ -234,4 +291,6 @@ def test_bdsc_maximize_via_negate_step_matches_caroe_schultz_optimum(tmp_path):
 
     BdScRun(nodes, tmp_path).run()
 
-    assert -root_node.alg_root.bm.obj_bound[-1] == pytest.approx(-0.2031, abs=1e-3)
+    assert root_node.alg_root.bm.get_objective_bound() == pytest.approx(
+        -0.2031, abs=1e-3
+    )

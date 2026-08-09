@@ -26,9 +26,10 @@ class BdAlgLeafPyomo(IAlgLeaf):
     def __init__(self, solver: PyomoSolver):
         if not solver.is_minimize():
             raise ValueError(
-                "Benders decomposition only accepts minimize problems; "
-                "negate the objective (see pyomo_utils.negate_objective_sense) "
-                "before constructing the solver."
+                "Benders decomposition needs a minimize model. PyomoSolver converts a "
+                "maximize one on construction, so this solver was built "
+                "with convert_maximize=False — that is reserved for the "
+                "internal masters whose sense is deliberately inverted."
             )
         self.solver = solver
         self.solver.model.dual = Suffix(direction=Suffix.IMPORT)
@@ -44,8 +45,7 @@ class BdAlgLeafPyomo(IAlgLeaf):
         ]
 
     def pass_init_dn_message(self, message: BdInitDnMessage) -> None:
-        if self.is_minimize() != message.get_is_minimize():
-            raise ValueError("Inconsistent optimization sense")
+        pass
 
     def get_init_up_message(self) -> BdInitUpMessage:
         return BdInitUpMessage()
@@ -138,6 +138,9 @@ class BdAlgLeafPyomo(IAlgLeaf):
         }
         return FeasibilityCut(coeffs=sparse_coeff, rhs=rhs, info={})
 
+    def get_sense_multiplier(self) -> float:
+        return self.solver.sense_multiplier
+
     def get_solver(self) -> PyomoSolver:
         return self.solver
 
@@ -151,4 +154,5 @@ class BdAlgLeafPyomo(IAlgLeaf):
         df.to_csv(path, index=False)
 
     def is_minimize(self) -> bool:
-        return self.solver.is_minimize()
+        # Always: PyomoSolver converts a maximize model on construction.
+        return True

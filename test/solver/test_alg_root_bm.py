@@ -83,7 +83,7 @@ def test_dd_alg_root_bm_rejects_objective_in_coupling_model():
     model.obj = pyo.Objective(expr=model.x)
 
     with pytest.raises(ValueError, match="Objective should not be defined"):
-        DdAlgRootBm(model, True, SolverConfig("appsi_highs"), vars_dn)
+        DdAlgRootBm(model, SolverConfig("appsi_highs"), vars_dn)
 
 
 def test_dd_alg_root_bm_rejects_var_not_in_coupling_model():
@@ -93,7 +93,7 @@ def test_dd_alg_root_bm_rejects_var_not_in_coupling_model():
     vars_dn[2] = [stray_model.z]
 
     with pytest.raises(ValueError, match="does not exist in varname_list"):
-        DdAlgRootBm(model, True, SolverConfig("appsi_highs"), vars_dn)
+        DdAlgRootBm(model, SolverConfig("appsi_highs"), vars_dn)
 
 
 def test_dd_alg_root_bm_rejects_uncoupled_leftover_vars():
@@ -102,13 +102,13 @@ def test_dd_alg_root_bm_rejects_uncoupled_leftover_vars():
     vars_dn = {0: [model.x]}
 
     with pytest.raises(ValueError, match="not coupled"):
-        DdAlgRootBm(model, True, SolverConfig("appsi_highs"), vars_dn)
+        DdAlgRootBm(model, SolverConfig("appsi_highs"), vars_dn)
 
 
 def test_dd_alg_root_bm_accepts_valid_coupling_and_defaults_to_bundle_method():
     model, vars_dn = make_coupling_model_and_vars()
 
-    root = DdAlgRootBm(model, True, SolverConfig("appsi_highs"), vars_dn)
+    root = DdAlgRootBm(model, SolverConfig("appsi_highs"), vars_dn)
 
     from pyodsp.alg.bm.bm import BundleMethod
 
@@ -118,7 +118,7 @@ def test_dd_alg_root_bm_accepts_valid_coupling_and_defaults_to_bundle_method():
 def test_dd_alg_root_bm_proximal_mode_uses_proximal_bundle_method():
     model, vars_dn = make_coupling_model_and_vars()
 
-    root = DdAlgRootBm(model, True, SolverConfig("ipopt"), vars_dn, mode="proximal")
+    root = DdAlgRootBm(model, SolverConfig("ipopt"), vars_dn, mode="proximal")
 
     from pyodsp.alg.bm.pbm import ProximalBundleMethod
 
@@ -129,4 +129,4 @@ def test_dd_alg_root_bm_rejects_invalid_mode():
     model, vars_dn = make_coupling_model_and_vars()
 
     with pytest.raises(ValueError, match="Invalid mode"):
-        DdAlgRootBm(model, True, SolverConfig("appsi_highs"), vars_dn, mode="bogus")
+        DdAlgRootBm(model, SolverConfig("appsi_highs"), vars_dn, mode="bogus")

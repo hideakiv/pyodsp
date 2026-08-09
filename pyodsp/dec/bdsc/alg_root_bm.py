@@ -13,7 +13,7 @@ from .message import (
     BdScFinalDnMessage,
     BdScFinalUpMessage,
 )
-from ..node._alg import IAlgRoot
+from ..node._alg import IAlgRoot, verify_sense_matches
 from pyodsp.solver.pyomo_solver import PyomoSolver
 from pyodsp.alg.bm.bm import BundleMethod
 from pyodsp.alg.const import STATUS_NOT_FINISHED
@@ -25,10 +25,10 @@ class BdScAlgRootBm(IAlgRoot):
     def __init__(self, solver: PyomoSolver, max_iteration=1000) -> None:
         if not solver.is_minimize():
             raise ValueError(
-                "Benders decomposition with scaled cuts only accepts minimize "
-                "problems; negate the objective (see "
-                "pyomo_utils.negate_objective_sense) before constructing the "
-                "solver."
+                "Benders decomposition with scaled cuts needs a minimize model. PyomoSolver converts a "
+                "maximize one on construction, so this solver was built "
+                "with convert_maximize=False — that is reserved for the "
+                "internal masters whose sense is deliberately inverted."
             )
         self.bm = BundleMethod(solver, max_iteration)
         self.step_time: List[float] = []
@@ -139,7 +139,7 @@ class BdScAlgRootBm(IAlgRoot):
         return len(self.get_vars())
 
     def get_init_dn_message(self, **kwargs) -> BdScInitDnMessage:
-        return BdScInitDnMessage(self.is_minimize())
+        return BdScInitDnMessage()
 
     def save(self, dir: Path) -> None:
         self.bm.save(dir)
@@ -147,8 +147,15 @@ class BdScAlgRootBm(IAlgRoot):
         df = pd.DataFrame(self.step_time, columns=["step_time"])
         df.to_csv(path, index=False)
 
+    def set_sense_multiplier(self, multiplier: float) -> None:
+        verify_sense_matches(self.get_sense_multiplier(), multiplier)
+
+    def get_sense_multiplier(self) -> float:
+        return self.bm.get_solver().sense_multiplier
+
     def is_minimize(self) -> bool:
-        return self.bm.is_minimize()
+        # Always: PyomoSolver converts a maximize model on construction.
+        return True
 
     def set_logger(self, node_id: int, depth: int, level: int = logging.INFO) -> None:
         self.bm.set_logger(node_id, depth, level)

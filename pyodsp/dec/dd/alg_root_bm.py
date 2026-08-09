@@ -29,27 +29,19 @@ class DdAlgRootBm(IAlgRoot):
     def __init__(
         self,
         coupling_model: ConcreteModel,
-        is_minimize: bool,
         solver_config: SolverConfig,
         vars_dn: Dict[int, List[ScalarVar]],
         heuristic: IMipHeuristicRoot | None = None,
         max_iteration=1000,
         mode: str | None = None,
     ) -> None:
-        if not is_minimize:
-            raise ValueError(
-                "Dual decomposition only accepts minimize problems; negate "
-                "every node's objective (see "
-                "pyomo_utils.negate_objective_sense) and pass is_minimize=True."
-            )
         self.coupling_model = coupling_model
         self.vars_dn = vars_dn
         self._init_check()
-        mc = MasterCreator(coupling_model, is_minimize, solver_config, vars_dn)
+        mc = MasterCreator(coupling_model, solver_config, vars_dn)
         self.solver = mc.create()
         self.lagrangian_data = mc.lagrangian_data
         self.num_constrs = mc.num_constrs
-        self._is_minimize = is_minimize
         self.heuristic = heuristic
 
         self.is_finalized = False
@@ -63,6 +55,8 @@ class DdAlgRootBm(IAlgRoot):
             raise ValueError(f"Invalid mode {mode}")
         self.step_time: List[float] = []
         self.lagrangian_solution: list[float] | None = None
+        # Set by the scenarios once they report in; see set_sense_multiplier.
+        self._sense_multiplier: float | None = None
 
     def get_vars_dn(self) -> Dict[int, List[ScalarVar]]:
         return self.vars_dn
@@ -94,13 +88,38 @@ class DdAlgRootBm(IAlgRoot):
             raise ValueError(f"Variables {varname_list} not coupled")
 
     def is_minimize(self) -> bool:
-        return self._is_minimize
+        # Always: PyomoSolver converts a maximize model on construction, so
+        # every node reaching an algorithm is already a minimize one.
+        return True
+
+    def get_sense_multiplier(self) -> float:
+        # Before any scenario has reported, nothing has been converted.
+        return 1.0 if self._sense_multiplier is None else self._sense_multiplier
+
+    def set_sense_multiplier(self, multiplier: float) -> None:
+        """Adopt the sense the scenarios were written in.
+
+        Unlike the Benders roots, this one has no model of the user's to
+        check against: its master is synthesized from the coupling
+        constraints and is deliberately a maximize problem regardless. The
+        scenarios are the only authority, so the first to report sets the
+        sense and the rest have to agree with it — otherwise the sense
+        results are reported in would come down to iteration order.
+        """
+        if self._sense_multiplier is not None and multiplier != self._sense_multiplier:
+            raise ValueError(
+                "Inconsistent optimization sense: this decomposition's "
+                "subproblems are not all written in the same direction — some "
+                f"{'maximize' if self._sense_multiplier < 0 else 'minimize'} "
+                "and some do not. Every node of one decomposition must be "
+                "written in the same sense."
+            )
+        self._sense_multiplier = multiplier
+        self.bm.cpm.set_sense_multiplier(multiplier)
 
     def get_init_dn_message(self, **kwargs) -> DdInitDnMessage:
         child_id = kwargs["child_id"]
-        message = DdInitDnMessage(
-            self.lagrangian_data.matrix[child_id], self.is_minimize()
-        )
+        message = DdInitDnMessage(self.lagrangian_data.matrix[child_id])
         return message
 
     def get_coupling_model(self) -> ConcreteModel:
@@ -118,11 +137,7 @@ class DdAlgRootBm(IAlgRoot):
         self.cut_aggregator = CutAggregator(self.groups, self.children_multipliers)
         if self.mode is None:
             assert type(self.bm) is BundleMethod
-            if self.is_minimize():
-                dummy_bounds = [BM_DUMMY_BOUND for _ in range(num_cuts)]
-            else:
-                dummy_bounds = [-BM_DUMMY_BOUND for _ in range(num_cuts)]
-
+            dummy_bounds = [BM_DUMMY_BOUND for _ in range(num_cuts)]
             self.bm.build(num_cuts, dummy_bounds)
         elif self.mode == "proximal":
             assert type(self.bm) is ProximalBundleMethod
@@ -155,7 +170,6 @@ class DdAlgRootBm(IAlgRoot):
                 coupling_model=self.coupling_model,
                 cuts=self.get_cuts(),
                 vars_dn=self.get_vars_dn(),
-                is_minimize=self.is_minimize(),
                 lagrangian=self.lagrangian_solution,
             )
             self.final_solutions = self.heuristic.run_init()

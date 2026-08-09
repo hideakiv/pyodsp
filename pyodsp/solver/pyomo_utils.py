@@ -2,30 +2,13 @@ from pathlib import Path
 from typing import List
 
 import pandas as pd
-from pyomo.environ import ConcreteModel, Var, Objective, ScalarVar, minimize, maximize
+from pyomo.environ import Var, Objective, ScalarVar, minimize
 
 from pyodsp.solver.pyomo_solver import PyomoSolver
 
-
-def negate_objective_sense(model: ConcreteModel) -> None:
-    """Flip `model`'s active Objective between maximize and minimize,
-    negating its expression so the optimal solution is unchanged and the
-    optimal objective value negates too.
-
-    The decomposition algorithms (BD, BDSC, SDDP, DD) only accept minimize
-    problems. To run a maximize problem through them: call this on every
-    node's model before constructing its PyomoSolver, negate any
-    `set_bound(...)` value passed for that node the same way (it's in the
-    same true-objective units), then use negate_saved_objective_csv on that
-    node's saved output once the algorithm has run.
-    """
-    for obj in model.component_objects(Objective, active=True):
-        new_sense = minimize if obj.sense == maximize else maximize
-        expr = obj.expr
-        obj.sense = new_sense
-        obj.set_value(-expr)
-        return
-    raise ValueError("No active objective found on model")
+# Re-exported: this was defined here before PyomoSolver needed it, and
+# callers still import it from this module.
+from pyodsp.solver.sense import negate_objective_sense  # noqa: F401
 
 
 def negate_saved_objective_csv(node_dir: Path) -> None:
@@ -33,12 +16,10 @@ def negate_saved_objective_csv(node_dir: Path) -> None:
     pbm.csv that BundleMethod/ProximalBundleMethod/RestrictedBundleMethod
     saved for one node (under `<run filedir>/node<idx>/`).
 
-    Tree/HubAndSpoke/Lattice save this file with whatever sense the node's
-    model actually had — they have no notion of "this was negated" — so if
-    that model was converted with negate_objective_sense, the saved
-    trajectory is left in the internal (negated) convention. Call this
-    after run() for every such node to correct it back to the true
-    objective convention. sol.csv (variable values) needs no such fix.
+    The algorithms now save these already in the user's units — a
+    maximize model is converted by PyomoSolver, which remembers the flip,
+    and BundleMethod.save undoes it on the way out. This remains for
+    correcting a file produced some other way.
     """
     node_dir = Path(node_dir)
     for filename in ("bm.csv", "pbm.csv"):

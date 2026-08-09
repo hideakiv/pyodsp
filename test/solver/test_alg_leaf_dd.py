@@ -15,7 +15,7 @@ def make_leaf(bounds=(-10, 10)):
     leaf = DdAlgLeafPyomo(solver)
     leaf.build()  # deactivates the original objective
     leaf.pass_init_dn_message(
-        DdInitDnMessage(coupling_matrix=[{0: 1.0}], is_minimize=True)
+        DdInitDnMessage(coupling_matrix=[{0: 1.0}])
     )
     return leaf, model
 
@@ -63,19 +63,6 @@ def test_get_solution_or_ray_raises_on_unknown_status():
     leaf.solver = FakeSolver()
     with pytest.raises(ValueError, match="Unknown solver status"):
         leaf.get_solution_or_ray()
-
-
-def test_pass_init_dn_message_rejects_inconsistent_sense():
-    model = pyo.ConcreteModel()
-    model.x = pyo.Var(domain=pyo.Reals)
-    model.obj = pyo.Objective(expr=model.x, sense=pyo.minimize)
-    solver = PyomoSolver(model, SolverConfig("appsi_highs"), [model.x])
-    leaf = DdAlgLeafPyomo(solver)
-
-    with pytest.raises(ValueError, match="Inconsistent optimization sense"):
-        leaf.pass_init_dn_message(
-            DdInitDnMessage(coupling_matrix=[{0: 1.0}], is_minimize=False)
-        )
 
 
 def test_get_final_up_message_none_when_no_final_dn_message_received():

@@ -2,11 +2,8 @@ from typing import List, Dict
 
 
 class CouplingManager:
-    def __init__(
-        self, coupling_matrix: List[Dict[int, float]], len_vars: int, is_minimize: bool
-    ) -> None:
+    def __init__(self, coupling_matrix: List[Dict[int, float]], len_vars: int) -> None:
         self.len_vars = len_vars
-        self.is_minimize = is_minimize
         self.row_major: List[Dict[int, float]] = coupling_matrix
         self.len_constrs = len(coupling_matrix)
         self.col_major: List[Dict[int, float]] = self._convert_to_col_major(
@@ -29,10 +26,7 @@ class CouplingManager:
             coeff = 0.0
             for i, val in col.items():
                 coeff += dual_values[i] * val
-            if self.is_minimize:
-                coeffs[j] = coeff
-            else:
-                coeffs[j] = -coeff
+            coeffs[j] = coeff
         return coeffs
 
     def matrix_times_primal(self, primal_values: List[float]) -> List[float]:
@@ -42,10 +36,7 @@ class CouplingManager:
             coeff = 0.0
             for j, val in row.items():
                 coeff += val * primal_values[j]
-            if self.is_minimize:
-                coeffs[i] = -coeff
-            else:
-                coeffs[i] = coeff
+            coeffs[i] = -coeff
         return coeffs
 
     def inner_product(self, x: List[float], y: List[float]) -> float:

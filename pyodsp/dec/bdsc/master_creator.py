@@ -6,7 +6,6 @@ from pyomo.environ import (
     Constraint,
     RangeSet,
     Objective,
-    minimize,
     maximize,
     NonNegativeReals,
     Reals,
@@ -19,10 +18,8 @@ from pyodsp.alg.params import DEC_CUT_ABS_TOL, BM_LAMBDA_BOUND
 class MasterCreator:
     def __init__(
         self,
-        is_minimize: bool,
         solver_config: SolverConfig,
     ) -> None:
-        self.is_minimize = is_minimize
         self.solver_config = solver_config
 
     def create(self, solution: List[float], rho: float) -> PyomoSolver:
@@ -44,15 +41,12 @@ class MasterCreator:
                 expr -= master.beta[i] * sol
             return expr
 
-        def max_obj(m):
-            raise NotImplementedError("Maximization not implemented yet")
-            return -min_obj(m)
-
-        if self.is_minimize:
-            master.objective = Objective(rule=min_obj, sense=maximize)
-        else:
-            master.objective = Objective(rule=max_obj, sense=minimize)
+        # Pricing is the dual of the restricted master, so this problem is
+        # deliberately a maximize one; it is exempt from PyomoSolver's
+        # maximize-to-minimize conversion for the same reason dual
+        # decomposition's Lagrangian master is.
+        master.objective = Objective(rule=min_obj, sense=maximize)
 
         vars = [master.tau] + [master.beta[i] for i in range(len(solution))]
 
-        return PyomoSolver(master, self.solver_config, vars)
+        return PyomoSolver(master, self.solver_config, vars, convert_maximize=False)

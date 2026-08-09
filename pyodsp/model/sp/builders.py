@@ -32,7 +32,6 @@ from pyodsp.dec.dd.alg_root_bm import DdAlgRootBm
 from pyodsp.dec.dd.mip_heuristic_root import MipHeuristicRoot
 from pyodsp.dec.node.dec_node import DecNodeLeaf, DecNodeRoot
 from pyodsp.solver.pyomo_solver import PyomoSolver, SolverConfig
-from pyodsp.solver.pyomo_utils import negate_objective_sense
 
 from .scenario import Scenario, ScenarioSet
 from .state import (
@@ -109,17 +108,15 @@ def _reject_user_objective(model: pyo.ConcreteModel, where: str) -> None:
 
 
 def _set_objective(model: pyo.ConcreteModel, expr, is_maximize: bool) -> None:
-    """Install `expr` as the model's objective in internal (minimize) form.
+    """Install `expr` as the model's objective, in the user's own sense.
 
-    The decomposition algorithms all reject maximize problems, so a
-    maximize program is negated here, once, and negated back when results
-    are read. Doing it through negate_objective_sense keeps this on the
-    same path the algorithms document.
+    No conversion happens here. PyomoSolver converts a maximize model
+    when the solver is built, and remembers the flip so results come back
+    in these units — so this stays the one place the user's sense is
+    expressed, and the models keep the shape they were described with.
     """
     sense = pyo.maximize if is_maximize else pyo.minimize
     model.add_component("objective", pyo.Objective(expr=expr, sense=sense))
-    if is_maximize:
-        negate_objective_sense(model)
 
 
 def _require_expression(expr, where: str, scenario: Scenario | None = None):
@@ -263,11 +260,14 @@ def _estimate_recourse_bound(ctx: BuildContext, scenario: Scenario) -> float | N
     return pyo.value(model.objective)
 
 
-def _internal_bound(ctx: BuildContext, scenario: Scenario) -> float | None:
-    """The value for DecNodeLeaf.set_bound, in internal minimize units."""
+def _recourse_bound(ctx: BuildContext, scenario: Scenario) -> float | None:
+    """The value for DecNodeLeaf.set_bound.
+
+    In the user's own units, which is what set_bound takes — the node
+    converts it alongside everything else.
+    """
     if ctx.recourse_bound is not None:
-        # given in true objective units, like everything else the user says
-        return -ctx.recourse_bound if ctx.is_maximize else ctx.recourse_bound
+        return ctx.recourse_bound
     if not ctx.auto_bound:
         return None
     return _estimate_recourse_bound(ctx, scenario)
@@ -351,7 +351,7 @@ def build_bd(ctx: BuildContext) -> BuiltProblem:
         leaf = DecNodeLeaf(
             idx, BdAlgLeafPyomo(leaf_solver), log_level_leaf=ctx.log_level
         )
-        bound = _internal_bound(ctx, scenario)
+        bound = _recourse_bound(ctx, scenario)
         if bound is not None:
             leaf.set_bound(bound)
 
@@ -405,7 +405,7 @@ def build_bdsc(ctx: BuildContext) -> BuiltProblem:
             ),
             log_level_leaf=ctx.log_level,
         )
-        bound = _internal_bound(ctx, scenario)
+        bound = _recourse_bound(ctx, scenario)
         if bound is not None:
             leaf.set_bound(bound)
 
@@ -450,7 +450,6 @@ def build_dd(ctx: BuildContext) -> BuiltProblem:
     heuristic = MipHeuristicRoot(ctx.solver_config) if ctx.heuristic else None
     root_alg = DdAlgRootBm(
         coupling_model,
-        True,  # already converted to minimize form by _set_objective
         ctx.solver_config,
         vars_dn,
         heuristic,

@@ -23,13 +23,29 @@ def make_leaf(max_iteration=20):
     return leaf, model
 
 
-def test_construction_rejects_maximize():
+def test_a_maximize_model_is_accepted_and_reported_in_its_own_sense():
     model = pyo.ConcreteModel()
     model.x = pyo.Var(domain=pyo.Reals)
     model.obj = pyo.Objective(expr=model.x, sense=pyo.maximize)
     solver = PyomoSolver(model, SolverConfig("appsi_highs"), [model.x])
 
-    with pytest.raises(ValueError, match="only accepts minimize"):
+    leaf = BdScAlgLeafPyomo(solver, SolverConfig("ipopt"))
+
+    assert leaf.is_minimize() is True
+    assert leaf.get_sense_multiplier() == -1.0
+
+
+def test_construction_rejects_an_unconverted_maximize_model():
+    # convert_maximize=False is reserved for the internal masters; an
+    # algorithm handed such a solver is a bug, not a user error.
+    model = pyo.ConcreteModel()
+    model.x = pyo.Var(domain=pyo.Reals)
+    model.obj = pyo.Objective(expr=model.x, sense=pyo.maximize)
+    solver = PyomoSolver(
+        model, SolverConfig("appsi_highs"), [model.x], convert_maximize=False
+    )
+
+    with pytest.raises(ValueError, match="needs a minimize model"):
         BdScAlgLeafPyomo(solver, SolverConfig("ipopt"))
 
 

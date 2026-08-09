@@ -18,7 +18,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 project = "pyodsp"
 author = "Hideaki Nakao"
 copyright = "2026, Hideaki Nakao"
-release = "0.2"
+# Sphinx convention: `release` is the full version, `version` the X.Y series.
+release = "0.2.0"
 version = "0.2"
 
 # -- General ---------------------------------------------------------------

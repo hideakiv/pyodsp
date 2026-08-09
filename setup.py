@@ -2,7 +2,7 @@ from setuptools import find_packages, setup
 
 setup(
     name="pyodsp",
-    version="0.2",
+    version="0.2.0",
     description="Pyomo interface for Decomposition of Structured Programs",
     author="Hideaki Nakao",
     author_email="h.nakao1992blanca@gmail.com",

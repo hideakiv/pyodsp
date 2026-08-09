@@ -1,7 +1,7 @@
 # Installation
 
 ```bash
-git clone https://github.com/hideakinakao/pyodsp
+git clone https://github.com/hideakiv/pyodsp
 cd pyodsp
 pip install -e .
 ```

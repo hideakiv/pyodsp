@@ -110,7 +110,7 @@ html_theme = "furo"
 html_title = f"pyodsp {release}"
 html_static_path = ["_static"] if (Path(__file__).parent / "_static").exists() else []
 html_theme_options = {
-    "source_repository": "https://github.com/hideakinakao/pyodsp",
+    "source_repository": "https://github.com/hideakiv/pyodsp",
     "source_branch": "main",
     "source_directory": "docs/",
     "navigation_with_keys": True,

@@ -10,7 +10,6 @@ from pyomo.environ import (
     RangeSet,
     NonNegativeReals,
     minimize,
-    maximize,
     value,
 )
 from pyodsp.solver.pyomo_solver import PyomoSolver, SolverConfig
@@ -53,10 +52,7 @@ class MipHeuristicRoot(IMipHeuristicRoot):
     def _create_master(self, model: ConcreteModel, solver_config: SolverConfig):
         for obj in model.component_objects(Objective, active=True):
             raise ValueError("Objective should not be defined in coupling model")
-        if self.is_minimize:
-            model._dd_obj = Objective(expr=0.0, sense=minimize)
-        else:
-            model._dd_obj = Objective(expr=0.0, sense=maximize)
+        model._dd_obj = Objective(expr=0.0, sense=minimize)
         return PyomoSolver(model, solver_config, [])
 
     def build(self, **kwargs) -> None:
@@ -64,7 +60,6 @@ class MipHeuristicRoot(IMipHeuristicRoot):
         coupling_model: ConcreteModel = kwargs["coupling_model"]
         self.cuts: List[List[CutInfo]] = kwargs["cuts"]
         self.vars_dn: Dict[int, List[ScalarVar]] = kwargs["vars_dn"]
-        self.is_minimize: bool = kwargs["is_minimize"]
         self.master = self._create_master(coupling_model, self.solver_config)
         for cutlist, group in zip(self.cuts, self.groups):
             assert len(group) == 1
@@ -100,11 +95,10 @@ class MipHeuristicRoot(IMipHeuristicRoot):
 
             # CuttingPlaneMethod always builds cuts as `... >= sign * cut.rhs`
             # (sign = 1.0 if the *master*'s own Pyomo objective sense is
-            # minimize, else -1.0). DD's master is intentionally built with
-            # the sense opposite the true problem (see master_creator.py),
-            # so the master is minimize exactly when the true problem is
-            # maximize: sign = 1.0 if not self.is_minimize else -1.0.
-            sign = 1.0 if not self.is_minimize else -1.0
+            # minimize, else -1.0). DD's master is always maximize — it is
+            # the Lagrangian dual of a minimize problem — so the sign is
+            # always -1.0.
+            sign = -1.0
 
             obj = 0.0
             for j, cutinfo in enumerate(cutlist):

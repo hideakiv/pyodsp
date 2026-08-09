@@ -25,8 +25,9 @@ class BundleMethod:
         max_iteration=1000,
         force: bool = False,
         purgeable: bool = True,
+        risk=None,
     ) -> None:
-        self.cpm = CuttingPlaneMethod(solver, force, purgeable)
+        self.cpm = CuttingPlaneMethod(solver, force, purgeable, risk=risk)
 
         self.max_iteration = max_iteration
         self.iteration = 0
@@ -43,12 +44,26 @@ class BundleMethod:
         method = "Bundle Method"
         self.logger = BmLogger(method, node_id, depth, level)
 
-    def build(self, num_cuts: int, subobj_bounds: List[float] | None) -> None:
+    def build(
+        self,
+        num_cuts: int,
+        subobj_bounds: List[float] | None,
+        group_probabilities: List[float] | None = None,
+    ) -> None:
+        """
+        Args:
+            num_cuts: One theta per cut group.
+            subobj_bounds: A floor under each theta, or None entries where
+                none is known.
+            group_probabilities: Each group's probability. Only a risk
+                measure needs them — it prices the spread across groups,
+                where the expectation only needs their sum.
+        """
         self.num_cuts = num_cuts
         assert subobj_bounds is not None
         self.subobj_bounds = subobj_bounds
         assert self.num_cuts == len(subobj_bounds)
-        self._update_objective(subobj_bounds)
+        self._update_objective(subobj_bounds, group_probabilities)
         self.cpm.build(self.num_cuts)
 
         self.logger.log_initialization(
@@ -170,9 +185,23 @@ class BundleMethod:
 
         return False
 
+    def in_user_units(self, values: List[float | None]) -> List[float | None]:
+        return self.cpm.in_user_units(values)
+
+    def get_objective_bound(self) -> float | None:
+        """The latest bound on the optimum, in the caller's units."""
+        if not self.obj_bound:
+            return None
+        return self.cpm.to_user_units(self.obj_bound[-1])
+
     def save(self, dir: Path) -> None:
         path = dir / "bm.csv"
-        df = pd.DataFrame({"obj_bound": self.obj_bound, "obj_val": self.obj_val})
+        df = pd.DataFrame(
+            {
+                "obj_bound": self.in_user_units(self.obj_bound),
+                "obj_val": self.in_user_units(self.obj_val),
+            }
+        )
         df.to_csv(path)
         self.cpm.save(dir)
 
@@ -195,9 +224,7 @@ class BundleMethod:
         callers do rescale cuts in place (see BdScAlgRootBm.run_step), and
         a snapshot that aliased them would not stay a snapshot.
         """
-        return [
-            CutList([deepcopy(c.cut) for c in group]) for group in self.get_cuts()
-        ]
+        return [CutList([deepcopy(c.cut) for c in group]) for group in self.get_cuts()]
 
     def replace_cuts(self, cuts_list: List[CutList]) -> None:
         """Replace every currently active cut with exactly the given set,
@@ -228,7 +255,7 @@ class BundleMethod:
     def get_solver(self) -> PyomoSolver:
         return self.cpm.get_solver()
 
-    def _update_objective(self, subobj_bounds: List[float]):
+    def _update_objective(self, subobj_bounds: List[float], group_probabilities=None):
         sign = self.cpm.get_sign()
 
         def theta_bounds(model, i):
@@ -241,7 +268,7 @@ class BundleMethod:
             RangeSet(0, self.num_cuts - 1), domain=Reals, bounds=theta_bounds
         )
 
-        self.cpm.build_theta_objective(solver.model._theta)
+        self.cpm.build_theta_objective(solver.model._theta, group_probabilities)
 
     def get_theta_value(self) -> list[float]:
         return [self.cpm.get_theta_value(i) for i in range(self.num_cuts)]

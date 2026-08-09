@@ -10,6 +10,7 @@ from pyomo.repn.standard_repn import generate_standard_repn
 from pyomo.opt import TerminationCondition
 
 from .solver import Solver
+from .sense import model_is_minimize, negate_objective_sense
 
 
 @dataclass
@@ -26,18 +27,42 @@ class PyomoSolver(Solver):
         model: pyo.ConcreteModel,
         solver_config: SolverConfig,
         vars: List[pyo.ScalarVar],
+        convert_maximize: bool = True,
     ):
         """Initialize the subsolver.
 
         Args:
-            model: The Pyomo model.
-            solver: The solver to use.
-            vars: The variables in focus
+            model: The Pyomo model. A maximize model is converted in place
+                to the equivalent minimize one unless convert_maximize is
+                False; see below.
+            solver_config: The solver to use, and its options.
+            vars: The variables in focus.
+            convert_maximize: Whether to convert a maximize model. Leave
+                this True for any model that came from a user. Pass False
+                only for a master problem whose sense is deliberately the
+                inverse of the problem it serves — dual decomposition's
+                Lagrangian master and BDSC's column-generation master are
+                built as maximize on purpose, and CuttingPlaneMethod's
+                sign flip is what makes them work.
         """
         self.solver = pyo.SolverFactory(solver_config.solver_name)
         self.model = model
         self.vars = vars
         self._solver_kwargs = solver_config.kwargs
+
+        # Convert before capturing original_objective, not after. The two
+        # orderings are not equivalent: negate_objective_sense rewrites the
+        # Objective component in place, so converting afterwards would
+        # leave original_objective pointing at a component whose sense had
+        # changed underneath it, and CuttingPlaneMethod — which caches its
+        # sign from is_minimize() at construction — would then apply a
+        # second negation on top.
+        self._sense_multiplier = 1.0
+        if convert_maximize and not model_is_minimize(model):
+            negate_objective_sense(model)
+            # Everything downstream now works in the negated units; this
+            # is the factor that puts a value back into the user's.
+            self._sense_multiplier = -1.0
 
         self.original_objective = self._get_objective()
 
@@ -86,6 +111,23 @@ class PyomoSolver(Solver):
 
     def get_vars(self) -> List[pyo.ScalarVar]:
         return self.vars
+
+    @property
+    def sense_multiplier(self) -> float:
+        """-1.0 if this solver's model was converted from maximize, else 1.0.
+
+        Every objective value the algorithms compute is in the converted
+        (minimize) units. Multiplying by this puts one back into the units
+        the caller's model was written in.
+        """
+        return self._sense_multiplier
+
+    def was_converted_from_maximize(self) -> bool:
+        return self._sense_multiplier < 0.0
+
+    def to_user_units(self, value: float | None) -> float | None:
+        """Convert an internal objective value back to the caller's sense."""
+        return None if value is None else self._sense_multiplier * value
 
     def activate_original_objective(self) -> None:
         """Activate the original objective"""

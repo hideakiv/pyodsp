@@ -6,7 +6,6 @@ from pyomo.environ import (
     Constraint,
     RangeSet,
     Objective,
-    minimize,
     maximize,
     NonNegativeReals,
     Reals,
@@ -22,13 +21,11 @@ class MasterCreator:
     def __init__(
         self,
         coupling_model: ConcreteModel,
-        is_minimize: bool,
         solver_config: SolverConfig,
         vars_dn: Dict[int, List[ScalarVar]],
     ) -> None:
         self.lagrangian_data = get_nonzero_coefficients_group(coupling_model, vars_dn)
         self.num_constrs = len(self.lagrangian_data.constraints)
-        self.is_minimize = is_minimize
         self.solver_config = solver_config
 
     def create(self) -> PyomoSolver:
@@ -69,15 +66,15 @@ class MasterCreator:
                     expr += lb * m.ld_minus[i]
             return expr
 
-        def max_obj(m):
-            return -min_obj(m)
-
-        if self.is_minimize:
-            master.objective = Objective(rule=min_obj, sense=maximize)
-        else:
-            master.objective = Objective(rule=max_obj, sense=minimize)
+        # The Lagrangian dual of a minimize problem is a maximize problem.
+        # That inversion is the point, so this master is exempt from the
+        # maximize-to-minimize conversion PyomoSolver otherwise applies —
+        # CuttingPlaneMethod's sign flip is what solves it.
+        master.objective = Objective(rule=min_obj, sense=maximize)
 
         lagrangian_duals: List[ScalarVar] = [
             master.ld[i] for i in range(self.num_constrs)
         ]
-        return PyomoSolver(master, self.solver_config, lagrangian_duals)
+        return PyomoSolver(
+            master, self.solver_config, lagrangian_duals, convert_maximize=False
+        )

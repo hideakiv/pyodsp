@@ -177,13 +177,23 @@ class RestrictedBundleMethod:
 
         return False
 
+    def in_user_units(self, values):
+        """A recorded trajectory converted back to the caller's sense."""
+        return self.cpm.in_user_units(values)
+
+    def get_objective_bound(self):
+        """The latest bound on the optimum, in the caller's units."""
+        if not self.obj_bound:
+            return None
+        return self.cpm.to_user_units(self.obj_bound[-1])
+
     def save(self, dir: Path) -> None:
         path = dir / "pbm.csv"
         df = pd.DataFrame(
             {
-                "obj_bound": self.obj_bound,
-                "center_val": self.center_val,
-                "obj_val": self.obj_val,
+                "obj_bound": self.in_user_units(self.obj_bound),
+                "center_val": self.in_user_units(self.center_val),
+                "obj_val": self.in_user_units(self.obj_val),
             }
         )
         df.to_csv(path)

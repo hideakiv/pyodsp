@@ -15,4 +15,8 @@ setup(
         "highspy",
         "scipy",
     ],
+    extras_require={
+        # pyodsp.viz and pyodsp.model.sp.viz only; nothing else imports them
+        "viz": ["matplotlib"],
+    },
 )

@@ -43,15 +43,6 @@ def test_infeasible_subproblem_returns_feasibility_cut():
     assert up_message.get_objective() is None
 
 
-def test_pass_init_dn_message_rejects_inconsistent_sense():
-    from pyodsp.dec.bd.message import BdInitDnMessage
-
-    leaf, model = make_leaf()
-
-    with pytest.raises(ValueError, match="Inconsistent optimization sense"):
-        leaf.pass_init_dn_message(BdInitDnMessage(is_minimize=False))
-
-
 def test_get_subgradient_inner_raises_on_unknown_status():
     leaf, model = make_leaf()
 

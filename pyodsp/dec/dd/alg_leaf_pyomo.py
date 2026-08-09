@@ -25,26 +25,22 @@ class DdAlgLeafPyomo(IAlgLeaf):
     def __init__(self, solver: PyomoSolver):
         if not solver.is_minimize():
             raise ValueError(
-                "Dual decomposition only accepts minimize problems; negate "
-                "the objective (see pyomo_utils.negate_objective_sense) "
-                "before constructing the solver."
+                "Dual decomposition needs a minimize model. PyomoSolver converts a "
+                "maximize one on construction, so this solver was built "
+                "with convert_maximize=False — that is reserved for the "
+                "internal masters whose sense is deliberately inverted."
             )
         self.solver = solver
         self.step_time: List[float] = []
-        self._is_minimize = self.solver.is_minimize()
         self.received_final_dn_message = False
 
     def set_coupling_matrix(self, coupling_matrix: List[Dict[int, float]]) -> None:
-        self.cm = CouplingManager(
-            coupling_matrix, self.get_len_vars(), self.is_minimize()
-        )
+        self.cm = CouplingManager(coupling_matrix, self.get_len_vars())
 
     def build(self) -> None:
         self.solver.original_objective.deactivate()
 
     def pass_init_dn_message(self, message: DdInitDnMessage) -> None:
-        if self.is_minimize() != message.get_is_minimize():
-            raise ValueError("Inconsistent optimization sense")
         coupling_matrix = message.get_coupling_matrix()
         self.set_coupling_matrix(coupling_matrix)
 
@@ -120,8 +116,12 @@ class DdAlgLeafPyomo(IAlgLeaf):
         else:
             raise ValueError("Unknown solver status")
 
+    def get_sense_multiplier(self) -> float:
+        return self.solver.sense_multiplier
+
     def is_minimize(self) -> bool:
-        return self._is_minimize
+        # Always: PyomoSolver converts a maximize model on construction.
+        return True
 
     def get_len_vars(self) -> int:
         return len(self.solver.vars)

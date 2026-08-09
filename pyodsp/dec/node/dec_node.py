@@ -68,6 +68,9 @@ class DecNodeParent(INodeParent, DecNode):
     def get_alg_root(self) -> IAlgRoot:
         return self.alg_root
 
+    def get_sense_multiplier(self) -> float:
+        return self.alg_root.get_sense_multiplier()
+
     def add_child(self, idx: NodeIdx, multiplier: float = 1.0) -> None:
         if idx in self.children:
             raise ValueError(f"Idx {idx} already in children of node {self.idx}")
@@ -130,10 +133,15 @@ class DecNodeParent(INodeParent, DecNode):
 
     def pass_init_up_messages(self, messages: Dict[NodeIdx, InitUpMessage]) -> None:
         for node_id, message in messages.items():
+            # Children report the sense their models were written in. For a
+            # Benders root this only confirms it matches the root's own; for
+            # a dual-decomposition root, whose master is synthesized, it is
+            # the only source of that fact.
+            self.alg_root.set_sense_multiplier(message.get_sense_multiplier())
             bound = message.get_bound()
             if bound is None:
                 continue
-            self.set_child_bound(node_id, bound)
+            self.set_child_bound(node_id, bound * self.get_sense_multiplier())
 
     def get_final_dn_message(self, **kwargs) -> FinalDnMessage:
         return self.alg_root.get_final_dn_message(**kwargs)
@@ -180,6 +188,10 @@ class DecNodeChild(INodeChild, DecNode):
         return self.alg_leaf
 
     def set_bound(self, bound: float) -> None:
+        """A bound on this node's objective, in the units its model was
+        written in — so an upper bound on a maximize node's objective, and
+        a lower bound on a minimize one's. The conversion to the internal
+        minimize convention happens where the parent records it."""
         self.bound = bound
 
     def get_bound(self) -> float | None:
@@ -195,7 +207,11 @@ class DecNodeChild(INodeChild, DecNode):
     def get_init_up_message(self) -> InitUpMessage:
         message = self.alg_leaf.get_init_up_message()
         message.set_bound(self.bound)
+        message.set_sense_multiplier(self.get_sense_multiplier())
         return message
+
+    def get_sense_multiplier(self) -> float:
+        return self.alg_leaf.get_sense_multiplier()
 
     def pass_dn_message(self, message: DnMessage) -> None:
         self.alg_leaf.pass_dn_message(message)

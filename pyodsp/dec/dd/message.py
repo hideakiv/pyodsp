@@ -11,17 +11,11 @@ from pyodsp.alg.bm.cuts import Cut
 
 
 class DdInitDnMessage(InitDnMessage):
-    def __init__(
-        self, coupling_matrix: List[Dict[int, float]], is_minimize: bool
-    ) -> None:
+    def __init__(self, coupling_matrix: List[Dict[int, float]]) -> None:
         self.coupling_matrix = coupling_matrix
-        self.is_minimize = is_minimize
 
     def get_coupling_matrix(self):
         return self.coupling_matrix
-
-    def get_is_minimize(self) -> bool:
-        return self.is_minimize
 
     def set_depth(self, depth: int) -> None:
         self.depth = depth
@@ -33,12 +27,19 @@ class DdInitDnMessage(InitDnMessage):
 class DdInitUpMessage(InitUpMessage):
     def __init__(self) -> None:
         self.bound = None
+        self.sense_multiplier = 1.0
 
     def set_bound(self, bound: float | None) -> None:
         self.bound = bound
 
     def get_bound(self) -> float | None:
         return self.bound
+
+    def set_sense_multiplier(self, multiplier: float) -> None:
+        self.sense_multiplier = multiplier
+
+    def get_sense_multiplier(self) -> float:
+        return self.sense_multiplier
 
 
 class DdUpMessage(UpMessage):

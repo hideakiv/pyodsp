@@ -12,10 +12,6 @@ class IMessage(ABC):
 
 class InitDnMessage(IMessage, ABC):
     @abstractmethod
-    def get_is_minimize(self) -> bool:
-        pass
-
-    @abstractmethod
     def set_depth(self, depth: int) -> None:
         pass
 
@@ -31,6 +27,14 @@ class InitUpMessage(IMessage, ABC):
 
     @abstractmethod
     def get_bound(self) -> float | None:
+        pass
+
+    @abstractmethod
+    def set_sense_multiplier(self, multiplier: float) -> None:
+        """Record the sense the reporting node's model was written in."""
+
+    @abstractmethod
+    def get_sense_multiplier(self) -> float:
         pass
 
 

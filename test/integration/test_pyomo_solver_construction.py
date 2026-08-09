@@ -13,10 +13,13 @@ def make_model(sense=pyo.minimize):
     return model
 
 
-def make_solver(sense=pyo.minimize, vars=None):
+def make_solver(sense=pyo.minimize, vars=None, convert_maximize=True):
     model = make_model(sense)
     return PyomoSolver(
-        model, SolverConfig("appsi_highs"), vars if vars is not None else [model.x, model.y]
+        model,
+        SolverConfig("appsi_highs"),
+        vars if vars is not None else [model.x, model.y],
+        convert_maximize=convert_maximize,
     )
 
 
@@ -33,9 +36,44 @@ def test_is_minimize_true_for_minimize_sense():
     assert solver.is_minimize() is True
 
 
-def test_is_minimize_false_for_maximize_sense():
+def test_a_maximize_model_is_converted_on_construction():
+    """The single boundary the decomposition algorithms rely on.
+
+    They are minimize-only; rather than rejecting a maximize model, the
+    solver converts it here — before original_objective is captured, so
+    that attribute describes the converted problem and everything
+    downstream agrees on one convention.
+    """
     solver = make_solver(sense=pyo.maximize)
+
+    assert solver.is_minimize() is True
+    assert solver.was_converted_from_maximize()
+    assert solver.sense_multiplier == -1.0
+    assert solver.original_objective.sense == pyo.minimize
+
+
+def test_a_minimize_model_is_left_alone():
+    solver = make_solver(sense=pyo.minimize)
+
+    assert not solver.was_converted_from_maximize()
+    assert solver.sense_multiplier == 1.0
+
+
+def test_conversion_can_be_declined_for_a_deliberately_inverted_master():
+    # Dual decomposition's Lagrangian master and BDSC's pricing master are
+    # maximize problems on purpose; CuttingPlaneMethod's sign flip solves
+    # them, so they must not be converted out from under it.
+    solver = make_solver(sense=pyo.maximize, convert_maximize=False)
+
     assert solver.is_minimize() is False
+    assert solver.sense_multiplier == 1.0
+
+
+def test_to_user_units_undoes_the_conversion():
+    solver = make_solver(sense=pyo.maximize)
+
+    assert solver.to_user_units(-5.0) == 5.0
+    assert solver.to_user_units(None) is None
 
 
 def test_get_original_objective_value_returns_zero_before_solve():

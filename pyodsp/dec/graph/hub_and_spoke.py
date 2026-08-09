@@ -151,7 +151,12 @@ class HubAndSpoke:
         up_messages = self._run_final_core()
         final_message = self.root.pass_final_up_message(up_messages)
 
-        return final_message.get_objective()
+        # The algorithms work in the converted (minimize) units; the number
+        # reported at the end belongs in the units the models were written in.
+        objective = final_message.get_objective()
+        if objective is None:
+            return objective
+        return objective * self.root.get_sense_multiplier()
 
     def _run_final_core(self) -> Dict[NodeIdx, FinalUpMessage]:
         if self.root is None:

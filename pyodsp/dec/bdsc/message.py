@@ -11,11 +11,8 @@ from pyodsp.alg.bm.cuts import Cut, CutList
 
 
 class BdScInitDnMessage(InitDnMessage):
-    def __init__(self, is_minimize: bool) -> None:
-        self.is_minimize = is_minimize
-
-    def get_is_minimize(self) -> bool:
-        return self.is_minimize
+    def __init__(self) -> None:
+        pass
 
     def set_depth(self, depth: int) -> None:
         self.depth = depth
@@ -27,12 +24,19 @@ class BdScInitDnMessage(InitDnMessage):
 class BdScInitUpMessage(InitUpMessage):
     def __init__(self) -> None:
         self.bound = None
+        self.sense_multiplier = 1.0
 
     def set_bound(self, bound: float | None) -> None:
         self.bound = bound
 
     def get_bound(self) -> float | None:
         return self.bound
+
+    def set_sense_multiplier(self, multiplier: float) -> None:
+        self.sense_multiplier = multiplier
+
+    def get_sense_multiplier(self) -> float:
+        return self.sense_multiplier
 
 
 class BdScUpMessage(UpMessage):

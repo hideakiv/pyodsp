@@ -208,13 +208,23 @@ class ProximalBundleMethod:
 
         return False
 
+    def in_user_units(self, values):
+        """A recorded trajectory converted back to the caller's sense."""
+        return self.cpm.in_user_units(values)
+
+    def get_objective_bound(self):
+        """The latest bound on the optimum, in the caller's units."""
+        if not self.obj_bound:
+            return None
+        return self.cpm.to_user_units(self.obj_bound[-1])
+
     def save(self, dir: Path) -> None:
         path = dir / "pbm.csv"
         df = pd.DataFrame(
             {
-                "obj_bound": self.obj_bound,
-                "center_val": self.center_val,
-                "obj_val": self.obj_val,
+                "obj_bound": self.in_user_units(self.obj_bound),
+                "center_val": self.in_user_units(self.center_val),
+                "obj_val": self.in_user_units(self.obj_val),
             }
         )
         df.to_csv(path)
@@ -272,7 +282,9 @@ class ProximalBundleMethod:
         approx_val = self.cpm.get_relaxed_objective()
         predicted_diff = approx_val - center_val
         sign = self.cpm.get_sign()
-        penalty_too_large = sign * obj_val <= sign * (center_val + PBM_MR * predicted_diff)
+        penalty_too_large = sign * obj_val <= sign * (
+            center_val + PBM_MR * predicted_diff
+        )
 
         if penalty_too_large and self.iter_since_update > 0:
             u = 2 * self.penalty * (1 - (obj_val - center_val) / predicted_diff)

@@ -13,7 +13,7 @@ from .message import (
     BdFinalDnMessage,
     BdFinalUpMessage,
 )
-from ..node._alg import IAlgRoot
+from ..node._alg import IAlgRoot, verify_sense_matches
 from pyodsp.solver.pyomo_solver import PyomoSolver
 from pyodsp.alg.bm.bm import BundleMethod
 from pyodsp.dec.node._message import NodeIdx
@@ -22,21 +22,27 @@ from pyodsp.dec.node.cut_aggregator import CutAggregator
 
 class BdAlgRootBm(IAlgRoot):
     def __init__(
-        self, solver: PyomoSolver, max_iteration=1000, purgeable: bool = True
+        self,
+        solver: PyomoSolver,
+        max_iteration=1000,
+        purgeable: bool = True,
+        risk=None,
     ) -> None:
         if not solver.is_minimize():
             raise ValueError(
-                "Benders decomposition only accepts minimize problems; "
-                "negate the objective (see pyomo_utils.negate_objective_sense) "
-                "before constructing the solver."
+                "Benders decomposition needs a minimize model. PyomoSolver converts a "
+                "maximize one on construction, so this solver was built "
+                "with convert_maximize=False — that is reserved for the "
+                "internal masters whose sense is deliberately inverted."
             )
         # A non-purgeable (replica) node must never make its own add/purge
         # decisions — force=True so replace_cuts's wholesale resync isn't
         # filtered by a dominance check evaluated against this replica's
         # own (generally stale, since it never solves the same trial
         # points as the source of truth) theta value.
+        self.risk = risk
         self.bm = BundleMethod(
-            solver, max_iteration, force=not purgeable, purgeable=purgeable
+            solver, max_iteration, force=not purgeable, purgeable=purgeable, risk=risk
         )
         self.step_time: List[float] = []
 
@@ -62,7 +68,13 @@ class BdAlgRootBm(IAlgRoot):
                     break
                 bound += self.children_multipliers[member] * children_bounds[member]
             subobj_bounds.append(bound)
-        self.bm.build(num_cuts, subobj_bounds)
+        # A risk measure prices the spread across groups, so it needs each
+        # group's probability as well as its cut.
+        group_probabilities = [
+            sum(children_multipliers[member] for member in group)
+            for group in self.groups
+        ]
+        self.bm.build(num_cuts, subobj_bounds, group_probabilities)
 
     def run_step(
         self, up_messages: dict[NodeIdx, BdUpMessage] | None
@@ -101,7 +113,7 @@ class BdAlgRootBm(IAlgRoot):
         return len(self.get_vars())
 
     def get_init_dn_message(self, **kwargs) -> BdInitDnMessage:
-        return BdInitDnMessage(self.is_minimize())
+        return BdInitDnMessage()
 
     def save(self, dir: Path) -> None:
         self.bm.save(dir)
@@ -113,11 +125,18 @@ class BdAlgRootBm(IAlgRoot):
         """Reinstate the value function saved by a previous run's save."""
         self.bm.restore_cuts(dir)
 
+    def set_sense_multiplier(self, multiplier: float) -> None:
+        verify_sense_matches(self.get_sense_multiplier(), multiplier)
+
+    def get_sense_multiplier(self) -> float:
+        return self.bm.get_solver().sense_multiplier
+
     def get_solver(self) -> PyomoSolver:
         return self.bm.get_solver()
 
     def is_minimize(self) -> bool:
-        return self.bm.is_minimize()
+        # Always: PyomoSolver converts a maximize model on construction.
+        return True
 
     def set_logger(self, node_id: int, depth: int, level: int = logging.INFO) -> None:
         self.bm.set_logger(node_id, depth, level)

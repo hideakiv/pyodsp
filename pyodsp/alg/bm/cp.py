@@ -2,13 +2,22 @@ import json
 from pathlib import Path
 
 import pandas as pd
-from pyomo.environ import ScalarVar, Constraint, Objective, minimize
+from pyomo.environ import (
+    ScalarVar,
+    Constraint,
+    Objective,
+    RangeSet,
+    Reals,
+    Var,
+    minimize,
+)
 
 from pyodsp.solver.pyomo_solver import PyomoSolver
 from .cuts_manager import CutsManager, NonPurgingCutsManager, CutInfo
 from .cuts import CutList, OptimalityCut, FeasibilityCut
 
 from ..params import BM_ABS_TOLERANCE
+from ..risk import Expectation, RiskMeasure, value_of_sample
 
 CUTS_FILE = "cuts.csv"
 
@@ -23,13 +32,22 @@ class CuttingPlaneMethod:
     """
 
     def __init__(
-        self, solver: PyomoSolver, force: bool = False, purgeable: bool = True
+        self,
+        solver: PyomoSolver,
+        force: bool = False,
+        purgeable: bool = True,
+        risk: RiskMeasure | None = None,
     ) -> None:
         self.solver = solver
+        self.risk: RiskMeasure = risk or Expectation()
+        # Probabilities per theta, needed to state the tail. Supplied at
+        # build time, since a master does not know its children until then.
+        self.group_probabilities: list[float] | None = None
         self.cuts_manager = CutsManager() if purgeable else NonPurgingCutsManager()
         self.current_solution: list[float] = []
         self.force = force
         self._sign = 1.0 if solver.is_minimize() else -1.0
+        self._user_sense_multiplier: float | None = None
 
     def is_minimize(self) -> bool:
         return self.solver.is_minimize()
@@ -37,18 +55,75 @@ class CuttingPlaneMethod:
     def get_sign(self) -> float:
         return self._sign
 
-    def build_theta_objective(self, theta_vars) -> None:
+    def build_theta_objective(self, theta_vars, group_probabilities=None) -> None:
         """Wire theta into the master's working objective (`_mod_obj`),
         which is always solved as minimize regardless of the true sense.
+
+        Under a risk measure the future is not priced by its mean, so the
+        sum of thetas is replaced — see _risk_expression.
         """
         solver = self.solver
+        self.group_probabilities = (
+            list(group_probabilities) if group_probabilities is not None else None
+        )
         solver.original_objective.deactivate()
         if solver.model.component("_mod_obj") is not None:
             solver.model.del_component("_mod_obj")
-        modified_expr = self._sign * solver.original_objective.expr + sum(
-            theta_vars[i] for i in range(len(theta_vars))
-        )
+
+        future = self._risk_expression(theta_vars)
+        modified_expr = self._sign * solver.original_objective.expr + future
         solver.model._mod_obj = Objective(expr=modified_expr, sense=minimize)
+
+    def _risk_expression(self, theta_vars):
+        """What the master pays for the future.
+
+        Risk-neutrally that is just the sum of the thetas: each already
+        carries its scenario's probability (CutAggregator scales every cut
+        by it), so they add up to an expectation.
+
+        For CVaR it is the Rockafellar-Uryasev program
+
+            (1-w) * sum_s theta_s + w * ( eta + 1/(1-a) * sum_s zeta_s )
+            zeta_s >= theta_s - p_s * eta,   zeta_s >= 0
+
+        stated in probability-weighted terms throughout, so nothing is
+        ever divided by a scenario probability. `eta` is a genuine
+        first-stage decision — the value at risk — solved for alongside
+        the rest.
+        """
+        total = sum(theta_vars[i] for i in range(len(theta_vars)))
+        risk = self.risk
+        if isinstance(risk, Expectation) or risk.is_risk_neutral:
+            return total
+
+        probabilities = self.group_probabilities
+        if probabilities is None or len(probabilities) != len(theta_vars):
+            raise ValueError(
+                "A risk measure needs one probability per theta, and this "
+                "master was built without them. Every scenario must be its "
+                "own cut group: a risk measure prices the spread across "
+                "scenarios, which an aggregated cut has already averaged "
+                "away."
+            )
+
+        model = self.solver.model
+        indices = RangeSet(0, len(theta_vars) - 1)
+        for name in ("_eta", "_zeta", "_zeta_constraint"):
+            if model.component(name) is not None:
+                model.del_component(name)
+
+        model._eta = Var(domain=Reals)
+        model._zeta = Var(indices, domain=Reals, bounds=(0.0, None))
+
+        def zeta_rule(_, i):
+            return model._zeta[i] >= theta_vars[i] - probabilities[i] * model._eta
+
+        model._zeta_constraint = Constraint(indices, rule=zeta_rule)
+
+        tail = model._eta + (1.0 / risk.tail) * sum(
+            model._zeta[i] for i in range(len(theta_vars))
+        )
+        return (1.0 - risk.weight) * total + risk.weight * tail
 
     def get_cuts(self) -> list[list[CutInfo]]:
         return self.cuts_manager.get_cuts()
@@ -70,6 +145,41 @@ class CuttingPlaneMethod:
 
     def get_solver(self) -> PyomoSolver:
         return self.solver
+
+    def set_sense_multiplier(self, multiplier: float) -> None:
+        """Report in this sense instead of the master model's own.
+
+        For a master synthesized rather than supplied — dual
+        decomposition's Lagrangian master — the model here says nothing
+        about the sense the user wrote, so the caller supplies it.
+        """
+        self._user_sense_multiplier = multiplier
+
+    def get_sense_multiplier(self) -> float:
+        """-1.0 if the problem this master serves was written as maximize.
+
+        Distinct from `_sign`, which is about *this* master's own Pyomo
+        sense — dual decomposition's Lagrangian master is deliberately a
+        maximize model and has `_sign == -1` while serving a problem whose
+        multiplier may be either.
+        """
+        if self._user_sense_multiplier is not None:
+            return self._user_sense_multiplier
+        return self.solver.sense_multiplier
+
+    def to_user_units(self, value: float | None) -> float | None:
+        """One recorded value converted back to the caller's sense."""
+        return None if value is None else self.get_sense_multiplier() * value
+
+    def in_user_units(self, values: list[float | None]) -> list[float | None]:
+        """A recorded trajectory converted back to the caller's sense.
+
+        The iteration bookkeeping runs entirely in the converted (minimize)
+        units, so this is applied once, where values leave the algorithm.
+        """
+        if self.get_sense_multiplier() > 0.0:
+            return list(values)
+        return [None if v is None else -v for v in values]
 
     def build(self, num_cuts: int) -> None:
         self.num_cuts = num_cuts
@@ -106,20 +216,49 @@ class CuttingPlaneMethod:
         found_cuts = [False for _ in range(self.num_cuts)]
         feasible = True
         obj_val = self.get_original_objective_value()
+        # Each group's realized cost at this trial point, kept per group so
+        # a risk measure can price the spread. Summing them here instead
+        # would be an expectation, which under CVaR is not the quantity the
+        # master is minimizing — the convergence test would then compare a
+        # risk-adjusted bound against a risk-neutral incumbent.
+        realized: list[float | None] = [None] * self.num_cuts
         for idx, cuts in enumerate(cuts_list):
             for cut in cuts:
                 found_cut = False
                 if isinstance(cut, OptimalityCut):
                     found_cut = self._add_optimality_cut(idx, cut)
-                    if obj_val is not None:
-                        obj_val += cut.objective_value
+                    # Accumulated, not assigned: a group normally holds one
+                    # aggregated cut, but replace_cuts and BDSC's column
+                    # reuse both hand over every cut a group has at once,
+                    # and the total is what the previous behaviour was.
+                    realized[idx] = (realized[idx] or 0.0) + cut.objective_value
                 elif isinstance(cut, FeasibilityCut):
                     found_cut = self._add_feasibility_cut(idx, cut)
                     feasible = False
                 found_cuts[idx] = found_cut or found_cuts[idx]
 
+        if obj_val is not None:
+            future = self._realized_future(realized)
+            obj_val = None if future is None else obj_val + future
+
         optimal = not any(found_cuts)
         return optimal, feasible, obj_val
+
+    def _realized_future(self, realized: list[float | None]) -> float | None:
+        """The future's cost at this trial point, valued as the master does."""
+        present = [value for value in realized if value is not None]
+        risk = self.risk
+        if isinstance(risk, Expectation) or risk.is_risk_neutral:
+            return sum(present)
+        if len(present) != self.num_cuts or self.group_probabilities is None:
+            # A feasibility cut means some scenario had no cost to report,
+            # so there is no distribution to take the tail of yet.
+            return None
+        probabilities = self.group_probabilities
+        # The cuts carry probability-weighted costs; the tail is over the
+        # costs themselves.
+        costs = [value / p for value, p in zip(present, probabilities)]
+        return value_of_sample(risk, costs, probabilities)
 
     def _add_optimality_cut(self, idx: int, cut: OptimalityCut) -> bool:
         theta = self.solver.model._theta[idx]

@@ -1,3 +1,15 @@
+"""Birge and Louveaux's farmer, wired to pyodsp.dec by hand.
+
+The farmer maximizes profit. The decomposition algorithms are
+minimize-only internally, but nothing here has to know that: PyomoSolver
+converts each maximize model when the solver is built and remembers the
+flip, so the bound below is stated in profit, the saved trajectory comes
+back in profit, and so does the reported optimum.
+
+See sp_pipeline.py for the same problem through pyodsp.model.sp, which
+also handles the coupling-variable bookkeeping.
+"""
+
 from pathlib import Path
 
 import pyomo.environ as pyo
@@ -8,6 +20,11 @@ from pyodsp.dec.node.dec_node import DecNodeRoot, DecNodeLeaf
 from pyodsp.dec.bd.alg_root_bm import BdAlgRootBm
 from pyodsp.dec.bd.alg_leaf_pyomo import BdAlgLeafPyomo
 from pyodsp.dec.bd.run import BdRun
+
+FILEDIR = Path("output/farmer/bd_model")
+OPTIMAL_PROFIT = 108390.0
+# An upper bound on any one scenario's recourse profit, in true units.
+RECOURSE_PROFIT_BOUND = 1000000.0
 
 # Create a model
 model = pyo.ConcreteModel()
@@ -145,10 +162,19 @@ idx = 1
 for scenario, block in second_stage.items():
     alg = BdAlgLeafPyomo(second_stage_solver[scenario])
     leaf_node = DecNodeLeaf(idx, alg)
-    leaf_node.set_bound(1000000.0)
+    # Stated in the model's own units: an upper bound on scenario profit.
+    leaf_node.set_bound(RECOURSE_PROFIT_BOUND)
     leaf_nodes[scenario] = leaf_node
     root_node.add_child(idx, multiplier=1 / len(SCENARIOS))
     idx += 1
 
-bd_run = BdRun([root_node, *leaf_nodes.values()], Path("output/farmer/bd_model"))
+bd_run = BdRun([root_node, *leaf_nodes.values()], FILEDIR)
 bd_run.run()
+
+profit = first_stage_alg.bm.get_objective_bound()
+
+print(f"expected profit: {profit:,.2f}")
+for crop in CROPS:
+    print(f"  {crop}: {model.DevotedAcreage[crop].value:,.2f} acres")
+
+assert abs(profit - OPTIMAL_PROFIT) < 1e-3, f"expected {OPTIMAL_PROFIT}, got {profit}"

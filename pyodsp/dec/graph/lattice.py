@@ -195,14 +195,26 @@ class Lattice:
             objectives.append(objective)
         return objectives
 
-    def _termination(self, bound: float) -> bool:
-        objectives = self._collect_samples()
+    def _confidence_interval(self, samples: List[float]) -> tuple[float, float]:
+        """Student-t confidence interval of the sample mean. When every
+        sample is identical the standard error is zero and scipy would
+        return (nan, nan) — the interval then collapses onto the mean.
+        """
+        mean = float(np.mean(samples))
+        scale = float(st.sem(samples))
+        if not scale > 0.0:
+            return mean, mean
         ci_d, ci_u = st.t.interval(
             confidence=self.confidence_level,
-            df=len(objectives) - 1,
-            loc=np.mean(objectives),
-            scale=st.sem(objectives),
+            df=len(samples) - 1,
+            loc=mean,
+            scale=scale,
         )
+        return float(ci_d), float(ci_u)
+
+    def _termination(self, bound: float) -> bool:
+        objectives = self._collect_samples()
+        ci_d, ci_u = self._confidence_interval(objectives)
         self.logger.log_info(
             f"lower: {ci_d}, upper: {ci_u}, confidence: {self.confidence_level}"
         )
@@ -234,12 +246,7 @@ class Lattice:
             if all_zero:
                 no_improve = True
             else:
-                diff_ci_d, diff_ci_u = st.t.interval(
-                    confidence=self.confidence_level,
-                    df=len(sample_diffs) - 1,
-                    loc=np.mean(sample_diffs),
-                    scale=st.sem(sample_diffs),
-                )
+                _, diff_ci_u = self._confidence_interval(sample_diffs)
                 no_improve = diff_ci_u < SDDP_IMPROVE_TOLERANCE
 
         if no_improve:

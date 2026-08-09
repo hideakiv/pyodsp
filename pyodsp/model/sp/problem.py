@@ -10,6 +10,7 @@ import pyomo.environ as pyo
 from pyodsp.dec.bd.run import BdRun
 from pyodsp.dec.bdsc.run import BdScRun
 from pyodsp.dec.dd.run import DdRun
+from pyodsp.alg.risk import Expectation, RiskMeasure
 from pyodsp.dec.utils import create_directory
 from pyodsp.solver.pyomo_solver import SolverConfig
 
@@ -114,6 +115,12 @@ class StochasticProgram:
             requirements changes; they simply stop being enforced, and a
             violation then produces a confidently wrong answer rather
             than an error.
+        risk: How the scenarios are valued. Expectation by default —
+            minimize the average cost, which is what a stochastic program
+            means unqualified. Pass CVaR(alpha=..., weight=...) to weight
+            the bad tail instead, which changes the problem rather than
+            the way it is solved. Only method='bd' and method='de' support
+            one; see `resolve_method`.
         log_level: Logging level for the algorithm's own output.
     """
 
@@ -133,6 +140,7 @@ class StochasticProgram:
         auto_bound: bool = True,
         heuristic: bool = True,
         validate: bool = True,
+        risk: RiskMeasure | None = None,
         log_level: int = logging.INFO,
     ) -> None:
         if method not in METHODS:
@@ -157,6 +165,7 @@ class StochasticProgram:
         self.auto_bound = auto_bound
         self.heuristic = heuristic
         self.validate = validate
+        self.risk: RiskMeasure = risk or Expectation()
         self.log_level = log_level
 
         self._first_stage_fn: Callable | None = None
@@ -308,6 +317,7 @@ class StochasticProgram:
             relax_recourse=relax_recourse,
             heuristic=self.heuristic,
             validate=self.validate,
+            risk=self.risk,
         )
 
     def resolve_method(self, ctx: BuildContext) -> tuple[str, bool]:
@@ -320,11 +330,15 @@ class StochasticProgram:
         scaled cuts or has its integrality relaxed away — never silently
         stays on plain Benders, which would return a wrong answer.
         """
+        # A precondition on the method as asked for, so it is checked
+        # before anything that might return early.
+        if not self.risk.is_risk_neutral:
+            self._require_risk_capable_method()
+
         # Probing costs a built model, so it only happens where the answer
         # is used: 'bdsc' and 'de' are taken as given — the deterministic
         # equivalent hands integrality straight to the solver — and for
-        # 'dd' the scan
-        # feeds a warning that validate=False has opted out of.
+        # 'dd' the scan feeds a warning that validate=False has opted out of.
         if self.method in ("bdsc", "de") or (self.method == "dd" and not self.validate):
             return self.method, False
 
@@ -352,6 +366,16 @@ class StochasticProgram:
 
         found = sorted(set(scan.recourse))
         shown = ", ".join(found[:5]) + ("..." if len(found) > 5 else "")
+        if self.integer_recourse == "bdsc" and not self.risk.is_risk_neutral:
+            raise ValueError(
+                f"The recourse problem has integer variables ({shown}), which "
+                "would normally send this to Benders with scaled cuts — but "
+                f"that cannot carry a risk measure ({self.risk.describe()}), "
+                "because it aggregates the scenarios into a single cut and a "
+                "risk measure prices the spread between them. Use "
+                "integer_recourse='relax', or method='de' to solve the "
+                "deterministic equivalent, which handles both."
+            )
         if self.integer_recourse == "bdsc":
             warnings.warn(
                 f"The recourse problem has integer variables ({shown}), whose "
@@ -376,6 +400,27 @@ class StochasticProgram:
             stacklevel=3,
         )
         return "bd", True
+
+    def _require_risk_capable_method(self) -> None:
+        """Refuse a risk measure where the algorithm cannot represent it.
+
+        CVaR is priced on the *spread* across scenarios, so the master has
+        to see each scenario's cost separately. Benders does — one theta
+        per scenario. BDSC aggregates them into a single cut, and dual
+        decomposition puts a whole copy of the problem in every scenario
+        with nothing comparing them, so neither can state the tail.
+        """
+        if self.method in ("bd", "de"):
+            return
+        raise ValueError(
+            f"method={self.method!r} cannot carry a risk measure "
+            f"({self.risk.describe()}). A risk measure prices the spread "
+            "across scenarios, which needs each scenario's cost visible to "
+            "the master separately — Benders keeps one theta per scenario, "
+            "but BDSC aggregates them into a single cut and dual "
+            "decomposition never compares them. Use method='bd', or "
+            "method='de' to solve the deterministic equivalent."
+        )
 
     def build(self) -> BuiltProblem:
         """Construct the node graph without running anything.
@@ -495,6 +540,7 @@ class StochasticProgram:
             f"  scenarios       : {len(built.leaf_nodes)}",
             f"  state variables : {len(built.labels)} ({', '.join(built.labels[:6])}"
             + ("...)" if len(built.labels) > 6 else ")"),
+            f"  risk            : {self.risk.describe()}",
             f"  solver          : {self.solver_config.solver_name}",
             f"  output          : {self.output_dir}",
         ]

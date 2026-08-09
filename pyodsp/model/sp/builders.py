@@ -24,6 +24,7 @@ import pyomo.environ as pyo
 from pyomo.opt import TerminationCondition
 
 from pyodsp.dec.bd.alg_leaf_pyomo import BdAlgLeafPyomo
+from pyodsp.alg.risk import Expectation, RiskMeasure
 from pyodsp.dec.bd.alg_root_bm import BdAlgRootBm
 from pyodsp.dec.bdsc.alg_leaf_pyomo import BdScAlgLeafPyomo
 from pyodsp.dec.bdsc.alg_root_bm import BdScAlgRootBm
@@ -77,6 +78,10 @@ class BuildContext:
     relax_recourse: bool
     heuristic: bool
     validate: bool
+    # How the scenarios are valued. Expectation is the risk-neutral
+    # default; anything else changes what the objective means, not just
+    # how it is solved.
+    risk: RiskMeasure = field(default_factory=Expectation)
 
 
 @dataclass
@@ -99,6 +104,7 @@ class BuiltProblem:
     # read back scenario by scenario.
     scenario_blocks: Dict[str, object] = field(default_factory=dict)
     recourse_exprs: Dict[str, object] = field(default_factory=dict)
+    first_stage_expr: object = None
 
 
 # --------------------------------------------------------------------------
@@ -362,7 +368,7 @@ def build_bd(ctx: BuildContext) -> BuiltProblem:
 
     coupling_dn = flatten(root_model, ctx.specs)
     root_solver = PyomoSolver(root_model, ctx.solver_config, coupling_dn)
-    root_alg = BdAlgRootBm(root_solver, max_iteration=ctx.max_iteration)
+    root_alg = BdAlgRootBm(root_solver, max_iteration=ctx.max_iteration, risk=ctx.risk)
     root = DecNodeRoot(ROOT_IDX, root_alg, log_level_root=ctx.log_level)
 
     built = BuiltProblem(
@@ -578,6 +584,47 @@ def _build_coupling_model(
     return model
 
 
+def _future_expression(model: pyo.ConcreteModel, ctx: BuildContext, exprs):
+    """What the deterministic equivalent pays for the scenarios.
+
+    Risk-neutrally the probability-weighted sum. Under CVaR the
+    Rockafellar-Uryasev program, stated on costs in the *minimize*
+    convention and converted back, so one formulation serves both senses:
+    the upper tail of a converted maximize objective is the lower tail of
+    the original, which is the one a risk-averse modeller means.
+
+        (1-w) * E[Q] + w * ( eta + 1/(1-a) * E[(Q - eta)^+] )
+    """
+    scenarios = list(ctx.scenarios)
+    expectation = sum(
+        scenario.probability * exprs[scenario.name] for scenario in scenarios
+    )
+    risk = ctx.risk
+    if isinstance(risk, Expectation) or risk.is_risk_neutral:
+        return expectation
+
+    # +1 minimizing, -1 maximizing: costs that are larger when worse.
+    sign = -1.0 if ctx.is_maximize else 1.0
+    names = [scenario.name for scenario in scenarios]
+
+    model.add_component("_eta", pyo.Var(domain=pyo.Reals))
+    model.add_component("_shortfall", pyo.Var(names, domain=pyo.NonNegativeReals))
+    eta, shortfall = model.component("_eta"), model.component("_shortfall")
+
+    def shortfall_rule(_, name):
+        return shortfall[name] >= sign * exprs[name] - eta
+
+    model.add_component(
+        "_shortfall_constraint", pyo.Constraint(names, rule=shortfall_rule)
+    )
+
+    tail = eta + (1.0 / risk.tail) * sum(
+        scenario.probability * shortfall[scenario.name] for scenario in scenarios
+    )
+    # tail is a cost; hand it back in the user's orientation
+    return (1.0 - risk.weight) * expectation + risk.weight * sign * tail
+
+
 def build_de(ctx: BuildContext) -> BuiltProblem:
     """The deterministic equivalent, as a single model.
 
@@ -608,9 +655,7 @@ def build_de(ctx: BuildContext) -> BuiltProblem:
 
     model.add_component("scenario", pyo.Block(list(by_name), rule=scenario_rule))
 
-    total = ctx.reference_expr + sum(
-        scenario.probability * exprs[scenario.name] for scenario in ctx.scenarios
-    )
+    total = ctx.reference_expr + _future_expression(model, ctx, exprs)
     _set_objective(model, total, ctx.is_maximize)
 
     solver = PyomoSolver(model, ctx.solver_config, flatten(model, ctx.specs))
@@ -624,6 +669,7 @@ def build_de(ctx: BuildContext) -> BuiltProblem:
         labels=state_labels(ctx.specs),
         scenario_blocks={name: blocks[name] for name in by_name},
         recourse_exprs=exprs,
+        first_stage_expr=ctx.reference_expr,
     )
 
 

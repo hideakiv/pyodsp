@@ -14,6 +14,8 @@ from typing import Any, Dict, List
 import pandas as pd
 import pyomo.environ as pyo
 
+from pyodsp.alg.risk import Expectation, value_of_sample
+
 STATE_CONSISTENCY_TOL = 1e-6
 
 
@@ -47,8 +49,14 @@ class SpResult:
         name: The program's name.
         method: The algorithm that actually ran.
         is_maximize: Whether the objective was maximized.
-        objective: The expected objective of the returned solution, in
-            your units, or None if no solution was recovered.
+        objective: The value of the returned solution under the program's
+            risk measure — what was actually optimized — in your units, or
+            None if no solution was recovered. Equal to
+            `expected_objective` when the program is risk-neutral.
+        expected_objective: The probability-weighted average objective,
+            whatever the risk measure. Under CVaR this is what the risk
+            aversion cost you.
+        risk: How the scenarios were valued.
         bound: The algorithm's final bound on the optimum, in your units.
         first_stage: The here-and-now decision, nested by variable name —
             a float for a scalar variable, {index: value} for an indexed
@@ -66,6 +74,8 @@ class SpResult:
     method: str
     is_maximize: bool
     objective: float | None
+    expected_objective: float | None
+    risk: Any
     bound: float | None
     first_stage: Dict[str, Any]
     scenarios: List[ScenarioOutcome]
@@ -85,11 +95,14 @@ class SpResult:
 
     def summary(self) -> str:
         sense = "maximize" if self.is_maximize else "minimize"
-        lines = [
-            f"{self.name}: {sense} via {self.method}",
-            f"  objective : {_fmt(self.objective)}",
-            f"  bound     : {_fmt(self.bound)}",
-        ]
+        lines = [f"{self.name}: {sense} via {self.method}"]
+        if self.risk is not None and not self.risk.is_risk_neutral:
+            lines.append(f"  risk      : {self.risk.describe()}")
+            lines.append(f"  objective : {_fmt(self.objective)}  (risk-adjusted)")
+            lines.append(f"  expected  : {_fmt(self.expected_objective)}")
+        else:
+            lines.append(f"  objective : {_fmt(self.objective)}")
+        lines.append(f"  bound     : {_fmt(self.bound)}")
         if self.gap is not None:
             lines.append(f"  gap       : {self.gap:.4%}")
         lines.append(f"  iterations: {len(self.history)}")
@@ -160,7 +173,12 @@ def read_result(program, built) -> SpResult:
         )
 
     first_stage, flat, consistent = _read_first_stage(program, built)
-    objective = _total_objective(built, outcomes)
+    expectation = _total_objective(built, outcomes)
+    objective, _ = _risk_adjusted(
+        program, built, outcomes, _first_stage_objective(built)
+    )
+    if objective is None:
+        objective = expectation
     bound = _final_bound(built)
     history = _read_history(program.output_dir)
 
@@ -169,6 +187,8 @@ def read_result(program, built) -> SpResult:
         method=built.method,
         is_maximize=program.is_maximize,
         objective=objective,
+        expected_objective=expectation,
+        risk=getattr(program, "risk", None),
         bound=bound,
         first_stage=first_stage,
         scenarios=outcomes,
@@ -178,6 +198,28 @@ def read_result(program, built) -> SpResult:
         first_stage_consistent=consistent,
         output_dir=Path(program.output_dir),
     )
+
+
+def _risk_adjusted(program, built, outcomes, first_stage: float | None):
+    """The value of this solution under the program's risk measure.
+
+    Computed from the same per-scenario costs the master priced, in the
+    minimize convention the risk measure is stated in, and converted back.
+    """
+    risk = getattr(program, "risk", None) or Expectation()
+    if first_stage is None or any(o.objective is None for o in outcomes):
+        return None, None
+
+    sign = -1.0 if program.is_maximize else 1.0
+    recourse = [sign * outcome.objective for outcome in outcomes]
+    probabilities = [outcome.probability for outcome in outcomes]
+
+    expectation = (
+        first_stage
+        + sign * sum(p * value for p, value in zip(probabilities, recourse)) * 1.0
+    )
+    risked = first_stage + sign * value_of_sample(risk, recourse, probabilities)
+    return risked, expectation
 
 
 def _block_variable_values(block) -> Dict[str, float]:
@@ -217,7 +259,11 @@ def _read_deterministic_equivalent(program, built) -> SpResult:
         for scenario in program.scenarios
     ]
 
+    # The model's own objective already carries the risk measure, since
+    # build_de put it there; the expectation is recomputed alongside it.
     objective = solver.to_user_units(solver.get_original_objective_value())
+    first_stage = pyo.value(built.first_stage_expr)
+    _, expectation = _risk_adjusted(program, built, outcomes, first_stage)
     values = [var.value for var in solver.get_vars()]
     flat = {
         label: value for label, value in zip(built.labels, values) if value is not None
@@ -228,6 +274,8 @@ def _read_deterministic_equivalent(program, built) -> SpResult:
         method="de",
         is_maximize=program.is_maximize,
         objective=objective,
+        expected_objective=expectation,
+        risk=getattr(program, "risk", None),
         bound=objective,
         first_stage=_nest(built, built.labels, values),
         scenarios=outcomes,
@@ -285,6 +333,15 @@ def _nest(built, labels: List[str], values: List[float | None]) -> Dict[str, Any
         name, _, index = label.partition("[")
         nested.setdefault(name, {})[index.rstrip("]")] = value
     return nested
+
+
+def _first_stage_objective(built) -> float | None:
+    """The here-and-now cost alone, in the user's units."""
+    if built.root_solver is None:
+        return None
+    return built.root_solver.to_user_units(
+        built.root_solver.get_original_objective_value()
+    )
 
 
 def _total_objective(built, outcomes) -> float | None:

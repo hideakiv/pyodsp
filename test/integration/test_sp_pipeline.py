@@ -575,3 +575,66 @@ def test_the_recourse_reads_the_real_first_stage_variable():
     model = built.root_solver.model
     # the coupling list is the model's own variables, not replicas
     assert built.root_solver.get_vars() == [model.x]
+
+
+# -- risk measures ----------------------------------------------------------
+
+
+def test_a_risk_measure_is_accepted_by_benders_and_the_deterministic_equivalent():
+    from pyodsp.model.sp import CVaR
+
+    for method in ("bd", "de"):
+        sp = make(method=method, risk=CVaR(alpha=0.9, weight=0.5))
+        assert sp.build() is not None
+
+
+@pytest.mark.parametrize("method", ["bdsc", "dd"])
+def test_the_methods_that_cannot_state_a_tail_refuse_one(method):
+    """A risk measure prices the spread across scenarios.
+
+    BDSC aggregates them into a single cut and dual decomposition never
+    compares them, so neither master can see the spread — accepting one
+    silently would optimize the risk-neutral problem under a risk-averse
+    name.
+    """
+    from pyodsp.model.sp import CVaR
+
+    sp = make(method=method, risk=CVaR(alpha=0.9, weight=0.5))
+
+    with pytest.raises(ValueError, match="cannot carry a risk measure"):
+        sp.build()
+
+
+def test_an_integer_recourse_does_not_smuggle_a_risk_measure_into_bdsc():
+    # method='bd' would normally reroute to BDSC here; under a risk
+    # measure that reroute has to fail rather than quietly drop the tail.
+    from pyodsp.model.sp import CVaR
+
+    sp = make(integer_recourse_vars=True, risk=CVaR(alpha=0.9, weight=0.5))
+
+    with pytest.raises(ValueError, match="cannot carry a risk measure"):
+        sp.build()
+
+
+def test_relaxing_the_recourse_keeps_a_risk_measure_workable():
+    from pyodsp.model.sp import CVaR
+
+    sp = make(
+        integer_recourse_vars=True,
+        integer_recourse="relax",
+        risk=CVaR(alpha=0.9, weight=0.5),
+    )
+
+    with pytest.warns(UserWarning, match="Relaxing the integrality"):
+        sp.build()
+
+    assert sp.resolved_method == "bd"
+
+
+def test_a_risk_neutral_cvar_is_not_treated_as_a_risk_measure():
+    # weight=0 is the expectation, so it must not trip the guards.
+    from pyodsp.model.sp import CVaR
+
+    sp = make(method="dd", risk=CVaR(alpha=0.9, weight=0.0))
+
+    assert sp.build() is not None

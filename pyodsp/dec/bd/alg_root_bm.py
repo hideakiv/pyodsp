@@ -22,7 +22,11 @@ from pyodsp.dec.node.cut_aggregator import CutAggregator
 
 class BdAlgRootBm(IAlgRoot):
     def __init__(
-        self, solver: PyomoSolver, max_iteration=1000, purgeable: bool = True
+        self,
+        solver: PyomoSolver,
+        max_iteration=1000,
+        purgeable: bool = True,
+        risk=None,
     ) -> None:
         if not solver.is_minimize():
             raise ValueError(
@@ -36,8 +40,9 @@ class BdAlgRootBm(IAlgRoot):
         # filtered by a dominance check evaluated against this replica's
         # own (generally stale, since it never solves the same trial
         # points as the source of truth) theta value.
+        self.risk = risk
         self.bm = BundleMethod(
-            solver, max_iteration, force=not purgeable, purgeable=purgeable
+            solver, max_iteration, force=not purgeable, purgeable=purgeable, risk=risk
         )
         self.step_time: List[float] = []
 
@@ -63,7 +68,13 @@ class BdAlgRootBm(IAlgRoot):
                     break
                 bound += self.children_multipliers[member] * children_bounds[member]
             subobj_bounds.append(bound)
-        self.bm.build(num_cuts, subobj_bounds)
+        # A risk measure prices the spread across groups, so it needs each
+        # group's probability as well as its cut.
+        group_probabilities = [
+            sum(children_multipliers[member] for member in group)
+            for group in self.groups
+        ]
+        self.bm.build(num_cuts, subobj_bounds, group_probabilities)
 
     def run_step(
         self, up_messages: dict[NodeIdx, BdUpMessage] | None

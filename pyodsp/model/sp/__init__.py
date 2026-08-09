@@ -35,6 +35,8 @@ converting every result back; and finding a valid bound for each
 subproblem.
 """
 
+from pyodsp.alg.risk import CVaR, Expectation
+
 from .analysis import SpAnalysis, analyze
 from .mean import mean_scenario
 from .problem import StochasticProgram
@@ -43,6 +45,8 @@ from ..scenario import Scenario, ScenarioSet
 from ..state import StateSpec, StateView
 
 __all__ = [
+    "CVaR",
+    "Expectation",
     "Scenario",
     "SpAnalysis",
     "analyze",

@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Any, Dict, List
 
 import pandas as pd
+import pyomo.environ as pyo
 
 STATE_CONSISTENCY_TOL = 1e-6
 
@@ -140,7 +141,10 @@ def _fmt(value: float | None) -> str:
 
 
 def read_result(program, built) -> SpResult:
-    """Assemble an SpResult from the solved node graph."""
+    """Assemble an SpResult from the solved problem."""
+    if built.method == "de":
+        return _read_deterministic_equivalent(program, built)
+
     scenarios = program.scenarios
 
     outcomes: List[ScenarioOutcome] = []
@@ -172,6 +176,65 @@ def read_result(program, built) -> SpResult:
         labels=list(built.labels),
         first_stage_flat=flat,
         first_stage_consistent=consistent,
+        output_dir=Path(program.output_dir),
+    )
+
+
+def _block_variable_values(block) -> Dict[str, float]:
+    """Every variable on one scenario block, keyed by its local name."""
+    solution = {}
+    for component in block.component_objects(pyo.Var, active=True):
+        for index in component:
+            name = (
+                component.local_name
+                if index is None
+                else f"{component.local_name}_{index}"
+            )
+            solution[name] = component[index].value
+    return solution
+
+
+def _read_deterministic_equivalent(program, built) -> SpResult:
+    """Read back the deterministic equivalent.
+
+    A different shape from the decomposed runs: one model, one solve, no
+    iteration. Each scenario's contribution comes from evaluating the
+    expression its builder returned — which was never negated, so it is
+    already in the user's units whatever the sense — and the bound equals
+    the objective, since the solver proved optimality on the whole
+    problem rather than approaching it.
+    """
+    solver = built.root_solver
+    assert solver is not None
+
+    outcomes = [
+        ScenarioOutcome(
+            name=scenario.name,
+            probability=scenario.probability,
+            objective=pyo.value(built.recourse_exprs[scenario.name]),
+            variables=_block_variable_values(built.scenario_blocks[scenario.name]),
+        )
+        for scenario in program.scenarios
+    ]
+
+    objective = solver.to_user_units(solver.get_original_objective_value())
+    values = [var.value for var in solver.get_vars()]
+    flat = {
+        label: value for label, value in zip(built.labels, values) if value is not None
+    }
+
+    return SpResult(
+        name=program.name,
+        method="de",
+        is_maximize=program.is_maximize,
+        objective=objective,
+        bound=objective,
+        first_stage=_nest(built, built.labels, values),
+        scenarios=outcomes,
+        history=pd.DataFrame(columns=["iteration", "bound", "incumbent"]),
+        labels=list(built.labels),
+        first_stage_flat=flat,
+        first_stage_consistent=True,
         output_dir=Path(program.output_dir),
     )
 

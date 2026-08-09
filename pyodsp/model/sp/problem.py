@@ -10,6 +10,7 @@ import pyomo.environ as pyo
 from pyodsp.dec.bd.run import BdRun
 from pyodsp.dec.bdsc.run import BdScRun
 from pyodsp.dec.dd.run import DdRun
+from pyodsp.dec.utils import create_directory
 from pyodsp.solver.pyomo_solver import SolverConfig
 
 from .builders import (
@@ -28,7 +29,7 @@ DEFAULT_SOLVER = "appsi_highs"
 # master needs a solver that handles one.
 DEFAULT_CUT_MASTER_SOLVER = "ipopt"
 
-METHODS = ("bd", "bdsc", "dd")
+METHODS = ("bd", "bdsc", "dd", "de")
 INTEGER_RECOURSE_POLICIES = ("bdsc", "relax")
 
 RUNNERS = {"bd": BdRun, "bdsc": BdScRun, "dd": DdRun}
@@ -78,9 +79,10 @@ class StochasticProgram:
             algorithms only accept minimize problems; a maximize program
             is converted internally and converted back on the way out.
         method: 'bd' for Benders decomposition, 'dd' for dual
-            decomposition, or 'bdsc' to force Benders with scaled cuts.
-            See `resolve_method` for what 'bd' does when the recourse
-            turns out to be integral.
+            decomposition, 'bdsc' to force Benders with scaled cuts, or
+            'de' to skip decomposition entirely and hand the solver the
+            deterministic equivalent (the extensive form). See `resolve_method` for what 'bd'
+            does when the recourse turns out to be integral.
         integer_recourse: What 'bd' should do about integer recourse
             variables — 'bdsc' to switch to Benders with scaled cuts,
             which handles them exactly, or 'relax' to solve the LP
@@ -310,17 +312,19 @@ class StochasticProgram:
     def resolve_method(self, ctx: BuildContext) -> tuple[str, bool]:
         """Pick the algorithm actually used, and whether to relax.
 
-        'dd' and 'bdsc' are taken at face value; 'dd' only warns about what
-        integrality costs it. 'bd' is the one that adapts: Benders cuts are
+        'dd', 'bdsc' and 'de' are taken at face value; 'dd' only warns
+        about what integrality costs it. 'bd' is the one that adapts: Benders cuts are
         built from LP duals, which an integer second stage does not have,
         so an integer recourse either moves the problem to Benders with
         scaled cuts or has its integrality relaxed away — never silently
         stays on plain Benders, which would return a wrong answer.
         """
         # Probing costs a built model, so it only happens where the answer
-        # is used: 'bdsc' is taken as given, and for 'dd' the scan feeds a
-        # warning that validate=False has opted out of.
-        if self.method == "bdsc" or (self.method == "dd" and not self.validate):
+        # is used: 'bdsc' and 'de' are taken as given — the deterministic
+        # equivalent hands integrality straight to the solver — and for
+        # 'dd' the scan
+        # feeds a warning that validate=False has opted out of.
+        if self.method in ("bdsc", "de") or (self.method == "dd" and not self.validate):
             return self.method, False
 
         scan = scan_integers(ctx)
@@ -400,15 +404,38 @@ class StochasticProgram:
         built = self.build()
         assert self._resolved_method is not None
 
-        runner = RUNNERS[self._resolved_method](
-            built.nodes,
-            self.output_dir,
-            level=self.log_level,
-            max_iteration=max_iteration or self.max_iteration,
-        )
-        runner.run()
+        if self._resolved_method == "de":
+            self._solve_deterministic_equivalent(built)
+        else:
+            runner = RUNNERS[self._resolved_method](
+                built.nodes,
+                self.output_dir,
+                level=self.log_level,
+                max_iteration=max_iteration or self.max_iteration,
+            )
+            runner.run()
 
         return read_result(self, built)
+
+    def _solve_deterministic_equivalent(self, built: BuiltProblem) -> None:
+        """Hand the deterministic equivalent to the solver in one piece.
+
+        There is no master, no subproblems and no iteration here, so none
+        of the Run classes apply — but the output directory is still
+        written, so a run is inspectable the same way.
+        """
+        solver = built.root_solver
+        assert solver is not None
+        solver.solve()
+        if not solver.is_optimal():
+            raise RuntimeError(
+                "The deterministic equivalent did not solve to optimality "
+                f"({solver._results.solver.termination_condition}). With no "
+                "decomposition involved this is the model itself — check it "
+                "is bounded and feasible."
+            )
+        create_directory(self.output_dir)
+        solver.save(self.output_dir)
 
     # -- introspection -----------------------------------------------------
 

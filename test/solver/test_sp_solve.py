@@ -6,6 +6,7 @@ the model it claims to decompose.
 """
 
 import logging
+import warnings
 
 import pyomo.environ as pyo
 import pytest
@@ -132,6 +133,80 @@ def test_a_state_variable_in_the_recourse_objective_still_solves_correctly(tmp_p
 
     assert result.objective == pytest.approx(expected_objective, abs=1e-6)
     assert result.first_stage_flat["x"] == pytest.approx(expected_x, abs=1e-6)
+
+
+# -- the deterministic equivalent -------------------------------------------
+
+
+def test_the_deterministic_equivalent_matches_the_reference_model(tmp_path):
+    expected_objective, expected_x = extensive_form()
+
+    result = capacity_program(tmp_path, method="de").solve()
+
+    assert result.method == "de"
+    assert result.objective == pytest.approx(expected_objective, abs=1e-6)
+    assert result.first_stage_flat["x"] == pytest.approx(expected_x, abs=1e-6)
+
+
+def test_it_solves_integrality_directly(tmp_path):
+    # No LP duals are involved, so an integer recourse needs no special
+    # handling and no warning — the solver is handed the MIP whole.
+    expected_objective, expected_x = extensive_form(integer=True)
+
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        result = capacity_program(tmp_path, method="de", integer=True).solve()
+
+    assert [w for w in caught if issubclass(w.category, UserWarning)] == []
+    assert result.objective == pytest.approx(expected_objective, abs=1e-6)
+    assert result.first_stage_flat["x"] == pytest.approx(expected_x, abs=1e-6)
+
+
+@pytest.mark.parametrize("method", ["bd", "dd"])
+def test_every_decomposition_agrees_with_the_deterministic_equivalent(tmp_path, method):
+    """What the method is for: the answer no decomposition should differ from."""
+    reference = capacity_program(tmp_path / "de", method="de").solve()
+    decomposed = capacity_program(tmp_path / method, method=method).solve()
+
+    assert decomposed.objective == pytest.approx(reference.objective, abs=1e-6)
+    assert decomposed.first_stage_flat["x"] == pytest.approx(
+        reference.first_stage_flat["x"], abs=1e-6
+    )
+
+
+def test_it_reports_no_iterations_and_a_closed_gap(tmp_path):
+    # One solve, proved optimal — there is no trajectory to record.
+    result = capacity_program(tmp_path, method="de").solve()
+
+    assert result.history.empty
+    assert result.bound == result.objective
+    assert result.gap == pytest.approx(0.0)
+
+
+def test_it_reports_each_scenario_separately(tmp_path):
+    result = capacity_program(tmp_path, method="de").solve()
+
+    by_name = {s.name: s for s in result.scenarios}
+    # with capacity x = 7 only the high-demand scenario falls short
+    assert by_name["hi"].variables["short"] == pytest.approx(4.0, abs=1e-6)
+    assert by_name["lo"].variables["short"] == pytest.approx(0.0, abs=1e-6)
+    # each scenario's own recourse cost, unweighted
+    assert by_name["hi"].objective == pytest.approx(SHORT_COST * 4.0, abs=1e-6)
+
+
+def test_it_writes_its_solution(tmp_path):
+    capacity_program(tmp_path, method="de").solve()
+
+    assert (tmp_path / "sol.csv").exists()
+
+
+def test_a_maximize_deterministic_equivalent_comes_back_in_its_own_units(tmp_path):
+    result = farmer_program(tmp_path, method="de").solve()
+
+    assert result.objective == pytest.approx(108390.0, abs=1e-3)
+    assert result.first_stage["acres"] == pytest.approx(
+        {"WHEAT": 170.0, "CORN": 80.0, "BEETS": 250.0}, abs=1e-3
+    )
 
 
 # -- maximize ---------------------------------------------------------------

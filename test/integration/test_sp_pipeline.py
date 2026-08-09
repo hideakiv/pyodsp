@@ -525,3 +525,53 @@ def test_bd_still_adapts_to_an_integer_recourse_without_validation():
         sp.build()
 
     assert sp.resolved_method == "bdsc"
+
+
+# -- the deterministic equivalent -------------------------------------------
+
+
+def test_the_deterministic_equivalent_builds_one_model_and_no_nodes():
+    sp = make(method="de")
+    built = sp.build()
+
+    assert sp.resolved_method == "de"
+    assert built.nodes == []
+    assert built.root_node is None
+    assert built.root_solver is not None
+    # one block per scenario, on the single model
+    assert set(built.scenario_blocks) == {"lo", "hi"}
+    assert set(built.recourse_exprs) == {"lo", "hi"}
+
+
+def test_it_needs_no_state_vector_of_its_own():
+    # One model means one copy of the here-and-now decision, so
+    # non-anticipativity holds by construction and a partial state is not
+    # the hazard it is for BDSC and DD.
+    sp = _partial_state_program(method="de")
+
+    built = sp.build()
+
+    assert sp.resolved_method == "de"
+    assert built.labels == ["shared"]
+
+
+def test_it_never_reroutes_on_an_integer_recourse():
+    # There are no LP duals to be missing, so integrality is the solver's
+    # problem and the method is taken at face value.
+    sp = make(method="de", integer_recourse_vars=True)
+
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        sp.build()
+
+    assert [w for w in caught if issubclass(w.category, UserWarning)] == []
+    assert sp.resolved_method == "de"
+
+
+def test_the_recourse_reads_the_real_first_stage_variable():
+    sp = make(method="de")
+    built = sp.build()
+
+    model = built.root_solver.model
+    # the coupling list is the model's own variables, not replicas
+    assert built.root_solver.get_vars() == [model.x]

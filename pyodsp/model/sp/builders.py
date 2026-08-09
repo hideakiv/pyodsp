@@ -93,6 +93,12 @@ class BuiltProblem:
     labels: List[str] = field(default_factory=list)
     coupling_model: pyo.ConcreteModel | None = None
     relaxed_variables: Dict[str, List[str]] = field(default_factory=dict)
+    # The deterministic equivalent has no nodes at all: one model, one
+    # solver, and
+    # the per-scenario pieces kept here so results can still be
+    # read back scenario by scenario.
+    scenario_blocks: Dict[str, object] = field(default_factory=dict)
+    recourse_exprs: Dict[str, object] = field(default_factory=dict)
 
 
 # --------------------------------------------------------------------------
@@ -572,4 +578,58 @@ def _build_coupling_model(
     return model
 
 
-BUILDERS = {"bd": build_bd, "bdsc": build_bdsc, "dd": build_dd}
+def build_de(ctx: BuildContext) -> BuiltProblem:
+    """The deterministic equivalent, as a single model.
+
+    No decomposition at all: the first stage and every scenario's recourse
+    go into one Pyomo model, which the solver is handed whole. Its size
+    grows with the number of scenarios — that growth is the thing the
+    other three methods exist to avoid — so this is for reference and for
+    checking a decomposition on an instance small enough to solve both
+    ways.
+
+    The recourse reads the *actual* first-stage variables rather than a
+    replica, since there is nothing to couple: one model means one copy of
+    the here-and-now decision, and non-anticipativity holds by
+    construction.
+    """
+    model = ctx.reference_model
+    state = StateView(model, ctx.specs)
+    by_name = {scenario.name: scenario for scenario in ctx.scenarios}
+    exprs: Dict[str, object] = {}
+
+    def scenario_rule(block, name):
+        scenario = by_name[name]
+        expr = _require_expression(
+            ctx.recourse_fn(block, state, scenario), "recourse", scenario
+        )
+        _reject_user_objective(block, "recourse")
+        exprs[name] = expr
+
+    model.add_component("scenario", pyo.Block(list(by_name), rule=scenario_rule))
+
+    total = ctx.reference_expr + sum(
+        scenario.probability * exprs[scenario.name] for scenario in ctx.scenarios
+    )
+    _set_objective(model, total, ctx.is_maximize)
+
+    solver = PyomoSolver(model, ctx.solver_config, flatten(model, ctx.specs))
+    blocks = model.component("scenario")
+
+    return BuiltProblem(
+        method="de",
+        nodes=[],
+        root_node=None,
+        root_solver=solver,
+        labels=state_labels(ctx.specs),
+        scenario_blocks={name: blocks[name] for name in by_name},
+        recourse_exprs=exprs,
+    )
+
+
+BUILDERS = {
+    "bd": build_bd,
+    "bdsc": build_bdsc,
+    "dd": build_dd,
+    "de": build_de,
+}

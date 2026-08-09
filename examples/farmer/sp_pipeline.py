@@ -9,6 +9,7 @@ that appears below.
 
     python examples/farmer/sp_pipeline.py
     python examples/farmer/sp_pipeline.py --method dd --plot
+    python examples/farmer/sp_pipeline.py --method de        # no decomposition
 """
 
 import argparse
@@ -94,7 +95,7 @@ def build(solver: str, method: str) -> StochasticProgram:
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--solver", default="appsi_highs")
-    parser.add_argument("--method", default="bd", choices=["bd", "dd", "bdsc"])
+    parser.add_argument("--method", default="bd", choices=["bd", "dd", "bdsc", "de"])
     parser.add_argument(
         "--plot", action="store_true", help="write charts (needs matplotlib)"
     )

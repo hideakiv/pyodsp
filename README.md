@@ -10,9 +10,15 @@ pip install -e ".[viz]"   # adds matplotlib, needed only for the plotting helper
 ```
 
 ## Documentation
-Full documentation lives in `docs/` — a guide to both front-ends, how the
-algorithm is chosen, risk measures, EVPI/VSS, MPI, and an API reference
-generated from the docstrings.
+**[hideakiv.github.io/pyodsp](https://hideakiv.github.io/pyodsp/)** — a guide to
+both front-ends, [how the algorithm is chosen](https://hideakiv.github.io/pyodsp/guide/choosing-a-method.html),
+[risk measures](https://hideakiv.github.io/pyodsp/guide/risk.html),
+[EVPI/VSS](https://hideakiv.github.io/pyodsp/guide/analysis.html),
+[MPI](https://hideakiv.github.io/pyodsp/guide/mpi.html), and an
+[API reference](https://hideakiv.github.io/pyodsp/api/index.html) generated from
+the docstrings.
+
+To build it locally from `docs/`:
 
 ```bash
 pip install -e ".[docs]"

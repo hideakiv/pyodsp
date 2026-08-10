@@ -1,13 +1,15 @@
 # Driving the algorithms directly
 
-{mod}`pyodsp.dec` is the layer underneath the modelling front-end. Use it when
-the problem is not a two-stage or multistage stochastic program, when the
-structure you want to exploit is not the one the front-end assumes, or when you
-need to distribute a two-stage problem across MPI ranks — which
+{mod}`pyodsp.dec` is the core of pyodsp: the algorithms themselves, and the
+node graph they run on. The stochastic programming front-end is one application
+built on top of it. Drive it directly when the problem is not a two-stage or
+multistage stochastic program, when the structure you want to exploit is not
+the one the front-end assumes, or when you need to distribute a two-stage
+problem across MPI ranks — which
 {class}`~pyodsp.model.sp.problem.StochasticProgram` does not expose.
 
-The price is that everything the front-end was doing for you becomes yours to
-get right. This page is mostly about what those things are.
+The price is that everything the front-end would have done for you becomes
+yours to get right. This page is mostly about what those things are.
 
 ## The shape of a run
 

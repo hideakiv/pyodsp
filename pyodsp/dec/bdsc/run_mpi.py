@@ -3,8 +3,8 @@ from pathlib import Path
 from mpi4py import MPI
 import logging
 
-from .logger import BdScLogger
 from ..node._node import INode
+from ..node._logger import AlgLogger
 from ..graph.hub_and_spoke_mpi import HubAndSpokeMpi
 
 
@@ -28,7 +28,7 @@ class BdScRunMpi:
         level: int = logging.INFO,
         max_iteration: int = 1000,
     ):
-        self.logger = BdScLogger(level)
+        self.logger = AlgLogger("Benders decomposition with scaled cuts", "bdsc", level)
         self.graph = HubAndSpokeMpi(nodes, self.logger, filedir, max_iteration)
 
         self.comm = MPI.COMM_WORLD

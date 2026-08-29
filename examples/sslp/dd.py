@@ -1,5 +1,6 @@
 from pathlib import Path
 import pyomo.environ as pyo
+import pyodsp
 
 from sslp import first_stage, second_stage
 
@@ -12,6 +13,8 @@ from pyodsp.solver.pyomo_solver import PyomoSolver, SolverConfig
 
 
 def main(nI: int, nJ: int, nS: int, solver="appsi_highs"):
+    # pyodsp emits log records but installs no handler; opt in to see progress.
+    pyodsp.configure_logging()
     nodes = []
     master = create_master(nJ, nS, solver)
 

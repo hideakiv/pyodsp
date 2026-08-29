@@ -1,5 +1,6 @@
 from pathlib import Path
 import pyomo.environ as pyo
+import pyodsp
 
 from mcsp import master_problem, sub_problem
 from params import McspParams, create_single, create_random
@@ -13,6 +14,8 @@ from pyodsp.solver.pyomo_solver import PyomoSolver, SolverConfig
 
 
 def main(param: McspParams, solver="appsi_highs"):
+    # pyodsp emits log records but installs no handler; opt in to see progress.
+    pyodsp.configure_logging()
     K = param.K
     P = param.P
     N = param.N

@@ -7,7 +7,7 @@ from ..bd.message import BdDnMessage
 from ..graph.lattice import Lattice
 from ..node._message import NodeIdx
 from ..node._node import INode, INodeParent, INodeChild
-from .logger import SddpLogger
+from ..node._logger import AlgLogger
 
 
 @dataclass
@@ -155,7 +155,7 @@ class SddpPolicy:
         — same models, same children, same groups. Only the learned cuts
         come from disk; the models themselves are yours to rebuild.
         """
-        lattice = Lattice(nodes, SddpLogger(level), Path(filedir))
+        lattice = Lattice(nodes, AlgLogger("SDDP", "sddp", level), Path(filedir))
         # the same build/bounds handshake a run does before its first
         # iteration; without it the masters have no theta to attach cuts to
         lattice._run_init()

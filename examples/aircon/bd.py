@@ -4,6 +4,8 @@ import pyomo.environ as pyo
 from aircon import first_stage, mid_stage, last_stage
 from utils import assert_approximately_equal
 
+import pyodsp
+
 from pyodsp.dec.node.dec_node import DecNodeRoot, DecNodeLeaf, DecNodeInner
 from pyodsp.dec.bd.alg_root_bm import BdAlgRootBm
 from pyodsp.dec.bd.alg_leaf_pyomo import BdAlgLeafPyomo
@@ -12,6 +14,8 @@ from pyodsp.solver.pyomo_solver import PyomoSolver, SolverConfig
 
 
 def main(solver="appsi_highs", agg=False):
+    # pyodsp emits log records but installs no handler; opt in to see progress.
+    pyodsp.configure_logging()
     demand = [1, 1, 3, 1, 3, 1, 3]
     nodes = []
     for idx in range(7):

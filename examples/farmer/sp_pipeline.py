@@ -16,6 +16,7 @@ import argparse
 
 import pyomo.environ as pyo
 
+import pyodsp
 from pyodsp.model.sp import StochasticProgram
 
 CROPS = ["WHEAT", "CORN", "BEETS"]
@@ -100,6 +101,9 @@ def main() -> None:
         "--plot", action="store_true", help="write charts (needs matplotlib)"
     )
     args = parser.parse_args()
+
+    # pyodsp emits log records but installs no handler; opt in to see progress.
+    pyodsp.configure_logging()
 
     sp = build(args.solver, args.method)
     print(sp.describe(), end="\n\n")

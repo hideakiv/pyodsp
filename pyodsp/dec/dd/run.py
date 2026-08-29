@@ -2,9 +2,9 @@ from typing import List
 from pathlib import Path
 import logging
 
-from .logger import DdLogger
 from .message import DdDnMessage
 from ..node._node import INode
+from ..node._logger import AlgLogger
 from ..graph.hub_and_spoke import HubAndSpoke
 
 
@@ -16,7 +16,7 @@ class DdRun:
         level: int = logging.INFO,
         max_iteration: int = 1000,
     ):
-        self.logger = DdLogger(level)
+        self.logger = AlgLogger("Dual decomposition", "dd", level)
         self.graph = HubAndSpoke(nodes, self.logger, filedir, max_iteration)
 
     def run(self, init_solution: List[float] | None = None) -> None:

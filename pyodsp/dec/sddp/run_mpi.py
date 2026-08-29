@@ -2,8 +2,8 @@ from typing import List
 from pathlib import Path
 import logging
 
-from .logger import SddpLogger
 from ..node._node import INode
+from ..node._logger import AlgLogger
 from ..graph.lattice_mpi import LatticeMpi
 
 
@@ -26,7 +26,7 @@ class SddpRunMpi:
         sample_size: int = 1000,
         confidence_level: float = 0.95,
     ):
-        self.logger = SddpLogger(level)
+        self.logger = AlgLogger("SDDP", "sddp", level)
         self.graph = LatticeMpi(
             nodes,
             self.logger,

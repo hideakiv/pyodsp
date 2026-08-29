@@ -9,8 +9,12 @@ from pyodsp.dec.bd.alg_leaf_pyomo import BdAlgLeafPyomo
 from pyodsp.dec.bd.run import BdRun
 from pyodsp.solver.pyomo_solver import PyomoSolver, SolverConfig
 
+import pyodsp
+
 
 def main(solver="appsi_highs"):
+    # pyodsp emits log records but installs no handler; opt in to see progress.
+    pyodsp.configure_logging()
     demand = [0, 10, 15, 20, 21, 22, 28, 38, 37, 36, 35, 34, 33, 32, 31]
     nodes = []
     for idx in range(15):

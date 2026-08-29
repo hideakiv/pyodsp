@@ -1,5 +1,6 @@
 import argparse
 import numpy as np
+import pyodsp
 from lp import solve_lp
 from sddp import solve_sddp
 from scenarios import create_static_scenarios
@@ -14,6 +15,8 @@ from regime import (
 
 
 def main(mode: str, num_stages: int):
+    # pyodsp emits log records but installs no handler; opt in to see progress.
+    pyodsp.configure_logging()
     time = 48
     r1 = NormalRegime(time, 42)
     r2 = HotSunnyRegime(time, 43)

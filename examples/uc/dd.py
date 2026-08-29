@@ -1,5 +1,6 @@
 from pathlib import Path
 import pyomo.environ as pyo
+import pyodsp
 
 from uc import balance, single_generator
 from heuristics import UcHeuristicRoot
@@ -20,6 +21,8 @@ def main(
     params: dict[int, UcParams],
     solver="appsi_highs",
 ):
+    # pyodsp emits log records but installs no handler; opt in to see progress.
+    pyodsp.configure_logging()
     nodes = []
     master = create_master(num_time, num_gens, demand, params, solver, pbm=True)
 

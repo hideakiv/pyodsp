@@ -36,6 +36,7 @@ import argparse
 
 import pyomo.environ as pyo
 
+import pyodsp
 from pyodsp.model.msp import MultistageProgram
 
 CAPACITY = 200.0
@@ -157,6 +158,9 @@ def main() -> None:
         "--plot", action="store_true", help="write the convergence chart"
     )
     args = parser.parse_args()
+
+    # pyodsp emits log records but installs no handler; opt in to see progress.
+    pyodsp.configure_logging()
 
     msp = build(args.solver)
     print(msp.describe(), end="\n\n")

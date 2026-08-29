@@ -3,9 +3,9 @@ from pathlib import Path
 from mpi4py import MPI
 import logging
 
-from .logger import BdLogger
 from .message import BdDnMessage
 from ..node._node import INode
+from ..node._logger import AlgLogger
 from ..graph.hub_and_spoke_mpi import HubAndSpokeMpi
 
 
@@ -17,7 +17,7 @@ class BdRunMpi:
         level: int = logging.INFO,
         max_iteration: int = 1000,
     ):
-        self.logger = BdLogger(level)
+        self.logger = AlgLogger("Benders decomposition", "bd", level)
         self.graph = HubAndSpokeMpi(nodes, self.logger, filedir, max_iteration)
 
         self.comm = MPI.COMM_WORLD

@@ -1,3 +1,4 @@
+import time
 from pathlib import Path
 from typing import Dict, List
 
@@ -74,6 +75,8 @@ class LatticeMpi(Lattice):
             self.logger.log_initialization()
         self._run_init()
         self._run_main()
+        if self.rank == 0:
+            self.logger.log_completion(self.bound, label="Bound")
         self._save()
 
     def _run_main(self) -> None:
@@ -85,17 +88,24 @@ class LatticeMpi(Lattice):
     def _run_main_root(self) -> None:
         if self.root is None:
             raise ValueError("Root node not found")
+        multiplier = self.root.get_sense_multiplier()
+        self._start_time = time.time()
         bound = -1e9
         for iteration in range(self.max_iteration):
             bound = self._run_root()
+            self.bound = bound * multiplier
             if iteration % self.sample_frequency == self.sample_frequency - 1:
                 self._broadcast_sync()
-                if self._termination(bound):
+                if self._termination(bound, iteration):
                     break
             else:
+                self.logger.log_info(
+                    f"SDDP iteration {iteration + 1}: bound {self.bound:.4f}"
+                    f" (elapsed {time.time() - self._start_time:.1f}s)"
+                )
                 self._run_forwards(self._iteration_rng(iteration))
 
-            bound = self._run_backwards()
+            self._run_backwards()
 
         self._broadcast_stop()
 

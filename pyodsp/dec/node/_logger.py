@@ -21,7 +21,9 @@ class ILogger(ABC):
         pass
 
     @abstractmethod
-    def log_completion(self, objective_value: float | None):
+    def log_completion(
+        self, objective_value: float | None, *, label: str = "Final objective value"
+    ):
         pass
 
 
@@ -58,10 +60,12 @@ class AlgLogger(ILogger):
     ) -> None:
         self.logger.debug(f"\t{idx}\t{cut_type}\t{coefficients}\t{constant}")
 
-    def log_completion(self, objective_value: float | None) -> None:
+    def log_completion(
+        self, objective_value: float | None, *, label: str = "Final objective value"
+    ) -> None:
         if objective_value is None:
             self.logger.info(f"{self.method} completed")
         else:
             self.logger.info(
-                f"{self.method} completed. Final objective value: {objective_value}"
+                f"{self.method} completed. {label}: {objective_value}"
             )

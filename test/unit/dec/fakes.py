@@ -113,7 +113,7 @@ class FakeLogger(ILogger):
     def log_sub_problem(self, idx, cut_type, coefficients, constant):
         self.sub_problem_calls.append((idx, cut_type, coefficients, constant))
 
-    def log_completion(self, objective_value):
+    def log_completion(self, objective_value, *, label="Final objective value"):
         pass
 
 

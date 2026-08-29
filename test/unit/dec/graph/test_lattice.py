@@ -17,6 +17,7 @@ def make_lattice(is_minimize=True, sample_size=5, confidence_level=0.95):
     lattice.sample_size = sample_size
     lattice.confidence_level = confidence_level
     lattice.prev_samples = None
+    lattice._start_time = 0.0
     # _termination records each convergence test, which needs somewhere to
     # put it and the root's sense to report it in.
     lattice.simulation_rounds = []

@@ -1,6 +1,6 @@
 import logging
 
-from pyodsp.alg.bm.logger import BmLogger, render_iteration
+from pyodsp.alg.bm.logger import BmLogger, iteration_header, render_iteration
 from pyodsp import _PyodspFormatter
 
 
@@ -48,18 +48,19 @@ def test_initialization_names_the_method_and_lists_kwargs(caplog):
     assert all(r.pyodsp == {"node_id": "init", "depth": 1} for r in records(caplog))
 
 
-def test_iteration_row_carries_its_fields(caplog):
+def test_first_iteration_emits_a_header_then_the_row(caplog):
     caplog.set_level(logging.INFO)
 
-    make_logger("it", 1).log_iteration(
-        iteration=3, lb=-889.5, ub=-248.47, num_cuts=3, elapsed=0.03
-    )
+    logger = make_logger("it", 1)
+    logger.log_iteration(iteration=3, lb=-889.5, ub=-248.47, num_cuts=3, elapsed=0.03)
+    logger.log_iteration(iteration=4, lb=-855.8, ub=-681.5, num_cuts=4, elapsed=0.04)
 
-    (record,) = records(caplog)
-    assert record.getMessage() == (
-        "Iteration: 3\tLB: -889.5000\tUB: -248.4700\tNumCuts: 3\tElapsed: 0.03"
-    )
-    assert record.pyodsp["iteration"] == {
+    header, row1, row2 = records(caplog)
+    assert header.getMessage().split() == ["iter", "LB", "UB", "cuts", "elapsed"]
+    assert row1.getMessage().split() == ["3", "-889.5000", "-248.4700", "3", "0.03"]
+    # the header is printed once
+    assert row2.getMessage().split() == ["4", "-855.8000", "-681.5000", "4", "0.04"]
+    assert row1.pyodsp["iteration"] == {
         "iteration": 3,
         "lb": -889.5,
         "ub": -248.47,
@@ -68,31 +69,35 @@ def test_iteration_row_carries_its_fields(caplog):
     }
 
 
-# --- render_iteration: one row builder, optional columns -------------------
+# --- the table: a header row, then aligned numbers, optional columns ------
 
 
-def test_render_iteration_plain():
-    assert render_iteration(
-        {"iteration": 1, "lb": None, "ub": None, "num_cuts": 0, "elapsed": 0.01}
-    ) == "Iteration: 1\tLB: -\tUB: -\tNumCuts: 0\tElapsed: 0.01"
+def test_header_and_row_share_column_widths():
+    fields = {"iteration": 1, "lb": None, "ub": None, "num_cuts": 0, "elapsed": 0.01}
+    header = iteration_header(fields)
+    row = render_iteration(fields)
+
+    assert len(header) == len(row)
+    assert header.split() == ["iter", "LB", "UB", "cuts", "elapsed"]
+    assert row.split() == ["1", "-", "-", "0", "0.01"]
 
 
-def test_render_iteration_with_center_and_penalty():
-    row = render_iteration(
-        {
-            "iteration": 2,
-            "lb": -2299.2,
-            "center_bound": None,
-            "ub": -470.4,
-            "num_cuts": 1,
-            "penalty": 5.0,
-            "elapsed": 0.02,
-        }
-    )
-    assert row == (
-        "Iteration: 2\tLB: -2299.2000\tCB: -\tUB: -470.4000\t"
-        "NumCuts: 1\tu: 5.0\tElapsed: 0.02"
-    )
+def test_center_and_penalty_columns_appear_only_when_present():
+    fields = {
+        "iteration": 2,
+        "lb": -2299.2,
+        "center_bound": None,
+        "ub": -470.4,
+        "num_cuts": 1,
+        "penalty": 5.0,
+        "elapsed": 0.02,
+    }
+    assert iteration_header(fields).split() == [
+        "iter", "LB", "CB", "UB", "cuts", "u", "elapsed"
+    ]
+    assert render_iteration(fields).split() == [
+        "2", "-2299.2000", "-", "-470.4000", "1", "5.0", "0.02"
+    ]
 
 
 # --- the formatter turns context into a tree prefix -----------------------

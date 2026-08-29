@@ -1,40 +1,39 @@
 import logging
 
-INDENT = "  "
-
-# The iteration row, built once from named fields. bm, pbm and rbm all
-# reported the same line -- iteration, bound, incumbent, cut count, elapsed --
-# differing only in whether a center bound (CB) and a penalty (u) column were
-# present. Columns are emitted in this order, and only when the caller passes
-# them; a None value renders as "-".
-_COLUMN_ORDER = ("iteration", "lb", "center_bound", "ub", "num_cuts", "penalty", "elapsed")
-_COLUMN_LABELS = {
-    "iteration": "Iteration",
-    "lb": "LB",
-    "center_bound": "CB",
-    "ub": "UB",
-    "num_cuts": "NumCuts",
-    "penalty": "u",
-    "elapsed": "Elapsed",
+# The iteration table: a header row of column names, then aligned numbers.
+# bm, pbm and rbm share it; pbm and rbm add the CB (center bound) column and
+# pbm the u (penalty) column, so the header is drawn from whichever columns
+# the row actually carries. Columns appear in this order; a missing value
+# renders as "-".
+#     key -> (header label, column width, value formatter)
+_COLUMN_SPECS = {
+    "iteration": ("iter", 6, lambda v: f"{v:d}"),
+    "lb": ("LB", 14, lambda v: f"{v:.4f}"),
+    "center_bound": ("CB", 14, lambda v: f"{v:.4f}"),
+    "ub": ("UB", 14, lambda v: f"{v:.4f}"),
+    "num_cuts": ("cuts", 5, lambda v: f"{v:d}"),
+    "penalty": ("u", 9, lambda v: f"{v}"),
+    "elapsed": ("elapsed", 9, lambda v: f"{v:.2f}"),
 }
+_COLUMN_ORDER = ("iteration", "lb", "center_bound", "ub", "num_cuts", "penalty", "elapsed")
 
 
-def _render_cell(column: str, value) -> str:
-    if value is None:
-        return "-"
-    if column == "elapsed":
-        return f"{value:.2f}"
-    if column in ("iteration", "num_cuts", "penalty"):
-        return f"{value}"
-    return f"{value:.4f}"
+def _cell(column: str, value) -> str:
+    _, width, formatter = _COLUMN_SPECS[column]
+    text = "-" if value is None else formatter(value)
+    return text.rjust(width)
+
+
+def iteration_header(columns) -> str:
+    return "  ".join(
+        _COLUMN_SPECS[c][0].rjust(_COLUMN_SPECS[c][1])
+        for c in _COLUMN_ORDER
+        if c in columns
+    )
 
 
 def render_iteration(fields: dict) -> str:
-    return "\t".join(
-        f"{_COLUMN_LABELS[c]}: {_render_cell(c, fields[c])}"
-        for c in _COLUMN_ORDER
-        if c in fields
-    )
+    return "  ".join(_cell(c, fields[c]) for c in _COLUMN_ORDER if c in fields)
 
 
 class BmLogger:
@@ -64,6 +63,7 @@ class BmLogger:
         self.node_id = node_id
         self.depth = depth
         self.per_step = False
+        self._header_shown = False
         self.logger = logging.getLogger(f"pyodsp.alg.bm.{node_id}")
         if level is not None:
             self.logger.setLevel(level)
@@ -89,6 +89,9 @@ class BmLogger:
         self.logger.debug(message, extra=self._extra())
 
     def log_iteration(self, **fields) -> None:
+        if not self._header_shown:
+            self._emit(iteration_header(fields), self._extra())
+            self._header_shown = True
         self._emit(render_iteration(fields), self._extra(iteration=fields))
 
     def log_solution(self, solution) -> None:

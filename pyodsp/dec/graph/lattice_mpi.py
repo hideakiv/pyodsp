@@ -5,7 +5,7 @@ from typing import Dict, List
 import numpy as np
 from mpi4py import MPI
 
-from .lattice import Lattice
+from .lattice import Lattice, _SDDP_HEADER, _sddp_row
 from ..node._logger import ILogger
 from ..node._node import INode
 from ..node._message import NodeIdx
@@ -72,7 +72,11 @@ class LatticeMpi(Lattice):
 
     def run(self) -> None:
         if self.rank == 0:
-            self.logger.log_initialization()
+            self.logger.log_initialization(
+                sample_frequency=self.sample_frequency,
+                sample_size=self.sample_size,
+                confidence=self.confidence_level,
+            )
         self._run_init()
         self._run_main()
         if self.rank == 0:
@@ -90,6 +94,7 @@ class LatticeMpi(Lattice):
             raise ValueError("Root node not found")
         multiplier = self.root.get_sense_multiplier()
         self._start_time = time.time()
+        self.logger.log_info(_SDDP_HEADER)
         bound = -1e9
         for iteration in range(self.max_iteration):
             bound = self._run_root()
@@ -100,8 +105,11 @@ class LatticeMpi(Lattice):
                     break
             else:
                 self.logger.log_info(
-                    f"SDDP iteration {iteration + 1}: bound {self.bound:.4f}"
-                    f" (elapsed {time.time() - self._start_time:.1f}s)"
+                    _sddp_row(
+                        iteration + 1,
+                        self.bound,
+                        time.time() - self._start_time,
+                    )
                 )
                 self._run_forwards(self._iteration_rng(iteration))
 

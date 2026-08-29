@@ -28,6 +28,27 @@ from pyodsp.alg.params import (
 SIMULATION_FILE = "simulation.csv"
 SIMULATION_SAMPLES_FILE = "simulation_samples.csv"
 
+# The SDDP progress table: column names once, then numbers. "sample" and the
+# confidence interval are blank except on the iterations that run a
+# convergence test (every sample_frequency). The interval is last because it
+# is the only variable-width column.
+_SDDP_HEADER = f"{'iter':>6}  {'bound':>13}  {'sample':>13}  {'elapsed':>8}  CI"
+
+
+def _sddp_row(
+    iteration: int,
+    bound: float,
+    elapsed: float,
+    sample: float | None = None,
+    ci: tuple[float, float] | None = None,
+) -> str:
+    sample_cell = "-" if sample is None else f"{sample:.4f}"
+    ci_cell = "-" if ci is None else f"[{ci[0]:.4f}, {ci[1]:.4f}]"
+    return (
+        f"{iteration:>6}  {bound:>13.4f}  {sample_cell:>13}  "
+        f"{elapsed:>8.1f}  {ci_cell}"
+    )
+
 
 @dataclass
 class SimulationRound:
@@ -120,7 +141,11 @@ class Lattice:
         iteration's forward pass starts from the root's own solve, so
         there is nowhere for a caller-supplied one to enter.
         """
-        self.logger.log_initialization()
+        self.logger.log_initialization(
+            sample_frequency=self.sample_frequency,
+            sample_size=self.sample_size,
+            confidence=self.confidence_level,
+        )
         self._run_init()
         self._run_main()
         self.logger.log_completion(self.bound, label="Bound")
@@ -191,6 +216,7 @@ class Lattice:
             raise ValueError("Root node not found")
         multiplier = self.root.get_sense_multiplier()
         self._start_time = time.time()
+        self.logger.log_info(_SDDP_HEADER)
         bound = -1e9
         for iteration in range(self.max_iteration):
             bound = self._run_root()
@@ -200,8 +226,11 @@ class Lattice:
                     break
             else:
                 self.logger.log_info(
-                    f"SDDP iteration {iteration + 1}: bound {self.bound:.4f}"
-                    f" (elapsed {time.time() - self._start_time:.1f}s)"
+                    _sddp_row(
+                        iteration + 1,
+                        self.bound,
+                        time.time() - self._start_time,
+                    )
                 )
                 self._run_forwards(self._iteration_rng(iteration))
 
@@ -270,12 +299,14 @@ class Lattice:
         ci_d, ci_u = self._confidence_interval(objectives)
         self._record_simulation(iteration, objectives, ci_d, ci_u, bound)
         rnd = self.simulation_rounds[-1]
-        elapsed = time.time() - self._start_time
         self.logger.log_info(
-            f"SDDP iteration {iteration + 1}: bound {rnd.bound:.4f}, "
-            f"sample {rnd.mean:.4f} in [{rnd.lower:.4f}, {rnd.upper:.4f}] "
-            f"({rnd.confidence_level:.0%} CI, n={rnd.sample_size})"
-            f" (elapsed {elapsed:.1f}s)"
+            _sddp_row(
+                iteration + 1,
+                rnd.bound,
+                time.time() - self._start_time,
+                sample=rnd.mean,
+                ci=(rnd.lower, rnd.upper),
+            )
         )
         # Always a minimization here — PyomoSolver converts a maximize model
         # on construction — so the sample mean's upper confidence limit is

@@ -136,20 +136,14 @@ class BundleMethod:
         else:
             lb = self.obj_val[-1]
             ub = self.obj_bound[-1]
-        numcuts = self.cpm.get_num_cuts()
-        elapsed = time.time() - self.start_time
-        if lb is None:
-            lb = "-"
-        else:
-            lb = f"{lb:.4f}"
-        if ub is None:
-            ub = "-"
-        else:
-            ub = f"{ub:.4f}"
-        self.logger.log_info(
-            f"Iteration: {self.iteration}\tLB: {lb}\t UB: {ub}\t NumCuts: {numcuts}\t Elapsed: {elapsed:.2f}"
+        self.logger.log_iteration(
+            iteration=self.iteration,
+            lb=lb,
+            ub=ub,
+            num_cuts=self.cpm.get_num_cuts(),
+            elapsed=time.time() - self.start_time,
         )
-        self.logger.log_debug(f"\tsolution: {self.cpm.get_current_solution()}")
+        self.logger.log_solution(self.cpm.get_current_solution())
 
     def _termination_check(self) -> bool:
         if self.iteration >= self.max_iteration:

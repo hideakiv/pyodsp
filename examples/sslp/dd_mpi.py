@@ -1,5 +1,6 @@
 from pathlib import Path
 from mpi4py import MPI
+import pyodsp
 
 from dd import create_master, create_sub
 from pyodsp.dec.dd.run_mpi import DdRunMpi
@@ -10,6 +11,8 @@ mpiexec -n 6 python dd_mpi.py
 
 
 def main(nI: int, nJ: int, nS: int, solver="appsi_highs"):
+    # pyodsp emits log records but installs no handler; opt in to see progress.
+    pyodsp.configure_logging()
     comm = MPI.COMM_WORLD
     rank = comm.Get_rank()
     size = comm.Get_size()

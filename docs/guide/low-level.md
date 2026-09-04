@@ -67,6 +67,29 @@ BdRun([root, *leaves], Path("output/bd/optimality")).run()
 
 `examples/bd/optimality.py` is this, complete and runnable.
 
+## Seeing the output
+
+pyodsp reports progress through the standard {mod}`logging` module, under the
+`pyodsp` logger, and — like any well-behaved library — installs no handler of
+its own. Until the application configures logging, a run is silent. The quickest
+way in is the one helper pyodsp does expose:
+
+```python
+import pyodsp
+
+pyodsp.configure_logging()              # INFO to stderr; pass logging.WARNING to quiet it
+```
+
+Anything the standard library can do works too — `logging.basicConfig()`, a
+file handler on `logging.getLogger("pyodsp")`, or per-algorithm control through
+children such as `pyodsp.dec.bd` and `pyodsp.alg.bm.<node id>`.
+
+Each per-solver record carries its context and its numbers on `record.pyodsp` —
+`{"node_id": ..., "depth": ...}`, plus an `"iteration"` dict of the row's fields
+(`lb`, `ub`, `num_cuts`, `elapsed`, …) on the iteration lines. `configure_logging`
+uses it to draw the `Node: <id> -` tree prefix; a custom handler can read the
+numbers straight off the record instead of parsing the text.
+
 ## The four things you now own
 
 ### 1. Coupling lists match by position

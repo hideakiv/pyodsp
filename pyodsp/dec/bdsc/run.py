@@ -2,8 +2,8 @@ from typing import List
 from pathlib import Path
 import logging
 
-from .logger import BdScLogger
 from ..node._node import INode
+from ..node._logger import AlgLogger
 from ..graph.hub_and_spoke import HubAndSpoke
 
 
@@ -15,7 +15,7 @@ class BdScRun:
         level: int = logging.INFO,
         max_iteration: int = 1000,
     ):
-        self.logger = BdScLogger(level)
+        self.logger = AlgLogger("Benders decomposition with scaled cuts", "bdsc", level)
         self.graph = HubAndSpoke(nodes, self.logger, filedir, max_iteration)
 
     def run(self, init_solution: List[float] | None = None) -> None:

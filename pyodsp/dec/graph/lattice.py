@@ -1,3 +1,4 @@
+import time
 from dataclasses import dataclass
 from typing import List, Dict
 from pathlib import Path
@@ -26,6 +27,27 @@ from pyodsp.alg.params import (
 
 SIMULATION_FILE = "simulation.csv"
 SIMULATION_SAMPLES_FILE = "simulation_samples.csv"
+
+# The SDDP progress table: column names once, then numbers. "sample" and the
+# confidence interval are blank except on the iterations that run a
+# convergence test (every sample_frequency). The interval is last because it
+# is the only variable-width column.
+_SDDP_HEADER = f"{'iter':>6}  {'bound':>13}  {'sample':>13}  {'elapsed':>8}  CI"
+
+
+def _sddp_row(
+    iteration: int,
+    bound: float,
+    elapsed: float,
+    sample: float | None = None,
+    ci: tuple[float, float] | None = None,
+) -> str:
+    sample_cell = "-" if sample is None else f"{sample:.4f}"
+    ci_cell = "-" if ci is None else f"[{ci[0]:.4f}, {ci[1]:.4f}]"
+    return (
+        f"{iteration:>6}  {bound:>13.4f}  {sample_cell:>13}  "
+        f"{elapsed:>8.1f}  {ci_cell}"
+    )
 
 
 @dataclass
@@ -65,6 +87,11 @@ class Lattice:
         self._last_dn_messages: Dict[NodeIdx, DnMessage] = {}
 
         self.prev_samples = None
+        self._start_time = 0.0
+        # The latest deterministic bound, in the models' own units. run()
+        # reports it at the end -- SDDP leaves a policy, not a proven optimum,
+        # so this is a bound and not a "final objective value".
+        self.bound: float | None = None
         # One entry per convergence test. SDDP's bound is deterministic but
         # the other side is estimated by simulation, so what it has against
         # the bound is an interval rather than an incumbent — recorded here
@@ -114,9 +141,14 @@ class Lattice:
         iteration's forward pass starts from the root's own solve, so
         there is nowhere for a caller-supplied one to enter.
         """
-        self.logger.log_initialization()
+        self.logger.log_initialization(
+            sample_frequency=self.sample_frequency,
+            sample_size=self.sample_size,
+            confidence=self.confidence_level,
+        )
         self._run_init()
         self._run_main()
+        self.logger.log_completion(self.bound, label="Bound")
         self._save()
 
     def _run_init(self) -> None:
@@ -129,12 +161,27 @@ class Lattice:
         for stage in range(self.num_stages - 1, 0, -1):
             self._run_init_backward(stage)
 
+    def _quiet_step_logging(self, node: INodeRoot) -> None:
+        """Drop a stage node's bundle-method chatter to DEBUG.
+
+        SDDP runs each node one bundle step per visit and resets it in
+        between, so the step-by-step "completed / Total iterations: 1 /
+        Final objective value" lifecycle repeats every visit -- thousands of
+        lines for a short run. The lattice narrates progress at INFO instead;
+        the per-step detail stays available at DEBUG.
+        """
+        bm = getattr(node.alg_root, "bm", None)
+        bm_logger = getattr(bm, "logger", None)
+        if bm_logger is not None:
+            bm_logger.per_step = True
+
     def _run_init_forward(self, stage: int) -> None:
         assert stage < self.num_stages - 1
         for node_idx in self.stages[stage]:
             node = self.nodes[node_idx]
             assert isinstance(node, INodeRoot)
             node.set_logger()
+            self._quiet_step_logging(node)
 
         node = self.nodes[
             self.stages[stage][0]
@@ -167,16 +214,27 @@ class Lattice:
     def _run_main(self) -> None:
         if self.root is None:
             raise ValueError("Root node not found")
+        multiplier = self.root.get_sense_multiplier()
+        self._start_time = time.time()
+        self.logger.log_info(_SDDP_HEADER)
         bound = -1e9
         for iteration in range(self.max_iteration):
             bound = self._run_root()
+            self.bound = bound * multiplier
             if iteration % self.sample_frequency == self.sample_frequency - 1:
                 if self._termination(bound, iteration):
                     break
             else:
+                self.logger.log_info(
+                    _sddp_row(
+                        iteration + 1,
+                        self.bound,
+                        time.time() - self._start_time,
+                    )
+                )
                 self._run_forwards(self._iteration_rng(iteration))
 
-            bound = self._run_backwards()
+            self._run_backwards()
 
     def _sample_rng(self, sample_idx: int) -> np.random.Generator:
         """The generator for Monte Carlo sample `sample_idx`.
@@ -239,17 +297,26 @@ class Lattice:
     def _termination(self, bound: float, iteration: int = -1) -> bool:
         objectives = self._collect_samples()
         ci_d, ci_u = self._confidence_interval(objectives)
-        self.logger.log_info(
-            f"lower: {ci_d}, upper: {ci_u}, confidence: {self.confidence_level}"
-        )
         self._record_simulation(iteration, objectives, ci_d, ci_u, bound)
+        rnd = self.simulation_rounds[-1]
+        self.logger.log_info(
+            _sddp_row(
+                iteration + 1,
+                rnd.bound,
+                time.time() - self._start_time,
+                sample=rnd.mean,
+                ci=(rnd.lower, rnd.upper),
+            )
+        )
         # Always a minimization here — PyomoSolver converts a maximize model
         # on construction — so the sample mean's upper confidence limit is
         # the side that meets the lower bound the algorithm drives up.
         converged = abs(ci_u - bound) / max(abs(ci_u), abs(bound)) < SDDP_REL_TOLERANCE
 
         if converged:
-            self.logger.log_info("SDDP termination with convergence.")
+            self.logger.log_info(
+                "SDDP terminated: the sample interval meets the bound"
+            )
             return True
 
         no_improve = False
@@ -270,7 +337,9 @@ class Lattice:
                 no_improve = diff_ci_u < SDDP_IMPROVE_TOLERANCE
 
         if no_improve:
-            self.logger.log_info("SDDP termination with no improvement.")
+            self.logger.log_info(
+                "SDDP terminated: no further improvement in the sample"
+            )
             return True
 
         self.prev_samples = objectives

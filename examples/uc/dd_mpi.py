@@ -1,5 +1,6 @@
 from pathlib import Path
 from mpi4py import MPI
+import pyodsp
 
 from dd import create_master, create_sub
 from params import UcParams, create_random
@@ -20,6 +21,8 @@ def main(
     params: dict[int, UcParams],
     solver="appsi_highs",
 ):
+    # pyodsp emits log records but installs no handler; opt in to see progress.
+    pyodsp.configure_logging()
     comm = MPI.COMM_WORLD
     rank = comm.Get_rank()
     size = comm.Get_size()

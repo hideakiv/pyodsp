@@ -4,6 +4,8 @@ import pyomo.environ as pyo
 from aircon import first_stage, mid_stage, last_stage
 from utils import assert_approximately_equal
 
+import pyodsp
+
 from pyodsp.dec.node.dec_node import DecNodeRoot, DecNodeLeaf, DecNodeInner
 from pyodsp.dec.bd.alg_root_bm import BdAlgRootBm
 from pyodsp.dec.bd.alg_leaf_pyomo import BdAlgLeafPyomo
@@ -15,6 +17,8 @@ FILEDIR = Path("output/aircon/sddp")
 
 
 def main(solver="appsi_highs", agg=False):
+    # pyodsp emits log records but installs no handler; opt in to see progress.
+    pyodsp.configure_logging()
     nodes = build_nodes(solver, agg)
 
     sddp_run = SddpRun(nodes, FILEDIR)
@@ -75,7 +79,7 @@ def create_inner(idx, demand, solver_name, agg=False):
     alg_root = BdAlgRootBm(solver_root, max_iteration=1)
     solver_leaf = PyomoSolver(model, config, coupling_up)
     alg_leaf = BdAlgLeafPyomo(solver_leaf)
-    node = DecNodeInner(idx, alg_root, alg_leaf, log_level_root=0)
+    node = DecNodeInner(idx, alg_root, alg_leaf)
     node.set_bound(0)
     node.add_child(3, multiplier=0.5)
     node.add_child(4, multiplier=0.5)

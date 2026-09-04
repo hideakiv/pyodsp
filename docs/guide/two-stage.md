@@ -202,6 +202,12 @@ Each node writes to `output/<name>/` unless `output_dir` says otherwise. The
 per-iteration bound and incumbent trajectory that `result.history` exposes is
 read back from there, so a finished run is inspectable after the fact.
 
+Progress is reported through the standard {mod}`logging` module and, like any
+library, pyodsp installs no handler — a run is silent until the application
+configures logging. Call `pyodsp.configure_logging()` once for INFO output on
+stderr. `log_level` on the constructor sets the level of pyodsp's loggers but
+does not install a handler.
+
 ## Full API
 
 Every argument and method of {class}`~pyodsp.model.sp.problem.StochasticProgram` is

@@ -21,6 +21,11 @@ from pyodsp.dec.bd.alg_root_bm import BdAlgRootBm
 from pyodsp.dec.bd.alg_leaf_pyomo import BdAlgLeafPyomo
 from pyodsp.dec.bd.run import BdRun
 
+import pyodsp
+
+# pyodsp emits log records but installs no handler; opt in to see progress.
+pyodsp.configure_logging()
+
 FILEDIR = Path("output/farmer/bd_model")
 OPTIMAL_PROFIT = 108390.0
 # An upper bound on any one scenario's recourse profit, in true units.

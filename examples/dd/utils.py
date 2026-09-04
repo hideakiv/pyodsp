@@ -1,7 +1,12 @@
 import argparse
 
+import pyodsp
+
 
 def get_args():
+    # pyodsp emits log records but installs no handler; opt in so the example
+    # prints the algorithm's progress.
+    pyodsp.configure_logging()
     parser = argparse.ArgumentParser(description="dd examples")
     parser.add_argument(
         "--solver", type=str, default="appsi_highs", help="solver for pyomo"

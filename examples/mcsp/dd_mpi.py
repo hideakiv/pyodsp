@@ -1,5 +1,6 @@
 from pathlib import Path
 from mpi4py import MPI
+import pyodsp
 
 from dd import create_master, create_sub
 from params import McspParams, create_single, create_random
@@ -11,6 +12,8 @@ mpiexec -n 6 python dd_mpi.py
 
 
 def main(param: McspParams, solver="appsi_highs"):
+    # pyodsp emits log records but installs no handler; opt in to see progress.
+    pyodsp.configure_logging()
     K = param.K
     P = param.P
     N = param.N

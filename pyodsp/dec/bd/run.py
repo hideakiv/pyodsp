@@ -2,9 +2,9 @@ from typing import List
 from pathlib import Path
 import logging
 
-from .logger import BdLogger
 from .message import BdDnMessage
 from ..node._node import INode
+from ..node._logger import AlgLogger
 from ..graph.tree import Tree
 
 
@@ -16,7 +16,7 @@ class BdRun:
         level: int = logging.INFO,
         max_iteration: int = 1000,
     ):
-        self.logger = BdLogger(level)
+        self.logger = AlgLogger("Benders decomposition", "bd", level)
         self.graph = Tree(nodes, self.logger, filedir, max_iteration)
 
     def run(self, init_solution: List[float] | None = None) -> None:

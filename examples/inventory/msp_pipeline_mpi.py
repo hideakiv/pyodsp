@@ -12,6 +12,7 @@ rank 0 writes output and holds the answer, which is what
 
 import argparse
 
+import pyodsp
 from msp_pipeline import build
 
 
@@ -20,6 +21,9 @@ def main() -> None:
     parser.add_argument("--solver", default="appsi_highs")
     parser.add_argument("--stages", type=int, default=4)
     args = parser.parse_args()
+
+    # pyodsp emits log records but installs no handler; opt in to see progress.
+    pyodsp.configure_logging()
 
     msp = build(args.stages, args.solver, mpi=True)
 

@@ -56,7 +56,6 @@ class HubAndSpoke:
         self._run_init_up()
         up_messages = self._run_main_preprocess(init_solution)
         self._run_main(up_messages)
-        self.logger.log_finaliziation()
         final_obj = self._run_final()
         self.logger.log_completion(final_obj)
         self._save()

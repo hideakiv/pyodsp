@@ -3,7 +3,7 @@
 Neither is a node of its own, so both report at the depth of the leaf that
 runs them and are told apart by a suffix on the id — rather than at a
 hardcoded depth, and rather than under a fresh name per trial point, which
-left a new logger (and handler) behind on every call.
+left a new logger behind on every call.
 """
 
 import logging
@@ -66,7 +66,8 @@ def test_successive_masters_share_one_logger():
     second = leaf.cgmp.logger.logger
 
     assert first is second
-    assert len(second.handlers) == 1
+    # the library installs no handlers of its own
+    assert second.handlers == []
 
 
 def test_inner_loggers_do_not_collide_with_each_other():
@@ -87,6 +88,6 @@ def test_logger_names_are_registered_once_per_component():
         if name.endswith("11_cgsp") or name.endswith("11_cgmp")
     ]
     assert sorted(named) == [
-        "Bundle Method 11_cgsp",
-        "Proximal Bundle Method 11_cgmp",
+        "pyodsp.alg.bm.11_cgmp",
+        "pyodsp.alg.bm.11_cgsp",
     ]

@@ -183,3 +183,37 @@ def test_describe_names_the_risk_measure(tmp_path):
     sp = capacity_program(tmp_path, risk=CVaR(alpha=0.9, weight=0.3))
 
     assert "CVaR(alpha=0.9, weight=0.3)" in sp.describe()
+
+
+# -- convergence ------------------------------------------------------------
+
+
+@pytest.mark.parametrize("sense", ["min", "max"])
+def test_benders_stops_on_the_gap_under_a_risk_measure(tmp_path, sense):
+    """The bound has to value the future the way the master does.
+
+    Were it the plain sum of thetas, it would bound the expectation and
+    never meet the risk-adjusted incumbent, and every risk-averse run
+    would go on to the iteration limit however early it had the answer.
+
+    The weight is light enough that the optimum stays at x = 7, where the
+    scenario costs still differ, so the expectation (19.6) and the
+    risk-adjusted value (21.28) are apart. Where every cost is equal the
+    two coincide and the test would pass either way.
+
+    The recourse bound is strictly looser than every scenario's cost (below
+    it when minimizing, above when maximizing): the master will
+    not stop while a theta rests on its bound, which the low-demand
+    scenario (no shortfall, cost 0) would otherwise do for its own reasons.
+    """
+    limit = 200
+    result = capacity_program(
+        tmp_path,
+        risk=CVaR(alpha=0.5, weight=0.3),
+        sense=sense,
+        max_iteration=limit,
+        recourse_bound=-1.0 if sense == "min" else 1.0,
+    ).solve()
+
+    assert len(result.history) < limit
+    assert result.bound == pytest.approx(result.objective, abs=1e-5)

@@ -10,6 +10,7 @@ from pyomo.environ import (
     Reals,
     Var,
     minimize,
+    value,
 )
 
 from pyodsp.solver.pyomo_solver import PyomoSolver
@@ -48,6 +49,9 @@ class CuttingPlaneMethod:
         self.force = force
         self._sign = 1.0 if solver.is_minimize() else -1.0
         self._user_sense_multiplier: float | None = None
+        # What the master pays for the future, as built into `_mod_obj`.
+        # The relaxed bound must value the future the same way.
+        self._future_expr = None
 
     def is_minimize(self) -> bool:
         return self.solver.is_minimize()
@@ -71,6 +75,7 @@ class CuttingPlaneMethod:
             solver.model.del_component("_mod_obj")
 
         future = self._risk_expression(theta_vars)
+        self._future_expr = future
         modified_expr = self._sign * solver.original_objective.expr + future
         solver.model._mod_obj = Objective(expr=modified_expr, sense=minimize)
 
@@ -208,9 +213,16 @@ class CuttingPlaneMethod:
         if current_obj is None:
             return None
 
-        for idx in range(self.num_cuts):
-            current_obj += self.get_theta_value(idx)
-        return current_obj
+        risk = self.risk
+        if isinstance(risk, Expectation) or risk.is_risk_neutral:
+            for idx in range(self.num_cuts):
+                current_obj += self.get_theta_value(idx)
+            return current_obj
+        # Under a risk measure the master minimizes the risk expression, not
+        # the sum of thetas. Summing them would bound the expectation, which
+        # never meets the risk-adjusted incumbent from add_cuts, so the gap
+        # would not close.
+        return current_obj + self._sign * value(self._future_expr)
 
     def add_cuts(self, cuts_list: list[CutList]) -> tuple[bool, bool, float | None]:
         found_cuts = [False for _ in range(self.num_cuts)]

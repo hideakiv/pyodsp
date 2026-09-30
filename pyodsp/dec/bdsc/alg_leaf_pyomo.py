@@ -51,6 +51,7 @@ class BdScAlgLeafPyomo(IAlgLeaf):
         # columns carried over from the previous trial point — see _sync_cuts
         self._cgmp_cuts: List[Cut] = []
         self._subobj_bound: float | None = None
+        self._final_objective: float | None = None
 
     def build(self) -> None:
         # this node's own depth: the cgsp and cgmp are its two inner solvers,
@@ -184,10 +185,29 @@ class BdScAlgLeafPyomo(IAlgLeaf):
             self.cgmp.add_cuts([CutList(list(self._cgmp_cuts))])
 
     def pass_final_dn_message(self, message: BdScFinalDnMessage) -> None:
-        pass
+        """Evaluate the recourse at the master's final solution.
+
+        The cgsp's last solve cannot stand in for it: column generation
+        runs with the coupling variables unfixed (see get_up_message), so
+        its y answers some x the cgsp chose, not the master's. Paired with
+        the master's x that y can be infeasible, and the objective reported
+        from it then undercuts the optimum. Fixing x and re-solving the
+        original problem gives the cost this x actually incurs.
+        """
+        solution = message.get_solution()
+        assert solution is not None
+        solver = self.cgsp.cpm.solver
+        self._fix_variables(solution)
+        solver.activate_original_objective()
+        solver.solve()
+        self._final_objective = (
+            solver.get_original_objective_value() if solver.is_optimal() else None
+        )
+        solver.original_objective.deactivate()
+        self._unfix_variables()
 
     def get_final_up_message(self) -> BdScFinalUpMessage:
-        return BdScFinalUpMessage(self.cgsp.cpm.solver.get_original_objective_value())
+        return BdScFinalUpMessage(self._final_objective)
 
     def _update_cgsp_objective(self, beta: list[float], tau: float) -> None:
         # ignore alpha

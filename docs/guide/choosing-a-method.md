@@ -26,7 +26,7 @@ sp = StochasticProgram("model", method="bd")   # the default
 * - `'bdsc'`
   - the same, but cuts are built to recover the convex hull of the recourse objective using row generation
   - integer recourse, exactly
-  - a proven optimum; needs a quadratic-capable solver for its inner master
+  - a proven optimum
 * - `'dd'`
   - complicating **constraints** — each scenario carries a whole copy of the
     problem, tied together by non-anticipativity
@@ -70,9 +70,10 @@ Which of the two happens is `integer_recourse`:
 
 `integer_recourse='bdsc'` (the default)
 : Switch to Benders with scaled cuts, which handles integer recourse exactly.
-  Costs you a dependency: BDSC's cut-generation master runs a proximal bundle
-  method, so it needs a quadratic-capable solver of its own. That is
-  `cut_master_solver`, `'ipopt'` by default. The algorithm is
+  Its cut-generation master is solved by row generation (`cut_master='bm'`,
+  the default), an LP on the same solver as the rest. `cut_master='pbm'`
+  selects the earlier proximal bundle master, which needs a quadratic-capable
+  solver, `cut_master_solver` (`'ipopt'` by default). The algorithm is
   {ref}`van der Laan and Romeijnders (2024) <bdsc-citation>`.
 
 `integer_recourse='relax'`
@@ -117,9 +118,10 @@ at all:
 Both refuse to build in that case. Drop the `state=[...]` argument to couple
 everything, or use `'bd'`.
 
-### A quadratic-capable inner solver — `'bdsc'`
+### A quadratic-capable inner solver — `'bdsc'` with `cut_master='pbm'` only
 
-`cut_master_solver='ipopt'` by default; see {doc}`../installation`.
+`cut_master_solver='ipopt'` by default; see {doc}`../installation`. The
+default `cut_master='bm'` needs no such solver.
 
 ### A risk-capable master — `'bd'` and `'de'` only
 

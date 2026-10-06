@@ -74,8 +74,9 @@ in.
 Handles integer recourse exactly. Rather than reading a cut off the LP duals —
 which an integer second stage does not have — it builds cuts that recover the
 convex hull of the recourse objective by row generation. The cut-generation
-master runs a proximal bundle method, so it needs a quadratic-capable solver of
-its own.
+master is an LP solved with the subproblem's solver (`cut_master='bm'`); the
+proximal bundle alternative (`cut_master='pbm'`) needs a quadratic-capable
+solver of its own.
 
 > van der Laan, N., & Romeijnders, W. (2024). A converging Benders'
 > decomposition algorithm for two-stage mixed-integer recourse models.

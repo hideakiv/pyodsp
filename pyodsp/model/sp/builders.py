@@ -82,6 +82,9 @@ class BuildContext:
     # default; anything else changes what the objective means, not just
     # how it is solved.
     risk: RiskMeasure = field(default_factory=Expectation)
+    # How BDSC solves its cut-generation master: 'bm' (row generation,
+    # an LP) or 'pbm' (proximal bundle, a QP on cut_master_config).
+    cut_master: str = "bm"
 
 
 @dataclass
@@ -461,7 +464,10 @@ def build_bdsc(ctx: BuildContext) -> BuiltProblem:
         leaf = DecNodeLeaf(
             idx,
             BdScAlgLeafPyomo(
-                leaf_solver, ctx.cut_master_config, max_iteration=ctx.max_iteration
+                leaf_solver,
+                ctx.cut_master_config,
+                max_iteration=ctx.max_iteration,
+                cut_master=ctx.cut_master,
             ),
             log_level_leaf=ctx.log_level,
         )

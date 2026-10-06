@@ -91,8 +91,12 @@ class StochasticProgram:
             relaxation of the second stage.
         solver: Solver name for the stage problems.
         solver_options: Extra keyword arguments passed to that solver.
-        cut_master_solver: Solver for BDSC's inner column-generation
-            master, which is quadratic.
+        cut_master: How BDSC solves its inner cut-generation master —
+            'bm', the row generation of van der Laan & Romeijnders (an LP,
+            solved with `solver`), or 'pbm', a proximal bundle method
+            (a QP, solved with `cut_master_solver`).
+        cut_master_solver: Solver for the 'pbm' cut master, which is
+            quadratic. Unused with 'bm'.
         output_dir: Where per-node output is written. Defaults to
             output/<name>.
         max_iteration: Iteration cap for the algorithm.
@@ -133,6 +137,7 @@ class StochasticProgram:
         integer_recourse: str = "bdsc",
         solver: str = DEFAULT_SOLVER,
         solver_options: Mapping[str, Any] | None = None,
+        cut_master: str = "bm",
         cut_master_solver: str = DEFAULT_CUT_MASTER_SOLVER,
         output_dir: str | Path | None = None,
         max_iteration: int = 1000,
@@ -158,6 +163,9 @@ class StochasticProgram:
         self.solver_config = SolverConfig(
             solver_name=solver, kwargs=dict(solver_options or {})
         )
+        if cut_master not in ("bm", "pbm"):
+            raise ValueError(f"cut_master must be 'bm' or 'pbm', got {cut_master!r}")
+        self.cut_master = cut_master
         self.cut_master_config = SolverConfig(solver_name=cut_master_solver)
         self.output_dir = Path(output_dir) if output_dir else Path("output") / name
         self.max_iteration = max_iteration
@@ -318,6 +326,7 @@ class StochasticProgram:
             heuristic=self.heuristic,
             validate=self.validate,
             risk=self.risk,
+            cut_master=self.cut_master,
         )
 
     def resolve_method(self, ctx: BuildContext) -> tuple[str, bool]:
@@ -382,9 +391,13 @@ class StochasticProgram:
                 "LP duals Benders would need and which do not exist. Switching "
                 "to Benders with scaled cuts, which handles them exactly. Pass "
                 "integer_recourse='relax' to solve the LP relaxation instead, "
-                f"or method='dd'. BDSC needs a quadratic-capable solver for "
-                f"its inner master (currently "
-                f"{self.cut_master_config.solver_name!r}).",
+                "or method='dd'."
+                + (
+                    " BDSC's proximal cut master needs a quadratic-capable "
+                    f"solver (currently {self.cut_master_config.solver_name!r})."
+                    if self.cut_master == "pbm"
+                    else ""
+                ),
                 UserWarning,
                 stacklevel=3,
             )

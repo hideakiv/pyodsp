@@ -9,8 +9,13 @@ from pyomo.environ import Constraint, value
 from pyodsp.alg.bm.bm import BundleMethod
 from pyodsp.alg.bm.cuts import Cut, CutList, FeasibilityCut, OptimalityCut
 from pyodsp.alg.bm.pbm import ProximalBundleMethod
-from pyodsp.alg.const import STATUS_NOT_FINISHED
-from pyodsp.alg.params import DEC_CUT_ABS_TOL
+from pyodsp.alg.const import (
+    STATUS_INFEASIBLE,
+    STATUS_MAX_ITERATION,
+    STATUS_NOT_FINISHED,
+    STATUS_TIME_LIMIT,
+)
+from pyodsp.alg.params import BM_ABS_TOLERANCE, BM_DUMMY_BOUND, DEC_CUT_ABS_TOL
 from pyodsp.solver.pyomo_solver import PyomoSolver, SolverConfig
 from pyodsp.solver.pyomo_utils import update_linear_terms_in_objective
 
@@ -29,8 +34,31 @@ from .message import (
 
 class BdScAlgLeafPyomo(IAlgLeaf):
     def __init__(
-        self, solver: PyomoSolver, master_config: SolverConfig, max_iteration=1000
+        self,
+        solver: PyomoSolver,
+        master_config: SolverConfig,
+        max_iteration=1000,
+        cut_master: str = "bm",
+        tolerance: float = BM_ABS_TOLERANCE,
+        coef_bound: float | None = None,
     ):
+        """
+        Args:
+            solver: This scenario's model, first stage embedded.
+            master_config: Solver for the 'pbm' cut master, which is
+                quadratic. The 'bm' master is an LP and is solved with
+                `solver`'s own solver.
+            max_iteration: Cap on the column generation per trial point.
+            cut_master: How the cut-generation master is solved. 'bm' is
+                the row generation of van der Laan & Romeijnders
+                (Algorithm 2) on a plain cutting-plane master; 'pbm' is the
+                earlier proximal bundle variant, kept for comparison.
+            tolerance: delta in Algorithm 2 — stop once the cut is within
+                this of the best one for the current rho ('bm' only).
+            coef_bound: Optional cap on |beta| and tau ('bm' only).
+        """
+        if cut_master not in ("bm", "pbm"):
+            raise ValueError(f"cut_master must be 'bm' or 'pbm', got {cut_master!r}")
         if not solver.is_minimize():
             raise ValueError(
                 "Benders decomposition with scaled cuts needs a minimize model. PyomoSolver converts a "
@@ -45,7 +73,12 @@ class BdScAlgLeafPyomo(IAlgLeaf):
         # decided from this subproblem's solves, which are not the master's.
         # It still drops cuts when told to — see pass_dn_message.
         self.cgsp = BundleMethod(solver, max_iteration, force=True, purgeable=False)
-        self.mc = MasterCreator(solver_config=master_config)
+        self.cut_master = cut_master
+        self.tolerance = tolerance
+        self.coef_bound = coef_bound
+        self.mc = MasterCreator(
+            solver_config=master_config if cut_master == "pbm" else solver.solver_config
+        )
         self.max_iteration = max_iteration
         self.step_time: List[float] = []
         # columns carried over from the previous trial point — see _sync_cuts
@@ -81,6 +114,8 @@ class BdScAlgLeafPyomo(IAlgLeaf):
         self._sync_cuts(cut_list)
         self._fix_variables(solution)
         self._fix_parent_objective(objective)
+        self._x_hat = list(solution)
+        self._rho = rho
         self._create_master(solution, rho)
         self.cgsp.reset_iteration()
 
@@ -166,6 +201,9 @@ class BdScAlgLeafPyomo(IAlgLeaf):
         }
 
     def _create_master(self, solution: List[float], rho: float) -> None:
+        if self.cut_master == "bm":
+            self._create_row_generation_master(solution, rho)
+            return
         master = self.mc.create(solution, rho)
         self.cgmp = ProximalBundleMethod(master, self.max_iteration)
         # a stable id: successive masters are the same component at
@@ -183,6 +221,51 @@ class BdScAlgLeafPyomo(IAlgLeaf):
             # solve. The master itself is rebuilt because its objective is a
             # function of the new y and rho.
             self.cgmp.add_cuts([CutList(list(self._cgmp_cuts))])
+
+    def _create_row_generation_master(self, solution: List[float], rho: float) -> None:
+        """The CGMP as a plain cutting-plane master.
+
+        Its columns are added as cuts on alpha (the BundleMethod's theta):
+        a column (x_k, theta_k, q_k) is alpha <= q_k + beta^T x_k +
+        tau*theta_k. They are never aged out — dropping one only loosens
+        the LP and makes column generation find it again. The columns
+        carried over from the previous trial point are added here; the
+        first column of this one is added by get_up_message, which is
+        where y-bar becomes known.
+        """
+        master = self.mc.create(solution, rho, coef_bound=self.coef_bound)
+        self.cgmp = BundleMethod(master, self.max_iteration, purgeable=False)
+        self.cgmp.set_logger(
+            node_id=f"{self.idx}_cgmp", depth=self.depth, level=self.level
+        )
+        # BundleMethod's bookkeeping wants a number for alpha's bound, but the
+        # variable itself must stay free: the first column leaves the LP
+        # optimal along alpha - beta^T x_hat = const, and a ceiling on alpha
+        # gives the simplex a vertex at the far end of that ray (alpha at
+        # the ceiling, beta ~ ceiling / x_hat), i.e. a useless cut. Free,
+        # alpha and beta stay where the simplex leaves free variables.
+        self.cgmp.build(1, [BM_DUMMY_BOUND])
+        if self.coef_bound is None:
+            master.model._theta[0].setlb(None)
+        else:
+            master.model._theta[0].setlb(-self.coef_bound)
+        if self._cgmp_cuts:
+            self.cgmp.add_cuts([CutList(list(self._cgmp_cuts))])
+
+    @staticmethod
+    def _column(
+        x: List[float], theta: float, q: float, value_now: float
+    ) -> OptimalityCut:
+        """A point (x, theta, y) of S^phi as a cgmp constraint:
+        alpha <= q(y) + beta^T x + tau * theta.
+
+        value_now is that right-hand side at the cgmp's current (beta,
+        tau); the cgmp declines the column when alpha already satisfies it.
+        """
+        coeffs = {0: -theta}
+        for i, val in enumerate(x):
+            coeffs[i + 1] = -val
+        return OptimalityCut(coeffs=coeffs, rhs=q, objective_value=value_now, info={})
 
     def pass_final_dn_message(self, message: BdScFinalDnMessage) -> None:
         """Evaluate the recourse at the master's final solution.
@@ -235,6 +318,98 @@ class BdScAlgLeafPyomo(IAlgLeaf):
         self.cgsp.cpm.solver.set_parent_objective_value(objective)
 
     def get_up_message(self) -> BdScUpMessage:
+        if self.cut_master == "bm":
+            return self._get_up_message_row_generation()
+        return self._get_up_message_pbm()
+
+    def _get_up_message_row_generation(self) -> BdScUpMessage:
+        """C_s(rho) by row generation (van der Laan & Romeijnders, Alg. 2).
+
+        Each round solves the CGMP for (alpha, beta, tau), then the CGSP
+        min{q(y) + beta^T x + tau*theta : (x, theta, y) in S^phi} with x
+        free. The CGSP's value m is what alpha may be for (beta, tau) to
+        give a valid cut, so (m, beta, tau) is a feasible point of (19)
+        with value m - beta^T x_hat - rho(1 + tau) — a lower bound on C_s.
+        The CGMP's value is an upper bound. The round stops once they are
+        within `tolerance`, and the best evaluated point is returned: its
+        cut is valid by construction, and its value is the c sent up.
+        """
+        start = time.time()
+        solver = self.cgsp.cpm.solver
+        x_hat = self._x_hat
+        rho = self._rho
+
+        # Q_s(x_hat), and y-bar for the first column (Algorithm 2, line 3)
+        solver.activate_original_objective()
+        solver.solve()
+        if not solver.is_optimal():
+            raise RuntimeError(
+                f"Scenario {self.idx}: the recourse problem at the master's "
+                "solution did not solve to optimality."
+            )
+        leaf_objective = solver.get_objective_value()
+        solver.original_objective.deactivate()
+        self._unfix_variables()
+
+        # (x_hat, rho, y_bar) is in S^phi since rho >= phi(x_hat), and it
+        # bounds the CGMP: alpha - beta^T x_hat - rho(1 + tau) <= q(y_bar) - rho
+        first = self._column(x_hat, rho, leaf_objective, leaf_objective)
+        self.cgmp.add_cuts([CutList([first])])
+        status, solution, _ = self.cgmp.run_step(None)
+
+        best: tuple[float, float, List[float], float] | None = None
+        for _ in range(self.max_iteration):
+            if solution is None or status == STATUS_INFEASIBLE:
+                break
+            tau, beta = solution[0], list(solution[1:])
+            alpha = self.cgmp.cpm.get_theta_value(0)
+            penalty = sum(b * x for b, x in zip(beta, x_hat)) + rho * (1 + tau)
+            model_value = alpha - penalty
+
+            self._update_cgsp_objective(beta, tau)
+            self.cgsp.cpm.solve()
+            if not solver.is_optimal():
+                raise RuntimeError(
+                    f"Scenario {self.idx}: the cut-generation subproblem did "
+                    "not solve to optimality."
+                )
+            m = self.cgsp.get_objective_value()
+            lower = m - penalty
+            if best is None or lower > best[0]:
+                best = (lower, m, beta, tau)
+            if model_value - best[0] <= self.tolerance:
+                break
+            if status in (STATUS_MAX_ITERATION, STATUS_TIME_LIMIT):
+                break
+
+            column = self._column(
+                [value(var) for var in self.cgsp.get_vars()],
+                self.cgsp.cpm.get_theta_value(0),
+                self.cgsp.get_original_objective_value(),
+                m,
+            )
+            status, solution, _ = self.cgmp.run_step([CutList([column])])
+        self.step_time.append(time.time() - start)
+
+        # every column is a point of S^phi, valid for as long as the master's
+        # cuts are unchanged (see _sync_cuts)
+        self._cgmp_cuts = [c.cut for group in self.cgmp.cpm.get_cuts() for c in group]
+
+        if best is None:
+            raise RuntimeError(
+                f"Scenario {self.idx}: the cut-generation master did not solve."
+            )
+        c, alpha, beta, tau = best
+        cut = OptimalityCut(
+            coeffs={i: val for i, val in enumerate(beta)},
+            rhs=alpha,
+            objective_value=leaf_objective,
+            info={},
+        )
+        root_objective = self.cgsp.cpm.get_parent_objective_value()
+        return BdScUpMessage(cut, c, tau, root_objective + leaf_objective)
+
+    def _get_up_message_pbm(self) -> BdScUpMessage:
         start = time.time()
         cuts_list = None
         self.cgsp.cpm.solver.activate_original_objective()

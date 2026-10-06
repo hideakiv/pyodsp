@@ -43,7 +43,7 @@ Stochastic programming is one application of the decomposition layer: scenarios 
 - Other solvers are not tested yet.
 
 Additionally, the following may be requrired for some of the algorithms.
-- [Ipopt](https://github.com/coin-or/Ipopt) (for dual decomposition's proximal bundle master, `DdAlgRootBm(..., mode="proximal")`, and for BDSC's cut-generation master, which is also a proximal bundle method)
+- [Ipopt](https://github.com/coin-or/Ipopt) (for dual decomposition's proximal bundle master, `DdAlgRootBm(..., mode="proximal")`, and for BDSC's optional proximal cut-generation master, `cut_master="pbm"`)
 
 ### MPI (Optional)
 - [mpi4py](https://mpi4py.readthedocs.io/en/stable/)

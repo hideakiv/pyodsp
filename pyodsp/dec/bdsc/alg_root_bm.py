@@ -16,7 +16,8 @@ from .message import (
 from ..node._alg import IAlgRoot, verify_sense_matches
 from pyodsp.solver.pyomo_solver import PyomoSolver
 from pyodsp.alg.bm.bm import BundleMethod
-from pyodsp.alg.const import STATUS_NOT_FINISHED
+from pyodsp.alg.const import STATUS_NOT_FINISHED, STATUS_OPTIMAL, STATUS_STALLED
+from pyodsp.alg.params import BM_ABS_TOLERANCE, BM_REL_TOLERANCE
 from pyodsp.dec.node._message import NodeIdx
 from pyodsp.dec.node.cut_aggregator import CutAggregator
 
@@ -109,6 +110,12 @@ class BdScAlgRootBm(IAlgRoot):
         self.rho = None
         self.solution = None
         self.objective = None
+        # The best master solution evaluated so far and its true cost,
+        # c^T x + sum_s p_s Q_s(x). The master's own upper bound is the
+        # cost of its latest solution only, which a stalled run can leave
+        # far above a solution it already passed through.
+        self.best_objective: float | None = None
+        self.best_solution: List[float] | None = None
 
     def run_step(
         self, up_messages: dict[NodeIdx, BdScUpMessage] | None
@@ -147,13 +154,22 @@ class BdScAlgRootBm(IAlgRoot):
                         for var_id, coeff in cut.coeffs.items():
                             cut.coeffs[var_id] = coeff / (1 + tau_average)
 
+                trial = self.solution
+                assert trial is not None
+                improvement = self._improvement_at(trial, cuts_list)
+
                 start = time.time()
                 status, solution, objective = self.bm.run_step(cuts_list)
                 self.step_time.append(time.time() - start)
+                # the cuts were computed at the previous solution, so the
+                # incumbent run_step just recorded is that solution's cost
+                self._record_incumbent(trial, self.bm.obj_val[-1])
                 self.rho = sum(self.bm.get_theta_value())
                 self.solution = solution
                 self.objective = objective
                 dn_cut_list = self.bm.get_cut_list()
+                if status == STATUS_NOT_FINISHED:
+                    status = self._termination_check(improvement)
             else:
                 # the master did not step, so its cuts did not change
                 dn_cut_list = None
@@ -164,6 +180,55 @@ class BdScAlgRootBm(IAlgRoot):
             self.solution, self.rho, dn_cut_list, self.subobj_bounds, self.objective
         )
 
+    def _improvement_at(self, trial: List[float], cuts_list) -> float:
+        """How far the scaled cut lifts the outer approximation at the
+        point it was computed for: its value there minus the master's
+        theta there (the master has not been re-solved since)."""
+        theta = sum(self.bm.get_theta_value())
+        values = []
+        for cuts in cuts_list:
+            for cut in cuts:
+                values.append(
+                    cut.rhs - sum(coeff * trial[i] for i, coeff in cut.coeffs.items())
+                )
+        return max(values) - theta if values else 0.0
+
+    def _record_incumbent(self, trial: List[float], value: float | None) -> None:
+        if value is None:
+            return
+        if self.best_objective is None or value < self.best_objective:
+            self.best_objective = value
+            self.best_solution = list(trial)
+
+    def _termination_check(self, improvement: float) -> int:
+        """Stop on the gap to the best incumbent, or once the cuts stop
+        improving (van der Laan & Romeijnders, Algorithm 1 and Section 2.2).
+
+        The gap is the one BundleMethod checks, but against the best
+        solution seen rather than the latest. The second test is the
+        paper's practical stopping rule: a scaled cut need not be tight at
+        the master's solution, and when it lifts the outer approximation
+        there by less than the tolerance the master returns the same
+        solution again, so the run would only repeat itself.
+        """
+        lower = self.bm.obj_bound[-1] if self.bm.obj_bound else None
+        upper = self.best_objective
+        if lower is not None and upper is not None:
+            scale = max(abs(upper), BM_ABS_TOLERANCE)
+            if (upper - lower) / scale < BM_REL_TOLERANCE:
+                self.bm.status = STATUS_OPTIMAL
+                self.bm.logger.log_status_optimal()
+                return STATUS_OPTIMAL
+        if improvement < BM_ABS_TOLERANCE:
+            self.bm.status = STATUS_STALLED
+            self.bm.logger.log_info(
+                "Benders with scaled cuts stalled: the last cut improved the "
+                f"outer approximation by {improvement:.3g} at the master's "
+                "solution; returning the best incumbent"
+            )
+            return STATUS_STALLED
+        return STATUS_NOT_FINISHED
+
     def add_cuts(self, up_messages: dict[NodeIdx, BdScUpMessage]) -> None:
         cuts_list = self.cut_aggregator.get_aggregate_cuts(up_messages)
         self.bm.add_cuts(cuts_list)
@@ -172,6 +237,12 @@ class BdScAlgRootBm(IAlgRoot):
         self.bm.reset_iteration()
 
     def get_final_dn_message(self, **kwargs) -> BdScFinalDnMessage:
+        # Hand out the best solution seen, not the master's latest, and
+        # leave it on the master's variables: the reported first stage and
+        # its cost are read from there.
+        if self.best_solution is not None:
+            for var, val in zip(self.get_vars(), self.best_solution):
+                var.set_value(val)
         return BdScFinalDnMessage([var.value for var in self.get_vars()])
 
     def pass_final_up_message(

@@ -33,9 +33,9 @@ in principle usable. In practice:
 [Ipopt](https://github.com/coin-or/Ipopt)
 : Needed for the two places a quadratic problem shows up: the proximal bundle
   master of dual decomposition — `DdAlgRootBm(..., mode="proximal")`, as in
-  `examples/dd/equality_pbm.py` — and the cut-generation master of Benders
-  with scaled cuts. `StochasticProgram` reaches for it by default when
-  it switches to BDSC; see `cut_master_solver` in
+  `examples/dd/equality_pbm.py` — and the proximal cut-generation master of
+  Benders with scaled cuts, `cut_master='pbm'`. BDSC's default master is an
+  LP and does not need it; see `cut_master` in
   {doc}`guide/choosing-a-method`. It is not on PyPI as a wheel; install it
   through conda-forge or your package manager.
 

@@ -4,8 +4,10 @@ Plain Benders builds its cuts from the LP duals of the subproblems, which
 an integer second stage does not have. This variant creates the cuts that 
 recover the convex hull of the recourse objective using row generation, 
 so it converges on a two-stage mixed-integer recourse model rather than
-returning a bound that never closes. The cut generation master uses 
-proximal bundle method, so it needs a quadratic-capable solver.
+returning a bound that never closes. The cut-generation master is solved
+by row generation, as in the paper's Algorithm 2: an LP over the cut
+coefficients, solved with the subproblem's own solver. The earlier proximal
+bundle master (cut_master='pbm', quadratic) is kept for comparison.
 
 Implements:
 

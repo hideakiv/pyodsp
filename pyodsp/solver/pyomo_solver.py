@@ -49,6 +49,9 @@ class PyomoSolver(Solver):
         self.model = model
         self.vars = vars
         self._solver_kwargs = solver_config.kwargs
+        # kept so a companion model can be solved the same way (BDSC's
+        # column-generation master borrows its subproblem's solver)
+        self.solver_config = solver_config
 
         # Convert before capturing original_objective, not after. The two
         # orderings are not equivalent: negate_objective_sense rewrites the

@@ -5,3 +5,5 @@ STATUS_INFEASIBLE = 2
 STATUS_UNBOUNDED = 3
 STATUS_MAX_ITERATION = 4
 STATUS_TIME_LIMIT = 5
+# The master stopped improving at its current solution (see BdScAlgRootBm)
+STATUS_STALLED = 6

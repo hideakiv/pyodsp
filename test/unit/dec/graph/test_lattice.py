@@ -22,6 +22,13 @@ def make_lattice(is_minimize=True, sample_size=5, confidence_level=0.95):
     # put it and the root's sense to report it in.
     lattice.simulation_rounds = []
     lattice.root = DecNodeParent(idx="0-0", alg_root=FakeAlgRoot())
+    lattice.gap_tolerance = 1e-2
+    lattice.stable_tolerance = 1e-3
+    lattice.stall_iterations = 3
+    lattice.stall_tolerance = 1e-4
+    lattice.bound_history = []
+    lattice.stop_reason = None
+    lattice.stop_message = None
     return lattice
 
 
@@ -88,70 +95,135 @@ def test_run_forwards_raises_when_multipliers_do_not_sum_to_one():
         lattice._run_forwards(np.random.default_rng(0))
 
 
-def test_termination_converges_when_bound_matches_confidence_interval():
-    objectives = [9.0, 10.0, 11.0, 10.0, 10.0]
-    lattice = make_lattice(sample_size=len(objectives))
-    lattice._run_forwards = MagicMock(side_effect=objectives)
-
-    ci_d, ci_u = st.t.interval(
+def _upper_limit(samples):
+    return st.t.interval(
         confidence=0.95,
-        df=len(objectives) - 1,
-        loc=np.mean(objectives),
-        scale=st.sem(objectives),
-    )
-
-    converged = lattice._termination(bound=ci_u)
-
-    assert converged is True
+        df=len(samples) - 1,
+        loc=np.mean(samples),
+        scale=st.sem(samples),
+    )[1]
 
 
-def test_termination_does_not_converge_and_records_prev_samples():
+# -- gap ----------------------------------------------------------------------
+
+
+def test_the_gap_rule_stops_when_the_upper_limit_is_within_tolerance_of_the_bound():
     objectives = [9.0, 10.0, 11.0, 10.0, 10.0]
     lattice = make_lattice(sample_size=len(objectives))
     lattice._run_forwards = MagicMock(side_effect=objectives)
+    upper = _upper_limit(objectives)
 
-    converged = lattice._termination(bound=1e9)
+    assert lattice._termination(bound=upper / 1.005) is True
+    assert lattice.stop_reason == "gap"
 
-    assert converged is False
+
+def test_the_gap_rule_waits_while_the_upper_limit_is_further_off():
+    objectives = [9.0, 10.0, 11.0, 10.0, 10.0]
+    lattice = make_lattice(sample_size=len(objectives))
+    lattice._run_forwards = MagicMock(side_effect=objectives)
+    upper = _upper_limit(objectives)
+
+    assert lattice._termination(bound=upper / 1.05) is False
+    assert lattice.stop_reason is None
     assert lattice.prev_samples == objectives
 
 
-def test_termination_no_improvement_short_circuits_on_zero_diff():
+def test_the_gap_rule_is_one_sided():
+    """An upper limit already below the (lower) bound has met it: the old
+    two-sided test treated a large overshoot as not converged."""
+    objectives = [9.0, 10.0, 11.0, 10.0, 10.0]
+    lattice = make_lattice(sample_size=len(objectives))
+    lattice._run_forwards = MagicMock(side_effect=objectives)
+
+    assert lattice._termination(bound=1e3) is True
+    assert lattice.stop_reason == "gap"
+
+
+# -- stability ----------------------------------------------------------------
+
+
+def test_the_stable_rule_stops_when_no_path_changed():
     objectives = [9.0, 10.0, 11.0, 10.0, 10.0]
     lattice = make_lattice(sample_size=len(objectives))
     lattice.prev_samples = list(objectives)
     lattice._run_forwards = MagicMock(side_effect=objectives)
 
-    # bound far from the CI keeps the primary convergence check False, so the
-    # no-improvement branch (zero diff against identical prev_samples) decides.
-    converged = lattice._termination(bound=1e9)
-
-    assert converged is True
+    assert lattice._termination(bound=1.0) is True
+    assert lattice.stop_reason == "stable"
 
 
-def test_termination_matches_reference_statistical_no_improvement_formula():
-    prev_samples = [10.0, 10.0, 10.0, 10.0, 10.0]
-    objectives = [9.0, 10.0, 11.0, 10.0, 10.0]
+def test_the_stable_rule_stops_when_the_change_is_small_both_ways():
+    prev = [9.0, 10.0, 11.0, 10.0, 10.0]
+    objectives = [9.001, 9.999, 11.0005, 10.0, 9.9995]
     lattice = make_lattice(sample_size=len(objectives))
-    lattice.prev_samples = list(prev_samples)
+    lattice.prev_samples = list(prev)
     lattice._run_forwards = MagicMock(side_effect=objectives)
 
-    sample_diffs = [prev_samples[i] - objectives[i] for i in range(len(objectives))]
-    _, diff_ci_u = st.t.interval(
-        confidence=0.95,
-        df=len(sample_diffs) - 1,
-        loc=np.mean(sample_diffs),
-        scale=st.sem(sample_diffs),
-    )
-    from pyodsp.alg.params import SDDP_IMPROVE_TOLERANCE
+    assert lattice._termination(bound=1.0) is True
+    assert lattice.stop_reason == "stable"
 
-    expected_no_improve = bool(diff_ci_u < SDDP_IMPROVE_TOLERANCE)
 
-    converged = lattice._termination(bound=1e9)
+def test_a_policy_that_got_worse_on_the_sample_does_not_stop_the_run():
+    """The defect this rule replaces: it stopped when the upper end of the
+    improvement's interval was below 1e-3, which a clear *deterioration*
+    satisfies. Cuts still being added routinely make the fixed sample
+    costlier for a while, and runs stopped with their bound still rising."""
+    prev = [10.0, 10.0, 10.0, 10.0, 10.0]
+    objectives = [12.0, 12.5, 11.8, 12.2, 12.1]
+    lattice = make_lattice(sample_size=len(objectives))
+    lattice.prev_samples = list(prev)
+    lattice._run_forwards = MagicMock(side_effect=objectives)
 
-    assert converged == expected_no_improve
-    if not expected_no_improve:
-        assert lattice.prev_samples == objectives
+    assert lattice._termination(bound=1.0) is False
+    assert lattice.stop_reason is None
+    assert lattice.prev_samples == objectives
+
+
+def test_a_policy_that_still_improves_does_not_stop_the_run():
+    prev = [12.0, 12.5, 11.8, 12.2, 12.1]
+    objectives = [10.0, 10.0, 10.0, 10.0, 10.0]
+    lattice = make_lattice(sample_size=len(objectives))
+    lattice.prev_samples = list(prev)
+    lattice._run_forwards = MagicMock(side_effect=objectives)
+
+    assert lattice._termination(bound=1.0) is False
+
+
+# -- stall --------------------------------------------------------------------
+
+
+def test_the_stall_rule_needs_a_full_window_of_flat_bounds():
+    lattice = make_lattice()  # window 3, tolerance 1e-4
+
+    flags = [lattice._bound_stalled(b) for b in [5.0, 9.0, 10.0, 10.0, 10.0, 10.0]]
+
+    assert flags == [False, False, False, False, False, True]
+
+
+def test_the_stall_rule_ignores_a_bound_that_is_still_rising():
+    lattice = make_lattice()
+
+    flags = [lattice._bound_stalled(b) for b in [1.0, 2.0, 3.0, 4.0, 5.0, 6.0]]
+
+    assert not any(flags)
+
+
+def test_the_stall_rule_can_be_turned_off():
+    lattice = make_lattice()
+    lattice.stall_iterations = 0
+
+    assert not any(lattice._bound_stalled(10.0) for _ in range(10))
+
+
+def test_a_stalled_run_still_ends_with_a_simulated_interval():
+    objectives = [9.0, 10.0, 11.0, 10.0, 10.0]
+    lattice = make_lattice(sample_size=len(objectives))
+    lattice._run_forwards = MagicMock(side_effect=objectives)
+
+    lattice._final_round(bound=9.5, iteration=41)
+
+    assert lattice.stop_reason == "stall"
+    assert lattice.simulation_rounds[-1].iteration == 41
 
 
 def test_termination_records_the_interval_it_tested_with():

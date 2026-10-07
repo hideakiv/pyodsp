@@ -25,6 +25,10 @@ class SddpRunMpi:
         sample_frequency: int = 10,
         sample_size: int = 1000,
         confidence_level: float = 0.95,
+        gap_tolerance: float | None = None,
+        stable_tolerance: float | None = None,
+        stall_iterations: int | None = None,
+        stall_tolerance: float | None = None,
     ):
         self.logger = AlgLogger("SDDP", "sddp", level)
         self.graph = LatticeMpi(
@@ -35,6 +39,10 @@ class SddpRunMpi:
             sample_frequency,
             sample_size,
             confidence_level,
+            gap_tolerance,
+            stable_tolerance,
+            stall_iterations,
+            stall_tolerance,
         )
 
     def run(self, init_solution: List[float] | None = None) -> None:

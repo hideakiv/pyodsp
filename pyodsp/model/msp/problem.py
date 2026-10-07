@@ -73,6 +73,17 @@ class MultistageProgram:
         sample_size: How many scenario paths each of those tests draws.
         confidence_level: The confidence level of the interval that test
             compares against the bound.
+        gap_tolerance: Stop when the simulated cost's upper confidence
+            limit is within this fraction of the bound. Defaults to
+            SDDP_GAP_TOLERANCE (0.01).
+        stable_tolerance: Stop when re-simulating the same paths changes
+            their mean cost by less than this fraction, either way.
+            Defaults to SDDP_STABLE_TOLERANCE (1e-3).
+        stall_iterations, stall_tolerance: Stop when the bound has moved by
+            less than stall_tolerance (relative) over the last
+            stall_iterations iterations; 0 iterations turns it off.
+            Default to SDDP_STALL_ITERATIONS (20) and SDDP_STALL_TOLERANCE
+            (1e-4).
         stage_bound: A bound on any single stage's cost-to-go, in your
             own units — a lower bound when minimizing. Every stage needs
             one before its parent can price it; without it the first
@@ -101,6 +112,10 @@ class MultistageProgram:
         sample_frequency: int = 10,
         sample_size: int = 100,
         confidence_level: float = 0.95,
+        gap_tolerance: float | None = None,
+        stable_tolerance: float | None = None,
+        stall_iterations: int | None = None,
+        stall_tolerance: float | None = None,
         stage_bound: float | None = None,
         log_level: int = logging.INFO,
         validate: bool = True,
@@ -116,6 +131,10 @@ class MultistageProgram:
         self.sample_frequency = sample_frequency
         self.sample_size = sample_size
         self.confidence_level = confidence_level
+        self.gap_tolerance = gap_tolerance
+        self.stable_tolerance = stable_tolerance
+        self.stall_iterations = stall_iterations
+        self.stall_tolerance = stall_tolerance
         self.stage_bound = stage_bound
         self.log_level = log_level
         self.validate = validate
@@ -334,6 +353,10 @@ class MultistageProgram:
             sample_frequency=self.sample_frequency,
             sample_size=self.sample_size,
             confidence_level=self.confidence_level,
+            gap_tolerance=self.gap_tolerance,
+            stable_tolerance=self.stable_tolerance,
+            stall_iterations=self.stall_iterations,
+            stall_tolerance=self.stall_tolerance,
         ).run()
         return read_result(self, built)
 

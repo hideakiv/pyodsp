@@ -1,3 +1,4 @@
+import json
 import time
 from dataclasses import dataclass
 from typing import List, Dict
@@ -18,15 +19,20 @@ from ..node._message import (
 from ..utils import create_directory
 
 
-from pyodsp.alg.params import (
-    SDDP_REL_TOLERANCE,
-    SDDP_IMPROVE_TOLERANCE,
-    SDDP_SEED,
-)
+from pyodsp.alg import params as _params
+from pyodsp.alg.params import SDDP_SEED
 
 
 SIMULATION_FILE = "simulation.csv"
 SIMULATION_SAMPLES_FILE = "simulation_samples.csv"
+STOPPING_FILE = "stopping.json"
+
+# Why a run stopped. "gap" and "stable" are decided at a convergence test,
+# "stall" at any iteration, "max_iteration" when the loop runs out.
+STOP_GAP = "gap"
+STOP_STABLE = "stable"
+STOP_STALL = "stall"
+STOP_MAX_ITERATION = "max_iteration"
 
 # The SDDP progress table: column names once, then numbers. "sample" and the
 # confidence interval are blank except on the iterations that run a
@@ -73,7 +79,25 @@ class Lattice:
         sample_frequency: int = 10,
         sample_size: int = 1000,
         confidence_level: float = 0.95,
+        gap_tolerance: float | None = None,
+        stable_tolerance: float | None = None,
+        stall_iterations: int | None = None,
+        stall_tolerance: float | None = None,
     ) -> None:
+        """
+        Args:
+            gap_tolerance: Stop when the simulated cost's upper confidence
+                limit is within this fraction of the bound.
+            stable_tolerance: Stop when re-simulating the previous test's
+                paths changes their mean cost by less than this fraction —
+                the whole confidence interval of the change inside
+                +/- tolerance — or when no path's cost changed at all.
+            stall_iterations, stall_tolerance: Stop when the bound has
+                moved by less than stall_tolerance (relative) over the last
+                stall_iterations iterations. 0 iterations turns it off.
+
+        Each defaults to its SDDP_* value in pyodsp.alg.params.
+        """
         self.num_stages = len(nodes)
         self._verify_nodes(nodes)
         self.logger = logger
@@ -82,6 +106,14 @@ class Lattice:
         self.sample_frequency = sample_frequency
         self.sample_size = sample_size
         self.confidence_level = confidence_level
+        self.gap_tolerance = _default(gap_tolerance, _params.SDDP_GAP_TOLERANCE)
+        self.stable_tolerance = _default(
+            stable_tolerance, _params.SDDP_STABLE_TOLERANCE
+        )
+        self.stall_iterations = int(
+            _default(stall_iterations, _params.SDDP_STALL_ITERATIONS)
+        )
+        self.stall_tolerance = _default(stall_tolerance, _params.SDDP_STALL_TOLERANCE)
         create_directory(self.filedir)
 
         self._last_dn_messages: Dict[NodeIdx, DnMessage] = {}
@@ -101,6 +133,11 @@ class Lattice:
         # is kept: it is the converged policy's cost distribution, and
         # every round before it describes a policy that no longer exists.
         self.simulation_samples: List[float] = []
+        # The bound at every iteration, internal (minimize) units — what
+        # the stall test looks back over.
+        self.bound_history: List[float] = []
+        self.stop_reason: str | None = None
+        self.stop_message: str | None = None
 
     def _verify_nodes(self, nodes: List[List[INode]]) -> None:
         self.root: INodeRoot | None = None
@@ -221,6 +258,9 @@ class Lattice:
         for iteration in range(self.max_iteration):
             bound = self._run_root()
             self.bound = bound * multiplier
+            if self._bound_stalled(bound):
+                self._final_round(bound, iteration)
+                break
             if iteration % self.sample_frequency == self.sample_frequency - 1:
                 if self._termination(bound, iteration):
                     break
@@ -235,6 +275,8 @@ class Lattice:
                 self._run_forwards(self._iteration_rng(iteration))
 
             self._run_backwards()
+        else:
+            self._stop(STOP_MAX_ITERATION, "the iteration limit was reached")
 
     def _sample_rng(self, sample_idx: int) -> np.random.Generator:
         """The generator for Monte Carlo sample `sample_idx`.
@@ -294,7 +336,8 @@ class Lattice:
         )
         return float(ci_d), float(ci_u)
 
-    def _termination(self, bound: float, iteration: int = -1) -> bool:
+    def _simulate(self, bound: float, iteration: int) -> List[float]:
+        """Run one convergence test's simulation, record it and log it."""
         objectives = self._collect_samples()
         ci_d, ci_u = self._confidence_interval(objectives)
         self._record_simulation(iteration, objectives, ci_d, ci_u, bound)
@@ -308,43 +351,95 @@ class Lattice:
                 ci=(rnd.lower, rnd.upper),
             )
         )
-        # Always a minimization here — PyomoSolver converts a maximize model
-        # on construction — so the sample mean's upper confidence limit is
-        # the side that meets the lower bound the algorithm drives up.
-        converged = abs(ci_u - bound) / max(abs(ci_u), abs(bound)) < SDDP_REL_TOLERANCE
+        return objectives
 
-        if converged:
-            self.logger.log_info(
-                "SDDP terminated: the sample interval meets the bound"
+    def _termination(self, bound: float, iteration: int = -1) -> bool:
+        """A convergence test: simulate, then apply the gap and the
+        stability rules.
+
+        Gap. Always a minimization here — PyomoSolver converts a maximize
+        model on construction — so the bound is a lower bound and the
+        sample mean's upper confidence limit the side that meets it. The
+        test is one-sided: an upper limit already below the bound (sampling
+        noise) has met it too.
+
+        Stability. The samples are keyed by index (see _sample_rng), so
+        each test re-draws the previous test's paths and the change in
+        cost is paired. The run stops only when that change is
+        indistinguishable from zero in *both* directions. A one-sided test
+        on improvement alone also passes when the policy got worse on these
+        paths — which it routinely does while cuts are still being added —
+        and stops runs whose bound is still climbing.
+        """
+        objectives = self._simulate(bound, iteration)
+        ci_u = self._confidence_interval(objectives)[1]
+
+        scale = max(abs(bound), abs(ci_u), 1e-12)
+        if ci_u - bound <= self.gap_tolerance * scale:
+            self._stop(
+                STOP_GAP,
+                f"the simulated cost's upper confidence limit {ci_u:.6g} is "
+                f"within {self.gap_tolerance:g} of the bound {bound:.6g}",
             )
             return True
 
-        no_improve = False
         if self.prev_samples is not None:
             sample_diffs = [
                 self.prev_samples[i] - objectives[i] for i in range(len(objectives))
             ]
-            all_zero = True
-            for sample_diff in sample_diffs:
-                if sample_diff > 1e-9:
-                    all_zero = False
-                    break
-
-            if all_zero:
-                no_improve = True
-            else:
-                _, diff_ci_u = self._confidence_interval(sample_diffs)
-                no_improve = diff_ci_u < SDDP_IMPROVE_TOLERANCE
-
-        if no_improve:
-            self.logger.log_info(
-                "SDDP terminated: no further improvement in the sample"
-            )
-            return True
+            if all(abs(diff) <= 1e-9 for diff in sample_diffs):
+                self._stop(
+                    STOP_STABLE,
+                    "no simulated path's cost changed since the last test",
+                )
+                return True
+            diff_lo, diff_hi = self._confidence_interval(sample_diffs)
+            band = self.stable_tolerance * max(abs(float(np.mean(objectives))), 1e-12)
+            if -band <= diff_lo and diff_hi <= band:
+                self._stop(
+                    STOP_STABLE,
+                    f"the simulated cost changed by [{-diff_hi:.4g}, "
+                    f"{-diff_lo:.4g}] since the last test, within "
+                    f"{self.stable_tolerance:g} of its mean",
+                )
+                return True
 
         self.prev_samples = objectives
-
         return False
+
+    def _bound_stalled(self, bound: float) -> bool:
+        """Record this iteration's bound; True once it has moved by less
+        than stall_tolerance (relative) over the last stall_iterations.
+
+        The bound is the one side SDDP computes exactly, and it only rises
+        as cuts are added, so a plateau in it is a deterministic signal
+        that the cuts have stopped adding information.
+        """
+        self.bound_history.append(bound)
+        window = self.stall_iterations
+        if window <= 0 or len(self.bound_history) <= window:
+            return False
+        before = self.bound_history[-1 - window]
+        scale = max(abs(bound), abs(before), 1e-12)
+        return abs(bound - before) <= self.stall_tolerance * scale
+
+    def _final_round(self, bound: float, iteration: int) -> None:
+        """Stopping on a stalled bound: simulate the final policy once, so
+        the run still ends with an interval for it, then record why."""
+        # (never a duplicate: the stall test runs before this iteration's
+        # convergence test would)
+        self._simulate(bound, iteration)
+        window = self.stall_iterations
+        self._stop(
+            STOP_STALL,
+            f"the bound moved by less than {self.stall_tolerance:g} over the "
+            f"last {window} iterations",
+        )
+
+    def _stop(self, reason: str, message: str) -> None:
+        self.stop_reason = reason
+        self.stop_message = message
+        self.logger.log_info(f"SDDP terminated ({reason}): {message}")
 
     def _record_simulation(
         self,
@@ -453,6 +548,24 @@ class Lattice:
         for node in self.nodes.values():
             node.save(self.filedir)
         self._save_simulation()
+        self._save_stopping()
+
+    def _save_stopping(self) -> None:
+        """Write why the run stopped, and the rules it was stopping on."""
+        (self.filedir / STOPPING_FILE).write_text(
+            json.dumps(
+                {
+                    "reason": self.stop_reason,
+                    "message": self.stop_message,
+                    "iterations": len(self.bound_history),
+                    "gap_tolerance": self.gap_tolerance,
+                    "stable_tolerance": self.stable_tolerance,
+                    "stall_iterations": self.stall_iterations,
+                    "stall_tolerance": self.stall_tolerance,
+                },
+                indent=2,
+            )
+        )
 
     def _save_simulation(self) -> None:
         """Write the convergence tests to simulation.csv.
@@ -479,3 +592,7 @@ class Lattice:
         pd.DataFrame({"objective": self.simulation_samples}).to_csv(
             self.filedir / SIMULATION_SAMPLES_FILE, index=False
         )
+
+
+def _default(value, default):
+    return default if value is None else value

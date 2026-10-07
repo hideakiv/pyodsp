@@ -28,8 +28,10 @@ _PARAM_NAMES = [
     "PBM_E_S",
     "BM_LAMBDA_BOUND",
     "DEC_CUT_ABS_TOL",
-    "SDDP_REL_TOLERANCE",
-    "SDDP_IMPROVE_TOLERANCE",
+    "SDDP_GAP_TOLERANCE",
+    "SDDP_STABLE_TOLERANCE",
+    "SDDP_STALL_ITERATIONS",
+    "SDDP_STALL_TOLERANCE",
 ]
 
 
@@ -43,7 +45,9 @@ def test_load_params_from_file_overrides_given_values(tmp_path, restore_params):
     assert params.PBM_ML == 0.25
 
 
-def test_load_params_from_file_keeps_defaults_for_missing_keys(tmp_path, restore_params):
+def test_load_params_from_file_keeps_defaults_for_missing_keys(
+    tmp_path, restore_params
+):
     file_path = tmp_path / "params.json"
     file_path.write_text(json.dumps({"BM_ABS_TOLERANCE": 0.5}))
     default_rel_tolerance = params.BM_REL_TOLERANCE
@@ -53,7 +57,9 @@ def test_load_params_from_file_keeps_defaults_for_missing_keys(tmp_path, restore
     assert params.BM_REL_TOLERANCE == default_rel_tolerance
 
 
-def test_load_params_from_file_missing_file_keeps_defaults(tmp_path, restore_params, capsys):
+def test_load_params_from_file_missing_file_keeps_defaults(
+    tmp_path, restore_params, capsys
+):
     missing_path = tmp_path / "does_not_exist.json"
     default_tolerance = params.BM_ABS_TOLERANCE
 
@@ -63,7 +69,9 @@ def test_load_params_from_file_missing_file_keeps_defaults(tmp_path, restore_par
     assert "not found" in capsys.readouterr().out
 
 
-def test_load_params_from_file_malformed_json_keeps_defaults(tmp_path, restore_params, capsys):
+def test_load_params_from_file_malformed_json_keeps_defaults(
+    tmp_path, restore_params, capsys
+):
     file_path = tmp_path / "params.json"
     file_path.write_text("{not valid json")
     default_tolerance = params.BM_ABS_TOLERANCE
@@ -72,3 +80,28 @@ def test_load_params_from_file_malformed_json_keeps_defaults(tmp_path, restore_p
 
     assert params.BM_ABS_TOLERANCE == default_tolerance
     assert "Error decoding JSON" in capsys.readouterr().out
+
+
+@pytest.mark.parametrize("old", ["SDDP_REL_TOLERANCE", "SDDP_IMPROVE_TOLERANCE"])
+def test_a_renamed_sddp_key_warns_instead_of_being_ignored(
+    tmp_path, restore_params, old
+):
+    """Both changed meaning when they were renamed, so a file that still
+    sets them would otherwise run under rules it did not ask for."""
+    file_path = tmp_path / "params.json"
+    file_path.write_text(json.dumps({old: 0.5}))
+
+    with pytest.warns(UserWarning, match=old):
+        params.load_params_from_file(str(file_path))
+
+
+def test_the_new_sddp_stopping_keys_are_read(tmp_path, restore_params):
+    file_path = tmp_path / "params.json"
+    file_path.write_text(
+        json.dumps({"SDDP_GAP_TOLERANCE": 0.05, "SDDP_STALL_ITERATIONS": 7})
+    )
+
+    params.load_params_from_file(str(file_path))
+
+    assert params.SDDP_GAP_TOLERANCE == 0.05
+    assert params.SDDP_STALL_ITERATIONS == 7

@@ -577,3 +577,35 @@ def test_asking_for_a_distribution_a_run_never_produced(tmp_path):
         result.objective_stats()
     with pytest.raises(ValueError, match="no simulation samples"):
         result.plot_objective_distribution()
+
+
+# -- stopping ---------------------------------------------------------------
+
+
+def test_the_result_says_why_the_run_stopped(tmp_path):
+    result = inventory_program(tmp_path).solve()
+
+    assert result.stop_reason in {"gap", "stable", "stall", "max_iteration"}
+    assert result.stop_message
+    assert (tmp_path / "stopping.json").exists()
+    assert f"stopped    : {result.stop_reason}" in result.summary()
+
+
+def test_the_stall_rule_is_set_from_the_front_end(tmp_path):
+    # a tolerance this loose calls any bound stalled once the window fills
+    result = inventory_program(
+        tmp_path, stall_iterations=2, stall_tolerance=1.0, gap_tolerance=-1.0
+    ).solve()
+
+    assert result.stop_reason == "stall"
+    assert len(result.history) == 3
+    # a stalled run still ends with an interval for its final policy
+    assert result.simulation is not None and len(result.simulation) == 1
+
+
+def test_running_out_of_iterations_is_reported_as_such(tmp_path):
+    result = inventory_program(tmp_path, stall_iterations=0, gap_tolerance=-1.0).solve(
+        max_iteration=4
+    )
+
+    assert result.stop_reason == "max_iteration"

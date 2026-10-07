@@ -217,6 +217,40 @@ msp = MultistageProgram(..., sample_frequency=10, sample_size=100, confidence_le
 A wide interval means the sample, not the policy, is the uncertain part —
 raise `sample_size`.
 
+The run stops on the first of three rules, and `result.stop_reason` says
+which (`result.stop_message` has the numbers; both are also in
+`stopping.json` in the output directory):
+
+`'gap'` — `gap_tolerance`, default `0.01`
+: The simulated cost's upper confidence limit is within this fraction of the
+  bound. The strongest of the three, but it needs a sample large enough to
+  make the interval that narrow.
+
+`'stable'` — `stable_tolerance`, default `1e-3`
+: Each test re-draws the previous test's paths, so the change in their cost
+  is paired. The run stops once that change is within this fraction of the
+  mean cost *in both directions* — or no path's cost changed at all. A policy
+  that got worse on the sample does not stop the run.
+
+`'stall'` — `stall_iterations`, `stall_tolerance`, defaults `20`, `1e-4`
+: The bound moved by less than `stall_tolerance` (relative) over the last
+  `stall_iterations` iterations. The bound is computed exactly, so this is
+  the one rule sampling noise cannot trigger. The run then simulates its
+  final policy once, so it still ends with an interval. `stall_iterations=0`
+  turns it off.
+
+`'max_iteration'` means none of them fired.
+
+```python
+msp = MultistageProgram(..., gap_tolerance=0.02, stall_iterations=30)
+result = msp.solve()
+print(result.stop_reason, result.stop_message)
+```
+
+The defaults are also `SDDP_GAP_TOLERANCE`, `SDDP_STABLE_TOLERANCE`,
+`SDDP_STALL_ITERATIONS` and `SDDP_STALL_TOLERANCE` in a `PYODSP_PARAM_PATH`
+file. `SDDP_REL_TOLERANCE` and `SDDP_IMPROVE_TOLERANCE` are no longer read.
+
 ## Running under MPI
 
 ```python

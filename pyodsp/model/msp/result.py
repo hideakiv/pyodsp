@@ -37,6 +37,11 @@ class MspResult:
             rank 0 drives the iteration, so the others come back with an
             empty bound and history — check this before reporting.
         output_dir: Where the run's per-node files were written.
+        stop_reason: Why SDDP stopped — 'gap' (the simulated interval met
+            the bound), 'stable' (re-simulating the same paths no longer
+            changed their cost), 'stall' (the bound stopped moving) or
+            'max_iteration'. None if the run recorded none.
+        stop_message: The same, with the numbers behind it.
     """
 
     name: str
@@ -53,6 +58,8 @@ class MspResult:
     output_dir: Path
     simulation_samples: Any = None
     lattice: Any = None
+    stop_reason: str | None = None
+    stop_message: str | None = None
     _nodes: List[List[Any]] = field(default_factory=list, repr=False)
 
     def policy(self) -> SddpPolicy:
@@ -83,6 +90,8 @@ class MspResult:
             f"  stages     : {self.num_stages} (nodes per stage "
             f"{self.nodes_per_stage})",
             f"  iterations : {len(self.history)}",
+            f"  stopped    : {self.stop_reason or 'n/a'}"
+            + (f" — {self.stop_message}" if self.stop_message else ""),
             "  first stage:",
         ]
         for label, value in self.first_stage_flat.items():
@@ -200,6 +209,7 @@ def read_result(program, built) -> MspResult:
     # Under MPI only rank 0 runs the iteration and writes output, so only
     # its masters hold a trajectory to read.
     is_root_rank = program.is_root_rank
+    stopping = _read_stopping(program.output_dir) if is_root_rank else {}
     return MspResult(
         name=program.name,
         is_maximize=program.is_maximize,
@@ -221,6 +231,8 @@ def read_result(program, built) -> MspResult:
         is_root_rank=is_root_rank,
         output_dir=Path(program.output_dir),
         lattice=lattice,
+        stop_reason=stopping.get("reason"),
+        stop_message=stopping.get("message"),
         _nodes=built.nodes,
     )
 
@@ -234,6 +246,17 @@ def _nest(labels: List[str], values: List[float | None]) -> Dict[str, Any]:
         name, _, index = label.partition("[")
         nested.setdefault(name, {})[index.rstrip("]")] = value
     return nested
+
+
+def _read_stopping(output_dir) -> Dict[str, Any]:
+    import json
+
+    from pyodsp.dec.graph.lattice import STOPPING_FILE
+
+    path = Path(output_dir) / STOPPING_FILE
+    if not path.exists():
+        return {}
+    return json.loads(path.read_text())
 
 
 def _read_simulation(output_dir):

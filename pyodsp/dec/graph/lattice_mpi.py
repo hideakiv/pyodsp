@@ -5,7 +5,7 @@ from typing import Dict, List
 import numpy as np
 from mpi4py import MPI
 
-from .lattice import Lattice, _SDDP_HEADER, _sddp_row
+from .lattice import STOP_MAX_ITERATION, Lattice, _SDDP_HEADER, _sddp_row
 from ..node._logger import ILogger
 from ..node._node import INode
 from ..node._message import NodeIdx
@@ -57,6 +57,10 @@ class LatticeMpi(Lattice):
         sample_frequency: int = 10,
         sample_size: int = 1000,
         confidence_level: float = 0.95,
+        gap_tolerance: float | None = None,
+        stable_tolerance: float | None = None,
+        stall_iterations: int | None = None,
+        stall_tolerance: float | None = None,
     ) -> None:
         super().__init__(
             nodes,
@@ -66,6 +70,10 @@ class LatticeMpi(Lattice):
             sample_frequency,
             sample_size,
             confidence_level,
+            gap_tolerance,
+            stable_tolerance,
+            stall_iterations,
+            stall_tolerance,
         )
         self.comm = MPI.COMM_WORLD
         self.rank = self.comm.Get_rank()
@@ -99,6 +107,10 @@ class LatticeMpi(Lattice):
         for iteration in range(self.max_iteration):
             bound = self._run_root()
             self.bound = bound * multiplier
+            if self._bound_stalled(bound):
+                self._broadcast_sync()
+                self._final_round(bound, iteration)
+                break
             if iteration % self.sample_frequency == self.sample_frequency - 1:
                 self._broadcast_sync()
                 if self._termination(bound, iteration):
@@ -114,6 +126,8 @@ class LatticeMpi(Lattice):
                 self._run_forwards(self._iteration_rng(iteration))
 
             self._run_backwards()
+        else:
+            self._stop(STOP_MAX_ITERATION, "the iteration limit was reached")
 
         self._broadcast_stop()
 

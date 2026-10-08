@@ -339,7 +339,15 @@ class BdScAlgLeafPyomo(IAlgLeaf):
         x_hat = self._x_hat
         rho = self._rho
 
-        # Q_s(x_hat), and y-bar for the first column (Algorithm 2, line 3)
+        # Q_s(x_hat), and y-bar for the first column (Algorithm 2, line 3).
+        # Re-fix even though pass_dn_message already did: that was only
+        # true of the call immediately after it, and a caller is free to
+        # call get_up_message again later without another pass_dn_message
+        # in between (e.g. SDDP's policy simulation re-evaluates a leaf
+        # repeatedly at the same trial point) -- the previous call's row
+        # generation unfixes these at the end, so without this they would
+        # solve free here, not at x_hat.
+        self._fix_variables(x_hat)
         solver.activate_original_objective()
         solver.solve()
         if not solver.is_optimal():
@@ -412,6 +420,9 @@ class BdScAlgLeafPyomo(IAlgLeaf):
     def _get_up_message_pbm(self) -> BdScUpMessage:
         start = time.time()
         cuts_list = None
+        # See the row-generation variant's matching comment: re-fix in case
+        # this is a repeated call with no pass_dn_message in between.
+        self._fix_variables(self._x_hat)
         self.cgsp.cpm.solver.activate_original_objective()
         self.cgsp.cpm.solver.solve()
         leaf_objective = self.cgsp.cpm.solver.get_objective_value()

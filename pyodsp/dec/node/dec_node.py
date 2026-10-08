@@ -263,5 +263,9 @@ class DecNodeInner(INodeInner, DecNodeParent, DecNodeChild):
         DecNodeParent.build_inner(self)
         DecNodeChild.build_inner(self)
 
+    def set_logger(self) -> None:
+        DecNodeParent.set_logger(self)
+        DecNodeChild.set_logger(self)
+
     def save(self, dir: Path):
         DecNodeParent.save(self, dir)

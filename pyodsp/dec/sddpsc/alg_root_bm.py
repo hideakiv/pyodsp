@@ -53,7 +53,13 @@ class SddpScAlgRootBm(IAlgRoot):
     add_cuts can otherwise arrive before it has ever been stepped.
     """
 
-    def __init__(self, solver: PyomoSolver, max_iteration: int = 1000) -> None:
+    def __init__(
+        self,
+        solver: PyomoSolver,
+        max_iteration: int = 1000,
+        name_prefix: str = "",
+        state_params: List | None = None,
+    ) -> None:
         """
         Args:
             solver: This stage's own model, coupling on the state it hands
@@ -61,6 +67,20 @@ class SddpScAlgRootBm(IAlgRoot):
                 first-stage-completeness requirement this inherits; it
                 applies the same way here, to this stage's own variables.
             max_iteration: Iteration cap for this stage's bundle method.
+            name_prefix: Forwarded to this stage's BundleMethod. Only
+                matters if solver.model is ever deliberately shared with
+                another cut-adding master; in general an inner node's root
+                role and leaf role use separate models (see state_params),
+                so this is rarely needed in practice.
+            state_params: This role's own mutable pyo.Param copies of the
+                state its leaf role (if any) receives from the parent, in
+                the same order as the leaf role's own coupling_up list.
+                SddpScNodeInner.pass_dn_message pushes the trial point into
+                these on every visit (see set_state), so the root role's
+                solve sees the same incoming state the leaf role was just
+                fixed to, despite the two roles using separate models. None
+                (the default) for a node with no incoming state, i.e. the
+                true first-stage root.
         """
         if not solver.is_minimize():
             raise ValueError(
@@ -70,7 +90,8 @@ class SddpScAlgRootBm(IAlgRoot):
                 "for the internal masters whose sense is deliberately "
                 "inverted."
             )
-        self.bm = BundleMethod(solver, max_iteration)
+        self.bm = BundleMethod(solver, max_iteration, name_prefix=name_prefix)
+        self.state_params = list(state_params) if state_params is not None else []
         self.step_time: List[float] = []
         self.rho: float | None = None
         self.solution: List[float] | None = None
@@ -82,6 +103,19 @@ class SddpScAlgRootBm(IAlgRoot):
 
     def get_vars(self) -> List[ScalarVar]:
         return self.bm.get_vars()
+
+    def set_state(self, values: List[float]) -> None:
+        """Update this role's own copy of the incoming state -- see
+        state_params. Called by SddpScNodeInner, not directly by users.
+        """
+        if len(values) != len(self.state_params):
+            raise ValueError(
+                f"Got {len(values)} state value(s), but this node has "
+                f"{len(self.state_params)} state_params; they must match "
+                "the leaf role's own coupling_up list one for one."
+            )
+        for param, val in zip(self.state_params, values):
+            param.set_value(val)
 
     def build(
         self,

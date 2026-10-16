@@ -41,6 +41,7 @@ class BdScAlgLeafPyomo(IAlgLeaf):
         cut_master: str = "bm",
         tolerance: float = BM_ABS_TOLERANCE,
         coef_bound: float | None = None,
+        name_prefix: str = "",
     ):
         """
         Args:
@@ -56,6 +57,11 @@ class BdScAlgLeafPyomo(IAlgLeaf):
             tolerance: delta in Algorithm 2 — stop once the cut is within
                 this of the best one for the current rho ('bm' only).
             coef_bound: Optional cap on |beta| and tau ('bm' only).
+            name_prefix: Forwarded to the cgsp's BundleMethod -- pass one
+                only when `solver.model` is deliberately shared with
+                another master (e.g. sddpsc's inner nodes, whose root role
+                and leaf role share one model so an incoming state fixed
+                on one side is visible, unfixed, on the other).
         """
         if cut_master not in ("bm", "pbm"):
             raise ValueError(f"cut_master must be 'bm' or 'pbm', got {cut_master!r}")
@@ -72,7 +78,9 @@ class BdScAlgLeafPyomo(IAlgLeaf):
         # it aging cuts out on its own schedule. Both would otherwise be
         # decided from this subproblem's solves, which are not the master's.
         # It still drops cuts when told to — see pass_dn_message.
-        self.cgsp = BundleMethod(solver, max_iteration, force=True, purgeable=False)
+        self.cgsp = BundleMethod(
+            solver, max_iteration, force=True, purgeable=False, name_prefix=name_prefix
+        )
         self.cut_master = cut_master
         self.tolerance = tolerance
         self.coef_bound = coef_bound
@@ -149,7 +157,7 @@ class BdScAlgLeafPyomo(IAlgLeaf):
         bound = sum(subobj_bounds)
         if self._subobj_bound is None:
             self._subobj_bound = bound
-            self.cgsp.cpm.solver.model._theta[0].setlb(bound)
+            self.cgsp.cpm.get_theta_component()[0].setlb(bound)
         elif abs(bound - self._subobj_bound) > DEC_CUT_ABS_TOL:
             raise ValueError(
                 f"The subproblem bound changed from {self._subobj_bound} to "
@@ -295,7 +303,7 @@ class BdScAlgLeafPyomo(IAlgLeaf):
     def _update_cgsp_objective(self, beta: list[float], tau: float) -> None:
         # ignore alpha
         vars = [var for var in self.cgsp.get_vars()]  # for beta
-        vars.append(self.cgsp.cpm.solver.model._theta[0])  # for tau
+        vars.append(self.cgsp.cpm.get_theta_component()[0])  # for tau
         coeffs = [b for b in beta]
         coeffs.append(tau)
         update_linear_terms_in_objective(self.cgsp.cpm.solver, coeffs, vars)

@@ -26,8 +26,17 @@ class BundleMethod:
         force: bool = False,
         purgeable: bool = True,
         risk=None,
+        name_prefix: str = "",
     ) -> None:
-        self.cpm = CuttingPlaneMethod(solver, force, purgeable, risk=risk)
+        """
+        Args:
+            name_prefix: See CuttingPlaneMethod -- pass one only when this
+                bundle method deliberately shares solver.model with another
+                master, so their private components don't collide.
+        """
+        self.cpm = CuttingPlaneMethod(
+            solver, force, purgeable, risk=risk, name_prefix=name_prefix
+        )
 
         self.max_iteration = max_iteration
         self.iteration = 0
@@ -256,13 +265,10 @@ class BundleMethod:
             bound = subobj_bounds[i]
             return (None, None) if bound is None else (sign * bound, None)
 
-        solver = self.cpm.get_solver()
-
-        solver.model._theta = Var(
-            RangeSet(0, self.num_cuts - 1), domain=Reals, bounds=theta_bounds
+        self.cpm.declare_theta(self.num_cuts, theta_bounds)
+        self.cpm.build_theta_objective(
+            self.cpm.get_theta_component(), group_probabilities
         )
-
-        self.cpm.build_theta_objective(solver.model._theta, group_probabilities)
 
     def get_theta_value(self) -> list[float]:
         return [self.cpm.get_theta_value(i) for i in range(self.num_cuts)]

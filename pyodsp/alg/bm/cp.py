@@ -38,9 +38,22 @@ class CuttingPlaneMethod:
         force: bool = False,
         purgeable: bool = True,
         risk: RiskMeasure | None = None,
+        name_prefix: str = "",
     ) -> None:
+        """
+        Args:
+            name_prefix: Prepended to every private component this adds to
+                `solver.model` (theta, the modified objective, cut
+                constraints, the CVaR auxiliaries). Two masters never share
+                a model ordinarily, so the default leaves names exactly as
+                before; pass a prefix only when two masters (e.g. a stage's
+                own bundle method and a BDSC-style leaf's column-generation
+                subproblem) deliberately share one model, so their private
+                components don't collide under the same unprefixed names.
+        """
         self.solver = solver
         self.risk: RiskMeasure = risk or Expectation()
+        self._name_prefix = name_prefix
         # Probabilities per theta, needed to state the tail. Supplied at
         # build time, since a master does not know its children until then.
         self.group_probabilities: list[float] | None = None
@@ -52,6 +65,27 @@ class CuttingPlaneMethod:
         # What the master pays for the future, as built into `_mod_obj`.
         # The relaxed bound must value the future the same way.
         self._future_expr = None
+
+    def _name(self, suffix: str) -> str:
+        """A private component's name on the (possibly shared) model."""
+        return f"{self._name_prefix}{suffix}"
+
+    def declare_theta(self, num_cuts: int, bounds_rule) -> None:
+        """Create the Var backing theta, named per name_prefix so it
+        doesn't collide with another master's if solver.model is shared.
+        """
+        self.solver.model.add_component(
+            self._name("_theta"),
+            Var(RangeSet(0, num_cuts - 1), domain=Reals, bounds=bounds_rule),
+        )
+
+    def get_theta_component(self):
+        """The pyomo Var backing theta, by whatever name name_prefix gives
+        it -- for callers that need direct access (set a bound, build an
+        expression over it) rather than just a solved value, which
+        get_theta_value already covers without needing to know the name.
+        """
+        return getattr(self.solver.model, self._name("_theta"))
 
     def is_minimize(self) -> bool:
         return self.solver.is_minimize()
@@ -71,13 +105,16 @@ class CuttingPlaneMethod:
             list(group_probabilities) if group_probabilities is not None else None
         )
         solver.original_objective.deactivate()
-        if solver.model.component("_mod_obj") is not None:
-            solver.model.del_component("_mod_obj")
+        mod_obj_name = self._name("_mod_obj")
+        if solver.model.component(mod_obj_name) is not None:
+            solver.model.del_component(mod_obj_name)
 
         future = self._risk_expression(theta_vars)
         self._future_expr = future
         modified_expr = self._sign * solver.original_objective.expr + future
-        solver.model._mod_obj = Objective(expr=modified_expr, sense=minimize)
+        solver.model.add_component(
+            mod_obj_name, Objective(expr=modified_expr, sense=minimize)
+        )
 
     def _risk_expression(self, theta_vars):
         """What the master pays for the future.
@@ -113,21 +150,24 @@ class CuttingPlaneMethod:
 
         model = self.solver.model
         indices = RangeSet(0, len(theta_vars) - 1)
-        for name in ("_eta", "_zeta", "_zeta_constraint"):
+        eta_name = self._name("_eta")
+        zeta_name = self._name("_zeta")
+        zeta_constraint_name = self._name("_zeta_constraint")
+        for name in (eta_name, zeta_name, zeta_constraint_name):
             if model.component(name) is not None:
                 model.del_component(name)
 
-        model._eta = Var(domain=Reals)
-        model._zeta = Var(indices, domain=Reals, bounds=(0.0, None))
+        model.add_component(eta_name, Var(domain=Reals))
+        model.add_component(zeta_name, Var(indices, domain=Reals, bounds=(0.0, None)))
+        eta = getattr(model, eta_name)
+        zeta = getattr(model, zeta_name)
 
         def zeta_rule(_, i):
-            return model._zeta[i] >= theta_vars[i] - probabilities[i] * model._eta
+            return zeta[i] >= theta_vars[i] - probabilities[i] * eta
 
-        model._zeta_constraint = Constraint(indices, rule=zeta_rule)
+        model.add_component(zeta_constraint_name, Constraint(indices, rule=zeta_rule))
 
-        tail = model._eta + (1.0 / risk.tail) * sum(
-            model._zeta[i] for i in range(len(theta_vars))
-        )
+        tail = eta + (1.0 / risk.tail) * sum(zeta[i] for i in range(len(theta_vars)))
         return (1.0 - risk.weight) * total + risk.weight * tail
 
     def get_cuts(self) -> list[list[CutInfo]]:
@@ -201,7 +241,7 @@ class CuttingPlaneMethod:
         return self.current_solution
 
     def get_theta_value(self, idx: int) -> float | None:
-        theta = self.solver.model._theta[idx]
+        theta = self.get_theta_component()[idx]
         if theta.value is None:
             return None
         return self._sign * theta.value
@@ -273,7 +313,7 @@ class CuttingPlaneMethod:
         return value_of_sample(risk, costs, probabilities)
 
     def _add_optimality_cut(self, idx: int, cut: OptimalityCut) -> bool:
-        theta = self.solver.model._theta[idx]
+        theta = self.get_theta_component()[idx]
         theta_val = theta.value
         cut_num = self.cuts_manager.get_num_optimality(idx)
         vars = self.get_vars()
@@ -292,7 +332,9 @@ class CuttingPlaneMethod:
             >= sign * cut.rhs
         )
 
-        self.solver.model.add_component(f"_optimality_cut_{idx}_{cut_num}", constraint)
+        self.solver.model.add_component(
+            self._name(f"_optimality_cut_{idx}_{cut_num}"), constraint
+        )
 
         self.cuts_manager.append_cut(
             CutInfo(constraint, cut, idx, self.current_solution, 0)
@@ -309,7 +351,9 @@ class CuttingPlaneMethod:
             expr=sum(sign * coeff * vars[j] for j, coeff in cut.coeffs.items())
             >= sign * cut.rhs
         )
-        self.solver.model.add_component(f"_feasibility_cut_{idx}_{cut_num}", constraint)
+        self.solver.model.add_component(
+            self._name(f"_feasibility_cut_{idx}_{cut_num}"), constraint
+        )
 
         self.cuts_manager.append_cut(
             CutInfo(constraint, cut, idx, self.current_solution, 0)

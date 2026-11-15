@@ -1,8 +1,7 @@
 # Running under MPI
 
-Every algorithm but SDDP with scaled cuts has an MPI runner alongside its
-serial one. They come in two kinds, and the difference matters for how you
-write the script.
+Every algorithm has an MPI runner alongside its serial one. They come in two
+kinds, and the difference matters for how you write the script.
 
 Install [mpi4py](https://mpi4py.readthedocs.io/en/stable/) and
 [MPICH](https://www.mpich.org/) first; OpenMPI is not tested. mpi4py is
@@ -87,6 +86,12 @@ Three consequences:
 
 `msp.rank` and `msp.is_root_rank` are available before the solve, and both are
 well-defined without MPI — rank 0, always root.
+
+`method='sddpsc'` runs the same way, through
+{class}`~pyodsp.dec.sddpsc.run_mpi.SddpScRunMpi`. Its masters carry more than
+cuts — the scaled cut's fixed point `rho` advances on rank 0's backward passes
+— so rank 0 sends each replica both before every sample. The sampled path
+costs, and so the answer, do not depend on the rank count.
 
 ## Choosing the rank count
 

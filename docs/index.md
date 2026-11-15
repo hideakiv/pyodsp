@@ -11,7 +11,7 @@ model, an algorithm object and a list of coupling variables, with a runner
 passing messages between them. Use this layer directly when the structure you
 want to exploit is yours to describe.
 
-**Every algorithm but SDDP with scaled cuts also runs under MPI** ({doc}`guide/mpi`), which spreads the
+**Every algorithm also runs under MPI** ({doc}`guide/mpi`), which spreads the
 subproblems across ranks so a rank never builds a model it does not solve.
 
 **Stochastic programming is an application of that layer.** The modelling

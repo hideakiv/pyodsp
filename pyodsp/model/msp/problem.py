@@ -104,7 +104,8 @@ class MultistageProgram:
             with scaled cuts, pyodsp.dec.sddpsc), which converges on
             mixed-integer stages too but needs every node of a stage to
             share one transition -- only the cost may be random -- and a
-            stage_bound. Not available with mpi.
+            stage_bound. Under mpi it splits the Monte Carlo sample the
+            same way SDDP does.
         lookback: 'sddpsc' only. How many earlier stages each leaf's
             column-generation subproblem replays to know which states are
             reachable, at least 1; None (the default) goes back to stage
@@ -136,8 +137,6 @@ class MultistageProgram:
     ) -> None:
         if method not in ("sddp", "sddpsc"):
             raise ValueError(f"method must be 'sddp' or 'sddpsc', got {method!r}")
-        if method == "sddpsc" and mpi:
-            raise ValueError("method='sddpsc' has no MPI runner yet; use mpi=False")
         if lookback is not None and method != "sddpsc":
             raise ValueError("lookback only applies to method='sddpsc'")
         self.name = name
@@ -355,10 +354,12 @@ class MultistageProgram:
         return self.rank == 0
 
     def _runner(self):
-        if self.method == "sddpsc":
-            return SddpScRun
         if not self.mpi:
-            return SddpRun
+            return SddpScRun if self.method == "sddpsc" else SddpRun
+        if self.method == "sddpsc":
+            from pyodsp.dec.sddpsc.run_mpi import SddpScRunMpi
+
+            return SddpScRunMpi
         from pyodsp.dec.sddp.run_mpi import SddpRunMpi
 
         return SddpRunMpi

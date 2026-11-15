@@ -137,7 +137,6 @@ def test_random_transitions_are_refused(tmp_path):
     "kwargs, match",
     [
         ({"method": "nope"}, "method must be"),
-        ({"method": "sddpsc", "mpi": True}, "MPI"),
         ({"lookback": 2}, "only applies"),
     ],
 )

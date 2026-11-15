@@ -65,9 +65,14 @@ with a hand-verifiable optimum the bound converges to it (it converged to
 the value ignoring the last stage before the future term existed; see
 test/solver/test_sddpsc_multistage.py).
 
-Known gap: with more than one node per stage, every node's rho is
-advanced from c's that the children computed against whichever node was
-visited last.
+With more than one node per stage, the children's replies are priced
+against whichever node was visited last. Each dn message names that node
+(its origin) and the leaves echo it, so only the origin takes the rho step;
+a sibling with the same children at the same probabilities (a
+stagewise-independent stage) shares the cut, and any other node leaves the
+replies alone -- see SddpScAlgRootBm._role_for. That last rule is
+conservative: a cut with tau = 0 is an ordinary cut on each child's own
+cost and would be valid for a Markov sibling too.
 
 For the two-stage paper's method itself, see pyodsp.dec.bdsc.
 """

@@ -193,6 +193,17 @@ class SddpScAlgLeafPyomo(BdScAlgLeafPyomo):
                 else:
                     raise TypeError(f"Unknown cut type {type(cut).__name__}")
 
+    def pass_dn_message(self, message) -> None:
+        # whose trial point this is, echoed on the reply -- see
+        # SddpScAlgRootBm.add_cuts
+        self._origin = (message.get_origin(), message.get_origin_multipliers())
+        super().pass_dn_message(message)
+
+    def get_up_message(self):
+        message = super().get_up_message()
+        message.set_origin(*getattr(self, "_origin", (None, None)))
+        return message
+
     def _future_expr(self):
         return sum(self._future_theta[g] for g in self._future_theta)
 

@@ -96,6 +96,7 @@ class SddpScAlgRootBm(IAlgRoot):
         self.rho: float | None = None
         self.solution: List[float] | None = None
         self.objective: float | None = None
+        self.idx: NodeIdx | None = None
         # Whether add_cuts actually added a cut since the last run_step --
         # only then has the trial point potentially moved, so only then
         # does rho's baseline need resyncing (see run_step).
@@ -171,13 +172,17 @@ class SddpScAlgRootBm(IAlgRoot):
         if cuts_list is not None or self._cuts_changed:
             self.rho = sum(self.bm.get_theta_value())
             self._cuts_changed = False
-        return status, BdScDnMessage(
+        message = BdScDnMessage(
             self.solution,
             self.rho,
             self.bm.get_cut_list(),
             self.subobj_bounds,
             self.objective,
         )
+        # so the replies priced against this rho and these cuts can be told
+        # apart from a sibling's -- see add_cuts
+        message.set_origin(self.idx, dict(self.children_multipliers))
+        return status, message
 
     def add_cuts(self, up_messages: dict[NodeIdx, BdScUpMessage]) -> None:
         """One step of the rho fixed point (Lemma 2-4): advance rho toward
@@ -187,6 +192,10 @@ class SddpScAlgRootBm(IAlgRoot):
         whatever this adds.
         """
         assert self.rho is not None, "add_cuts called before build()"
+
+        role = self._role_for(up_messages)
+        if role is None:
+            return
 
         c_average = 0.0
         tau_average = 0.0
@@ -205,8 +214,54 @@ class SddpScAlgRootBm(IAlgRoot):
                         cut.coeffs[var_id] = coeff / (1 + tau_average)
             self.bm.add_cuts(cuts_list)
             self._cuts_changed = True
-        else:
+        elif role == "origin":
             self.rho = self.rho + c_average / (1 + tau_average)
+
+    def _role_for(self, up_messages: dict[NodeIdx, BdScUpMessage]) -> str | None:
+        """How this master may use these replies: "origin", "sibling" or
+        None (not at all).
+
+        Lattice hands every master at a stage the same replies, but they
+        were priced against one master's trial point: the rho and cuts in
+        the dn message the children last received. Only that master (the
+        origin) may take the rho step -- c measures the gap at *its* rho
+        and x_hat, and means nothing for anyone else's.
+
+        The cut itself is valid for a sibling only if it prices the same
+        future. The scaled cut is derived with theta at the origin's
+        expected cost-to-go (sum_s p_s Q_s, p the origin's multipliers), so
+        a sibling with the same children at the same probabilities -- a
+        stagewise-independent stage -- may take it. One with different
+        probabilities (a Markov lattice) may not: for it the cut bounds the
+        wrong expectation. It leaves these replies alone and learns when it
+        is the one visited.
+
+        Replies that carry no origin (bdsc's own leaf, which does not echo
+        it) are taken as this master's own, which is all a single-master
+        stage ever sees.
+        """
+        origins = {
+            message.get_origin()
+            for node_idx, message in up_messages.items()
+            if node_idx in self.children_multipliers
+        }
+        if origins <= {None, self.idx}:
+            return "origin"
+        if len(origins) != 1:
+            return None
+        multipliers = next(
+            message.get_origin_multipliers()
+            for node_idx, message in up_messages.items()
+            if node_idx in self.children_multipliers
+        )
+        if multipliers is None or set(multipliers) != set(self.children_multipliers):
+            return None
+        if any(
+            abs(multipliers[child] - p) > 1e-12
+            for child, p in self.children_multipliers.items()
+        ):
+            return None
+        return "sibling"
 
     def reset_iteration(self) -> None:
         self.bm.reset_iteration()
@@ -255,4 +310,7 @@ class SddpScAlgRootBm(IAlgRoot):
         return True
 
     def set_logger(self, node_id: int, depth: int, level: int = logging.INFO) -> None:
+        # this is where a master learns its own node's index (as
+        # BdScAlgLeafPyomo does) -- needed to tag its dn messages
+        self.idx = node_id
         self.bm.set_logger(node_id, depth, level)

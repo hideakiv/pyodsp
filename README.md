@@ -20,14 +20,15 @@ This is the core of pyodsp. A decomposition is a graph of nodes, each owning a P
 - **Dual decomposition (dd)** — decomposition on complicating constraints; the dual of Dantzig–Wolfe decomposition. Accepts MILPs, but solves the Lagrangian dual, so the solution is not guaranteed optimal and the incumbent comes from a heuristic.
 - **SDDP** — stochastic dual dynamic programming over a lattice of stages. For the method and its variants, see:
   > Füllner, C., & Rebennack, S. (2025). Stochastic dual dynamic programming and its variants: A review. *SIAM Review*, 67(3), 415–539.
+- **SDDP with scaled cuts (sddpsc)** — SDDP whose cuts are built like `bdsc`'s instead of from LP duals, so it converges on mixed-integer stages. Requires every node of a stage to share one transition, with only the costs random.
 
 ### MPI (optional)
-Every algorithm has an MPI runner under `pyodsp.dec` (`run_mpi.py`), which splits the subproblems across ranks. `MultistageProgram(mpi=True)` exposes this for SDDP, where each rank helps evaluate the Monte Carlo sample and rank 0 drives the iteration and owns the results. Launch with `mpiexec -n <ranks> python your_script.py`.
+Every algorithm except sddpsc has an MPI runner under `pyodsp.dec` (`run_mpi.py`), which splits the subproblems across ranks. `MultistageProgram(mpi=True)` exposes this for SDDP, where each rank helps evaluate the Monte Carlo sample and rank 0 drives the iteration and owns the results. Launch with `mpiexec -n <ranks> python your_script.py`.
 
 ### Stochastic programming front-end (`pyodsp.model`)
 Stochastic programming is one application of the decomposition layer: scenarios give the block structure, and the front-end builds the node graph for you from a model you write once per stage — replicating the first-stage variables, keeping the coupling lists aligned, converting sense and results, finding subproblem bounds, and picking the algorithm.
 - `StochasticProgram` — two-stage programs. `method` selects `'bd'` (Benders), `'bdsc'` (Benders with scaled cuts), `'dd'` (dual decomposition), or `'de'` to skip decomposition and hand the solver the deterministic equivalent. `'bd'` adapts: an integer recourse either moves to scaled cuts or has its integrality relaxed, with a warning, rather than silently returning a wrong answer.
-- `MultistageProgram` — multistage programs over a scenario lattice, solved by SDDP. Uncertainty may be stage-wise independent, stage-varying, Markov, or a lattice you construct yourself.
+- `MultistageProgram` — multistage programs over a scenario lattice, solved by SDDP. Uncertainty may be stage-wise independent, stage-varying, Markov, or a lattice you construct yourself. `method='sddpsc'` handles integer stages when only the costs are random.
 - Scenarios come from a `ScenarioSet`, a pandas DataFrame, a mapping, or an iterable of dicts; probabilities default to uniform.
 - Results (`SpResult`, `MspResult`) carry the first-stage decision, per-scenario outcomes, bound and gap, and the convergence history, all in your own objective's units — with `summary()`, DataFrame accessors, and plots. An SDDP run leaves a policy, so `result.simulate(path)` replays any scenario path against the cuts.
 

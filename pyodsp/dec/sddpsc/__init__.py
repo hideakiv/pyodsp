@@ -26,7 +26,7 @@ against a stochastic electricity price is the model case -- the level
 transition is deterministic, the price is not. Under this restriction a
 stage-t leaf's column-generation subproblem can embed the deterministic
 transition chain from stage t-K through t-1 (K the lookback, maximum by
-default -- i.e. back to stage 1) as ordinary free variables, while
+default -- i.e. back to stage 0) as ordinary free variables, while
 declaring only x_{t-1} as its coupling variable. The resulting scaled cut
 is still exactly a function of x_{t-1}, because only coupling variables
 can carry a cut coefficient; the earlier stages only sharpen which x_{t-1}
@@ -41,13 +41,16 @@ forward pass, add_cuts separately on the backward pass, no inner loop
 between them), so the rho fixed point at the heart of a scaled cut (van
 der Laan & Romeijnders, Lemma 2-4) advances by one step per visit rather
 than converging within it, refining across SDDP's own many iterations
-instead. A stage's leaf is bdsc.alg_leaf_pyomo.BdScAlgLeafPyomo, reused
-unchanged (see alg_leaf_pyomo.py) -- its row-generation machinery doesn't
-need to know it's embedded in a lattice rather than a two-stage master.
+instead. A stage's leaf is alg_leaf_pyomo.SddpScAlgLeafPyomo: bdsc's
+BdScAlgLeafPyomo, whose row-generation machinery doesn't need to know it's
+embedded in a lattice rather than a two-stage master, plus the next
+stage's cost-to-go for an inner stage (its "future term").
 
-Status. Validated end to end for a root+leaf (two-stage) lattice: driving
-the Caroe-Schultz instance from examples/bdsc/cs.py through Lattice instead
-of bdsc's HubAndSpoke converges to the same bound.
+Status. Validated end to end (test/solver/test_sddpsc_regression.py):
+driving the Caroe-Schultz instance from examples/bdsc/cs.py through
+Lattice converges to bdsc's bound; on a continuous multistage model it
+lands on plain SDDP's; and on a mixed-integer one it reaches the integer
+optimum, past the LP relaxation's bound that plain SDDP's cuts stop at.
 
 An inner stage (an INodeInner between the root and the leaves) is an
 SddpScNodeInner (node.py) whose root role and leaf role use separate Pyomo

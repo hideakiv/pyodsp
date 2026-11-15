@@ -163,6 +163,10 @@ tuning knob on problems with many scenarios.
     `examples/dd/equality_pbm.py`.
 * - `pyodsp.dec.sddp`
   - SDDP: `SddpRun`, `SddpRunMpi`, `SddpPolicy`.
+* - `pyodsp.dec.sddpsc`
+  - SDDP with scaled cuts, for integer stages with random costs only:
+    `SddpScRun`, `SddpScNodeInner` (an inner node's two models),
+    `SddpScPolicy`. Serial only.
 * - `pyodsp.dec.graph`
   - The message-passing topologies: `HubAndSpoke` for two-stage, `Lattice` for
     multistage, `Tree`, and MPI variants of the first two.

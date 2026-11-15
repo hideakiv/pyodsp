@@ -1,7 +1,8 @@
 # Running under MPI
 
-Every algorithm has an MPI runner alongside its serial one. They come in two
-kinds, and the difference matters for how you write the script.
+Every algorithm but SDDP with scaled cuts has an MPI runner alongside its
+serial one. They come in two kinds, and the difference matters for how you
+write the script.
 
 Install [mpi4py](https://mpi4py.readthedocs.io/en/stable/) and
 [MPICH](https://www.mpich.org/) first; OpenMPI is not tested. mpi4py is

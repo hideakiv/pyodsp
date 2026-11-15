@@ -3,7 +3,9 @@
 More than two stages, decisions and observations alternating over a horizon.
 {class}`~pyodsp.model.msp.problem.MultistageProgram` solves these by SDDP, and asks you
 to describe **one stage**: the same builder runs at every node of the lattice,
-told which stage and which realization it is building.
+told which stage and which realization it is building. Stages with integer
+variables need `method='sddpsc'`; see
+{ref}`integer-stages`.
 
 ```python
 import pyomo.environ as pyo
@@ -250,6 +252,76 @@ print(result.stop_reason, result.stop_message)
 The defaults are also `SDDP_GAP_TOLERANCE`, `SDDP_STABLE_TOLERANCE`,
 `SDDP_STALL_ITERATIONS` and `SDDP_STALL_TOLERANCE` in a `PYODSP_PARAM_PATH`
 file. `SDDP_REL_TOLERANCE` and `SDDP_IMPROVE_TOLERANCE` are no longer read.
+
+(integer-stages)=
+
+## Integer stages: `method='sddpsc'`
+
+SDDP reads its cuts off the LP duals of each stage. A stage with integer
+variables has none, and the run stops with the solver's error the first time it
+asks for them. Relaxing the integers runs, but converges on the relaxation,
+which can be far from the integer problem.
+
+`method='sddpsc'` builds the cuts the way
+{ref}`Benders with scaled cuts <bdsc-citation>` does for a two-stage program
+instead — by column generation over the stage's own feasible set — so they
+recover the convex hull of an integer stage's cost:
+
+```python
+msp = MultistageProgram("cover", sense="min", stage_bound=-1.0, method="sddpsc")
+
+@msp.stage(state=["x"])
+def stage(m, state, node):
+    if node.is_first:                       # claim up to 1.5, worth 1 a unit
+        m.x = pyo.Var(bounds=(0, 1.5))
+        return -1.0 * m.x
+    if node.is_last:                        # sell what was bought
+        m.z = pyo.Var(bounds=(0, 2))
+        m.sell = pyo.Constraint(expr=m.z <= state.x)
+        return -node["r"] * m.z
+    m.x = pyo.Var(within=pyo.NonNegativeIntegers, bounds=(0, 2))
+    m.cover = pyo.Constraint(expr=m.x >= state.x)   # cover it in whole units
+    return node["c"] * m.x
+
+msp.set_initial_state(x=0.0)
+msp.set_stage_realizations([
+    [{"name": "lo", "probability": 0.5, "c": 0.5},
+     {"name": "hi", "probability": 0.5, "c": 1.5}],
+    [{"name": "lo", "probability": 0.5, "r": 0.2},
+     {"name": "hi", "probability": 0.5, "r": 0.4}],
+])
+result = msp.solve()     # bound -0.3, first stage x = 1
+```
+
+The expected cost is $-x + 0.7\lceil x \rceil$, so the optimum claims exactly one
+unit, at $-0.3$. Relax the integer and the ceiling goes with it: the relaxation
+claims all 1.5 and promises $-0.45$, which is the most cuts from LP duals can
+tell you. `sddpsc` reaches $-0.3$.
+
+What it asks of the model in exchange:
+
+**Only the costs may be random.** Every node of a stage has to constrain it the
+same way — the same constraints, the same variable bounds — with the
+realization entering the objective alone. A battery against a random price
+fits; a reservoir with a random inflow does not. `build()` checks this by
+building every node and comparing them, and raises on the first that differs
+(`validate=False` skips the check, not the requirement).
+
+**`stage_bound` is required.** The column generation that builds each cut
+prices the next stage's cost-to-go, and needs a floor under it before the
+first cut exists; `build()` raises without one.
+
+**`lookback` trades cut quality for size.** To know which incoming states are
+reachable, each stage's subproblem replays the transitions of the stages before
+it, so it grows along the horizon. `lookback=k` replays only the last `k`
+stages (at least 1); the default, `None`, goes back to stage 0. A shorter
+lookback is cheaper per solve and still gives a valid bound, but it may be a
+weaker one.
+
+**No MPI** yet: `mpi=True` with `method='sddpsc'` raises.
+
+The result is the same `MspResult`, and the policy works the same way —
+`result.simulate(path)` replays a path against the cuts the run learned.
 
 ## Running under MPI
 

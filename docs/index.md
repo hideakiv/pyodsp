@@ -4,13 +4,14 @@ A Pyomo interface for decomposition of structured programs, inspired by
 [DSP](https://github.com/Argonne-National-Laboratory/DSP).
 
 **Decomposition is what pyodsp is.** {doc}`guide/low-level` describes the core:
-Benders decomposition, Benders with scaled cuts, dual decomposition and SDDP,
+Benders decomposition, Benders with scaled cuts, dual decomposition, SDDP and
+SDDP with scaled cuts,
 driven through a node graph you assemble yourself — each node owning a Pyomo
 model, an algorithm object and a list of coupling variables, with a runner
 passing messages between them. Use this layer directly when the structure you
 want to exploit is yours to describe.
 
-**Every algorithm also runs under MPI** ({doc}`guide/mpi`), which spreads the
+**Every algorithm but SDDP with scaled cuts also runs under MPI** ({doc}`guide/mpi`), which spreads the
 subproblems across ranks so a rank never builds a model it does not solve.
 
 **Stochastic programming is an application of that layer.** The modelling

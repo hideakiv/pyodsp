@@ -1,0 +1,48 @@
+from typing import List
+from pathlib import Path
+import logging
+
+from ..node._node import INode
+from ..node._logger import AlgLogger
+from ..graph.lattice import Lattice
+
+
+class SddpScRun:
+    def __init__(
+        self,
+        nodes: List[List[INode]],
+        filedir: Path,
+        level: int = logging.INFO,
+        max_iteration: int = 1000,
+        sample_frequency: int = 10,
+        sample_size: int = 1000,
+        confidence_level: float = 0.95,
+        gap_tolerance: float | None = None,
+        stable_tolerance: float | None = None,
+        stall_iterations: int | None = None,
+        stall_tolerance: float | None = None,
+    ):
+        self.logger = AlgLogger("SDDP with scaled cuts", "sddpsc", level)
+        self.graph = Lattice(
+            nodes,
+            self.logger,
+            filedir,
+            max_iteration,
+            sample_frequency,
+            sample_size,
+            confidence_level,
+            gap_tolerance,
+            stable_tolerance,
+            stall_iterations,
+            stall_tolerance,
+        )
+
+    def run(self, init_solution: List[float] | None = None) -> None:
+        if init_solution is not None:
+            raise NotImplementedError(
+                "SDDP does not support an initial solution: every iteration's "
+                "forward pass begins by solving the root, which sets the "
+                "first-stage state itself, so there is nowhere to inject one."
+            )
+
+        self.graph.run()

@@ -102,6 +102,10 @@ rules {doc}`../guide/choosing-a-method` summarizes.
 .. automodule:: pyodsp.model.msp.builders
    :members:
    :member-order: bysource
+
+.. automodule:: pyodsp.model.msp.builders_sddpsc
+   :members:
+   :member-order: bysource
 ```
 
 ### Plotting

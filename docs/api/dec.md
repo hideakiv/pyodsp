@@ -169,6 +169,38 @@ solver of its own.
    :member-order: bysource
 ```
 
+## SDDP with scaled cuts
+
+SDDP whose backward pass builds each stage's cut the way Benders with scaled
+cuts does, so the cost-to-go converges on mixed-integer stages. Needs every
+node of a stage to share one transition, only the costs random; see
+{doc}`../guide/multistage`.
+
+```{eval-rst}
+.. automodule:: pyodsp.dec.sddpsc
+   :no-members:
+
+.. automodule:: pyodsp.dec.sddpsc.alg_root_bm
+   :members:
+   :member-order: bysource
+
+.. automodule:: pyodsp.dec.sddpsc.alg_leaf_pyomo
+   :members:
+   :member-order: bysource
+
+.. automodule:: pyodsp.dec.sddpsc.node
+   :members:
+   :member-order: bysource
+
+.. automodule:: pyodsp.dec.sddpsc.policy
+   :members:
+   :member-order: bysource
+
+.. automodule:: pyodsp.dec.sddpsc.run
+   :members:
+   :member-order: bysource
+```
+
 ## Graph topologies
 
 How messages move: hub-and-spoke for two-stage problems, a lattice for

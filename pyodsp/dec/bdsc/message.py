@@ -39,7 +39,32 @@ class BdScInitUpMessage(InitUpMessage):
         return self.sense_multiplier
 
 
-class BdScUpMessage(UpMessage):
+class _Origin:
+    """Which master a dn message's trial point came from, carried back up
+    on the up messages priced against it.
+
+    Only sddpsc sets this: in a lattice several masters at a stage share
+    one set of children, and a child's reply (its c, and the scaled cut's
+    validity) is relative to the master whose rho and cuts it was priced
+    against -- see SddpScAlgRootBm.add_cuts. bdsc's single master leaves
+    it unset.
+    """
+
+    origin = None
+    origin_multipliers: dict | None = None
+
+    def set_origin(self, origin, multipliers: dict | None) -> None:
+        self.origin = origin
+        self.origin_multipliers = multipliers
+
+    def get_origin(self):
+        return self.origin
+
+    def get_origin_multipliers(self) -> dict | None:
+        return self.origin_multipliers
+
+
+class BdScUpMessage(_Origin, UpMessage):
     def __init__(self, cut: Cut, c: float, tau: float, objective: float) -> None:
         self.cut = cut
         self.c = c
@@ -59,7 +84,7 @@ class BdScUpMessage(UpMessage):
         return self.tau
 
 
-class BdScDnMessage(DnMessage):
+class BdScDnMessage(_Origin, DnMessage):
     def __init__(
         self,
         solution: List[float],

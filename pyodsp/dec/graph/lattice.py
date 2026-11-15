@@ -237,6 +237,7 @@ class Lattice:
         for child_id in self.stages[stage]:
             child = self.nodes[child_id]
             assert isinstance(child, INodeLeaf)
+            child.set_logger()
             child.build()
             init_up_message = child.get_init_up_message()
             init_up_messages[child_id] = init_up_message

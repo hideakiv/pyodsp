@@ -41,6 +41,7 @@ class BdScAlgLeafPyomo(IAlgLeaf):
         cut_master: str = "bm",
         tolerance: float = BM_ABS_TOLERANCE,
         coef_bound: float | None = None,
+        name_prefix: str = "",
     ):
         """
         Args:
@@ -56,6 +57,11 @@ class BdScAlgLeafPyomo(IAlgLeaf):
             tolerance: delta in Algorithm 2 — stop once the cut is within
                 this of the best one for the current rho ('bm' only).
             coef_bound: Optional cap on |beta| and tau ('bm' only).
+            name_prefix: Forwarded to the cgsp's BundleMethod -- pass one
+                only when `solver.model` is deliberately shared with
+                another master (e.g. sddpsc's inner nodes, whose root role
+                and leaf role share one model so an incoming state fixed
+                on one side is visible, unfixed, on the other).
         """
         if cut_master not in ("bm", "pbm"):
             raise ValueError(f"cut_master must be 'bm' or 'pbm', got {cut_master!r}")
@@ -72,7 +78,9 @@ class BdScAlgLeafPyomo(IAlgLeaf):
         # it aging cuts out on its own schedule. Both would otherwise be
         # decided from this subproblem's solves, which are not the master's.
         # It still drops cuts when told to — see pass_dn_message.
-        self.cgsp = BundleMethod(solver, max_iteration, force=True, purgeable=False)
+        self.cgsp = BundleMethod(
+            solver, max_iteration, force=True, purgeable=False, name_prefix=name_prefix
+        )
         self.cut_master = cut_master
         self.tolerance = tolerance
         self.coef_bound = coef_bound
@@ -149,7 +157,7 @@ class BdScAlgLeafPyomo(IAlgLeaf):
         bound = sum(subobj_bounds)
         if self._subobj_bound is None:
             self._subobj_bound = bound
-            self.cgsp.cpm.solver.model._theta[0].setlb(bound)
+            self.cgsp.cpm.get_theta_component()[0].setlb(bound)
         elif abs(bound - self._subobj_bound) > DEC_CUT_ABS_TOL:
             raise ValueError(
                 f"The subproblem bound changed from {self._subobj_bound} to "
@@ -281,24 +289,47 @@ class BdScAlgLeafPyomo(IAlgLeaf):
         assert solution is not None
         solver = self.cgsp.cpm.solver
         self._fix_variables(solution)
-        solver.activate_original_objective()
+        self._activate_recourse_objective()
         solver.solve()
         self._final_objective = (
             solver.get_original_objective_value() if solver.is_optimal() else None
         )
-        solver.original_objective.deactivate()
+        self._deactivate_recourse_objective()
         self._unfix_variables()
 
     def get_final_up_message(self) -> BdScFinalUpMessage:
         return BdScFinalUpMessage(self._final_objective)
 
+    # The recourse q(y) this subproblem prices. Here it is the model's own
+    # objective; sddpsc's inner-stage leaf adds the next stage's cost-to-go
+    # to it (see SddpScAlgLeafPyomo), which is why every use goes through
+    # these instead of the original objective directly.
+
+    def _recourse_expr(self):
+        """q(y) as an expression: the cgsp's objective is this plus
+        beta^T x + tau * theta."""
+        return self.cgsp.cpm.solver.original_objective.expr
+
+    def _activate_recourse_objective(self) -> None:
+        """Make min q(y) the model's only active objective."""
+        self.cgsp.cpm.solver.activate_original_objective()
+
+    def _deactivate_recourse_objective(self) -> None:
+        self.cgsp.cpm.solver.original_objective.deactivate()
+
+    def _recourse_value(self) -> float | None:
+        """q(y) at the model's current solution -- a column's q."""
+        return self.cgsp.get_original_objective_value()
+
     def _update_cgsp_objective(self, beta: list[float], tau: float) -> None:
         # ignore alpha
         vars = [var for var in self.cgsp.get_vars()]  # for beta
-        vars.append(self.cgsp.cpm.solver.model._theta[0])  # for tau
+        vars.append(self.cgsp.cpm.get_theta_component()[0])  # for tau
         coeffs = [b for b in beta]
         coeffs.append(tau)
-        update_linear_terms_in_objective(self.cgsp.cpm.solver, coeffs, vars)
+        update_linear_terms_in_objective(
+            self.cgsp.cpm.solver, coeffs, vars, base_expr=self._recourse_expr()
+        )
 
     def _fix_variables(self, coupling_values: List[float]) -> None:
         """Fix the variables to a specified value
@@ -339,16 +370,29 @@ class BdScAlgLeafPyomo(IAlgLeaf):
         x_hat = self._x_hat
         rho = self._rho
 
-        # Q_s(x_hat), and y-bar for the first column (Algorithm 2, line 3)
-        solver.activate_original_objective()
+        # Q_s(x_hat), and y-bar for the first column (Algorithm 2, line 3).
+        # Re-fix even though pass_dn_message already did: that was only
+        # true of the call immediately after it, and a caller is free to
+        # call get_up_message again later without another pass_dn_message
+        # in between (e.g. SDDP's policy simulation re-evaluates a leaf
+        # repeatedly at the same trial point) -- the previous call's row
+        # generation unfixes these at the end, so without this they would
+        # solve free here, not at x_hat.
+        self._fix_variables(x_hat)
+        self._activate_recourse_objective()
         solver.solve()
         if not solver.is_optimal():
             raise RuntimeError(
                 f"Scenario {self.idx}: the recourse problem at the master's "
                 "solution did not solve to optimality."
             )
+        # q(y_bar), what the cut and the first column price; and the
+        # stage's own cost within it, what a sample path pays here. The two
+        # differ only when q carries a cost-to-go estimate, which a sample
+        # path must not count as a cost actually incurred.
         leaf_objective = solver.get_objective_value()
-        solver.original_objective.deactivate()
+        stage_objective = solver.get_original_objective_value()
+        self._deactivate_recourse_objective()
         self._unfix_variables()
 
         # (x_hat, rho, y_bar) is in S^phi since rho >= phi(x_hat), and it
@@ -385,7 +429,7 @@ class BdScAlgLeafPyomo(IAlgLeaf):
             column = self._column(
                 [value(var) for var in self.cgsp.get_vars()],
                 self.cgsp.cpm.get_theta_value(0),
-                self.cgsp.get_original_objective_value(),
+                self._recourse_value(),
                 m,
             )
             status, solution, _ = self.cgmp.run_step([CutList([column])])
@@ -407,15 +451,19 @@ class BdScAlgLeafPyomo(IAlgLeaf):
             info={},
         )
         root_objective = self.cgsp.cpm.get_parent_objective_value()
-        return BdScUpMessage(cut, c, tau, root_objective + leaf_objective)
+        return BdScUpMessage(cut, c, tau, root_objective + stage_objective)
 
     def _get_up_message_pbm(self) -> BdScUpMessage:
         start = time.time()
         cuts_list = None
-        self.cgsp.cpm.solver.activate_original_objective()
+        # See the row-generation variant's matching comment: re-fix in case
+        # this is a repeated call with no pass_dn_message in between.
+        self._fix_variables(self._x_hat)
+        self._activate_recourse_objective()
         self.cgsp.cpm.solver.solve()
         leaf_objective = self.cgsp.cpm.solver.get_objective_value()
-        self.cgsp.cpm.solver.original_objective.deactivate()
+        stage_objective = self.cgsp.cpm.solver.get_original_objective_value()
+        self._deactivate_recourse_objective()
         self._unfix_variables()
         for _ in range(self.max_iteration):
             if _ > 0:
@@ -429,7 +477,7 @@ class BdScAlgLeafPyomo(IAlgLeaf):
                 beta = [0.0 for var in self.cgsp.get_vars()]
             self._update_cgsp_objective(beta, tau)
             self.cgsp.cpm.solve()
-            qy = self.cgsp.get_original_objective_value()
+            qy = self._recourse_value()
             x = [value(var) for var in self.cgsp.get_vars()]
             theta = self.cgsp.cpm.get_theta_value(0)
             coeffs = {0: -theta}
@@ -462,7 +510,7 @@ class BdScAlgLeafPyomo(IAlgLeaf):
             info={},
         )
         root_objective = self.cgsp.cpm.get_parent_objective_value()
-        return BdScUpMessage(cut, c, tau, root_objective + leaf_objective)
+        return BdScUpMessage(cut, c, tau, root_objective + stage_objective)
 
     def set_logger(self, idx: NodeIdx, depth: int, level: int) -> None:
         self.idx = idx

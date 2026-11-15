@@ -42,6 +42,7 @@ class MspResult:
             changed their cost), 'stall' (the bound stopped moving) or
             'max_iteration'. None if the run recorded none.
         stop_message: The same, with the numbers behind it.
+        method: 'sddp' or 'sddpsc', as MultistageProgram was given it.
     """
 
     name: str
@@ -60,6 +61,7 @@ class MspResult:
     lattice: Any = None
     stop_reason: str | None = None
     stop_message: str | None = None
+    method: str = "sddp"
     _nodes: List[List[Any]] = field(default_factory=list, repr=False)
 
     def policy(self) -> SddpPolicy:
@@ -71,6 +73,10 @@ class MspResult:
 
             path = result.policy().simulate(["0-0", "1-2", "2-0"])
         """
+        if self.method == "sddpsc":
+            from pyodsp.dec.sddpsc.policy import SddpScPolicy
+
+            return SddpScPolicy(self._nodes)
         return SddpPolicy(self._nodes)
 
     def simulate(self, path: List[str]):
@@ -85,7 +91,7 @@ class MspResult:
             )
         sense = "maximize" if self.is_maximize else "minimize"
         lines = [
-            f"{self.name}: {sense} via sddp",
+            f"{self.name}: {sense} via {self.method}",
             f"  bound      : {_fmt(self.bound)}",
             f"  stages     : {self.num_stages} (nodes per stage "
             f"{self.nodes_per_stage})",
@@ -117,7 +123,7 @@ class MspResult:
             path,
             simulation=self.simulation,
             title=f"{self.name} — convergence",
-            subtitle=f"SDDP · {self.num_stages} stages · "
+            subtitle=f"{self.method.upper()} · {self.num_stages} stages · "
             + ("maximize" if self.is_maximize else "minimize"),
             theme=theme,
         )
@@ -233,6 +239,7 @@ def read_result(program, built) -> MspResult:
         lattice=lattice,
         stop_reason=stopping.get("reason"),
         stop_message=stopping.get("message"),
+        method=program.method,
         _nodes=built.nodes,
     )
 

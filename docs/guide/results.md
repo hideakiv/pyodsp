@@ -117,7 +117,9 @@ for step in result.simulate(["0-0", "1-2", "2-2"]):
 ```
 
 `result.policy()` returns the {class}`~pyodsp.dec.sddp.policy.SddpPolicy` if
-you want to hold on to it and simulate repeatedly.
+you want to hold on to it and simulate repeatedly — or, for
+`method='sddpsc'`, the {class}`~pyodsp.dec.sddpsc.policy.SddpScPolicy`, which
+answers the same calls.
 
 ## Plots
 

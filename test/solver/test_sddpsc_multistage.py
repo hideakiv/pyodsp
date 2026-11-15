@@ -137,11 +137,6 @@ def test_three_stage_lattice_prices_the_last_stage(tmp_path):
     assert [round(v) for v in root.alg_root.solution] == [1]
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="an inner node's root role never sees its ancestors' cost: "
-    "pass_dn_message sets _parent_objective on the leaf role's model only",
-)
 def test_simulated_paths_pay_every_stage(tmp_path):
     run, _ = run_lattice(tmp_path)
 

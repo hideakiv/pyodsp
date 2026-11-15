@@ -15,7 +15,10 @@ class SddpScNodeInner(DecNodeInner):
 
     - down: after the usual pass_dn_message, the trial point goes into the
       root role's own mutable Param copies of the incoming state
-      (SddpScAlgRootBm.state_params / set_state);
+      (SddpScAlgRootBm.state_params / set_state), and the cost the path
+      has paid so far into the root role's own model -- its run_step adds
+      this stage's cost to it to give the sample objective it passes on,
+      so without it a simulated path would drop every earlier stage;
     - up: the root role's cuts on the outgoing state -- this stage's
       approximation of the next stage's cost-to-go -- are mirrored into the
       leaf role's future term (SddpScAlgLeafPyomo.set_future_cuts), so the
@@ -53,6 +56,7 @@ class SddpScNodeInner(DecNodeInner):
         self._sync_future()
         super().pass_dn_message(message)
         self.alg_root.set_state(message.get_solution())
+        self.alg_root.get_solver().set_parent_objective_value(message.get_objective())
 
     def add_cuts(self, up_messages) -> None:
         super().add_cuts(up_messages)

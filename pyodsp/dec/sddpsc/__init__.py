@@ -56,19 +56,18 @@ roles run their own cut-adding bundle method with its own Objective, and
 the leaf role's column generation needs the incoming state free while the
 root role needs it fixed. The node carries what sharing would have given
 for free, in both directions: the incoming state down into the root role's
-mutable Params (SddpScAlgRootBm.state_params / set_state), and the root
-role's cuts -- the next stage's cost-to-go -- into the leaf role's future
-term (SddpScAlgLeafPyomo.future_vars / set_future_cuts), so the cut an
-inner stage reports covers everything downstream. On a 3-stage toy model
+mutable Params (SddpScAlgRootBm.state_params / set_state) along with the
+path's cost so far, and the root role's cuts -- the next stage's
+cost-to-go -- into the leaf role's future term (SddpScAlgLeafPyomo.
+future_vars / set_future_cuts), so the cut an inner stage reports covers
+everything downstream. On a 3-stage toy model
 with a hand-verifiable optimum the bound converges to it (it converged to
 the value ignoring the last stage before the future term existed; see
 test/solver/test_sddpsc_multistage.py).
 
-Known gaps: an inner node's root role does not yet see its ancestors' cost
-(the parent objective is set on the leaf role's model only), so simulated
-path costs -- the statistical upper bound -- leave it out. And with more
-than one node per stage, every node's rho is advanced from c's that the
-children computed against whichever node was visited last.
+Known gap: with more than one node per stage, every node's rho is
+advanced from c's that the children computed against whichever node was
+visited last.
 
 For the two-stage paper's method itself, see pyodsp.dec.bdsc.
 """

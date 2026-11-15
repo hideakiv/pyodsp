@@ -99,7 +99,11 @@ def _make_root(ctx: MspBuildContext, node: LatticeNode, built: MspBuiltProblem):
     master = PyomoSolver(model, ctx.solver_config, passed_on)
     built.models[node.idx] = model
     built.masters[node.idx] = master
-    return DecNodeRoot(node.idx, SddpScAlgRootBm(master), log_level_root=ctx.log_level)
+    return DecNodeRoot(
+        node.idx,
+        SddpScAlgRootBm(master, purgeable=ctx.purgeable),
+        log_level_root=ctx.log_level,
+    )
 
 
 def _make_leaf(ctx: MspBuildContext, node: LatticeNode, built: MspBuiltProblem):
@@ -119,7 +123,7 @@ def _make_leaf(ctx: MspBuildContext, node: LatticeNode, built: MspBuiltProblem):
 def _make_inner(ctx: MspBuildContext, node: LatticeNode, built: MspBuiltProblem):
     own, params, passed_on = _build_root_role_model(ctx, node)
     master = PyomoSolver(own, ctx.solver_config, passed_on)
-    alg_root = SddpScAlgRootBm(master, state_params=params)
+    alg_root = SddpScAlgRootBm(master, state_params=params, purgeable=ctx.purgeable)
 
     chain, coupling_up, future_vars = _build_chain_model(ctx, node)
     subproblem = PyomoSolver(chain, ctx.solver_config, coupling_up)

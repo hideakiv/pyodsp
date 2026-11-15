@@ -318,7 +318,8 @@ stages (at least 1); the default, `None`, goes back to stage 0. A shorter
 lookback is cheaper per solve and still gives a valid bound, but it may be a
 weaker one.
 
-**No MPI** yet: `mpi=True` with `method='sddpsc'` raises.
+**MPI** works as for plain SDDP: `mpi=True` splits the Monte Carlo sample
+across ranks (see {doc}`mpi`).
 
 The result is the same `MspResult`, and the policy works the same way —
 `result.simulate(path)` replays a path against the cuts the run learned.

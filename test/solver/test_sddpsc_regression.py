@@ -142,7 +142,7 @@ def test_matches_plain_sddp_where_that_is_exact(tmp_path):
 # -- mixed-integer multistage, where LP-dual cuts fall short ----------------
 
 
-def cover(tmp_path, method, integer=True):
+def cover(tmp_path, method, integer=True, **kw):
     """Claim x0 in [0, 1.5] at a reward of 1 per unit, cover it at stage 1
     with whole units y1 >= x0 at a random cost c, then sell what was
     bought at a random price r. Fixed transitions, random costs only.
@@ -165,6 +165,7 @@ def cover(tmp_path, method, integer=True):
         sample_size=20,
         log_level=logging.CRITICAL,
         method=method,
+        **kw,
     )
     domain = pyo.NonNegativeIntegers if integer else pyo.NonNegativeReals
 

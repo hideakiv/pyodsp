@@ -199,6 +199,10 @@ node of a stage to share one transition, only the costs random; see
 .. automodule:: pyodsp.dec.sddpsc.run
    :members:
    :member-order: bysource
+
+.. automodule:: pyodsp.dec.sddpsc.run_mpi
+   :members:
+   :member-order: bysource
 ```
 
 ## Graph topologies

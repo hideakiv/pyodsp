@@ -147,7 +147,7 @@ class LatticeMpi(Lattice):
         for stage in range(self.num_stages - 1):
             for node_idx in self.stages[stage]:
                 node = self.nodes[node_idx]
-                snapshots[node_idx] = node.alg_root.bm.get_cut_list()
+                snapshots[node_idx] = self._snapshot(node)
         root_dn_message = self._last_dn_messages[self.root.get_idx()]
         self.comm.bcast(
             {"snapshots": snapshots, "root_dn_message": root_dn_message}, root=0
@@ -157,9 +157,18 @@ class LatticeMpi(Lattice):
         self.comm.bcast("stop", root=0)
 
     def _apply_snapshots(self, snapshots: Dict[NodeIdx, list]) -> None:
-        for node_idx, cuts_list in snapshots.items():
-            node = self.nodes[node_idx]
-            node.alg_root.bm.replace_cuts(cuts_list)
+        for node_idx, snapshot in snapshots.items():
+            self._apply_snapshot(self.nodes[node_idx], snapshot)
+
+    # What rank 0 sends a replica per master before each Monte Carlo round:
+    # its exact cut set. A variant whose masters carry more state than
+    # their cuts overrides these (see pyodsp.dec.sddpsc.run_mpi).
+
+    def _snapshot(self, node: INode):
+        return node.alg_root.bm.get_cut_list()
+
+    def _apply_snapshot(self, node: INode, snapshot) -> None:
+        node.alg_root.bm.replace_cuts(snapshot)
 
     def _apply_root_dn_message(self, dn_message) -> None:
         if self.root is None:

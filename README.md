@@ -23,7 +23,7 @@ This is the core of pyodsp. A decomposition is a graph of nodes, each owning a P
 - **SDDP with scaled cuts (sddpsc)** — SDDP whose cuts are built like `bdsc`'s instead of from LP duals, so it converges on mixed-integer stages. Requires every node of a stage to share one transition, with only the costs random.
 
 ### MPI (optional)
-Every algorithm except sddpsc has an MPI runner under `pyodsp.dec` (`run_mpi.py`), which splits the subproblems across ranks. `MultistageProgram(mpi=True)` exposes this for SDDP, where each rank helps evaluate the Monte Carlo sample and rank 0 drives the iteration and owns the results. Launch with `mpiexec -n <ranks> python your_script.py`.
+Every algorithm has an MPI runner under `pyodsp.dec` (`run_mpi.py`), which splits the subproblems across ranks. `MultistageProgram(mpi=True)` exposes this for SDDP and sddpsc, where each rank helps evaluate the Monte Carlo sample and rank 0 drives the iteration and owns the results. Launch with `mpiexec -n <ranks> python your_script.py`.
 
 ### Stochastic programming front-end (`pyodsp.model`)
 Stochastic programming is one application of the decomposition layer: scenarios give the block structure, and the front-end builds the node graph for you from a model you write once per stage — replicating the first-stage variables, keeping the coupling lists aligned, converting sense and results, finding subproblem bounds, and picking the algorithm.

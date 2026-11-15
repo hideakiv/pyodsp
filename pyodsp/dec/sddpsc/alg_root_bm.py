@@ -63,6 +63,7 @@ class SddpScAlgRootBm(IAlgRoot):
         max_iteration: int = 1000,
         name_prefix: str = "",
         state_params: List | None = None,
+        purgeable: bool = True,
     ) -> None:
         """
         Args:
@@ -85,6 +86,9 @@ class SddpScAlgRootBm(IAlgRoot):
                 fixed to, despite the two roles using separate models. None
                 (the default) for a node with no incoming state, i.e. the
                 true first-stage root.
+            purgeable: False on an MPI replica, as for BdAlgRootBm: a
+                replica mirrors rank 0's cuts (apply_snapshot) and must
+                not age or decline any on its own -- see LatticeMpi.
         """
         if not solver.is_minimize():
             raise ValueError(
@@ -94,7 +98,13 @@ class SddpScAlgRootBm(IAlgRoot):
                 "for the internal masters whose sense is deliberately "
                 "inverted."
             )
-        self.bm = BundleMethod(solver, max_iteration, name_prefix=name_prefix)
+        self.bm = BundleMethod(
+            solver,
+            max_iteration,
+            force=not purgeable,
+            purgeable=purgeable,
+            name_prefix=name_prefix,
+        )
         self.state_params = list(state_params) if state_params is not None else []
         self.step_time: List[float] = []
         self.rho: float | None = None
@@ -304,6 +314,27 @@ class SddpScAlgRootBm(IAlgRoot):
         ):
             return "shared"
         return None
+
+    def get_snapshot(self) -> dict:
+        """Everything a replica needs to step exactly as this master would
+        next: its cuts, and the rho fixed point's progress.
+
+        Plain SDDP's replicas need only the cuts (see LatticeMpi). Here the
+        dn message also carries rho, which a replica's own add_cuts never
+        advances, and whether the next run_step resyncs it -- which the
+        backward pass decides, and only rank 0 runs that.
+        """
+        return {
+            "cuts": self.bm.get_cut_list(),
+            "rho": self.rho,
+            "cuts_changed": self._cuts_changed,
+        }
+
+    def apply_snapshot(self, snapshot: dict) -> None:
+        """Become a copy of the master get_snapshot was taken from."""
+        self.bm.replace_cuts(snapshot["cuts"])
+        self.rho = snapshot["rho"]
+        self._cuts_changed = snapshot["cuts_changed"]
 
     def reset_iteration(self) -> None:
         self.bm.reset_iteration()

@@ -43,11 +43,20 @@ def add_linear_terms_to_objective(
 
 
 def update_linear_terms_in_objective(
-    solver: PyomoSolver, coeffs: List[float], vars: Var | List[ScalarVar]
+    solver: PyomoSolver,
+    coeffs: List[float],
+    vars: Var | List[ScalarVar],
+    base_expr=None,
 ) -> None:
-    modified_expr = solver.original_objective.expr + sum(
-        coeffs[i] * vars[i] for i in range(len(coeffs))
-    )
+    """Set `_mod_obj` to `base_expr` plus the given linear terms.
+
+    base_expr defaults to the original objective; pass one when the terms
+    belong on top of something more (sddpsc's leaf adds the next stage's
+    cost-to-go to its own stage cost).
+    """
+    if base_expr is None:
+        base_expr = solver.original_objective.expr
+    modified_expr = base_expr + sum(coeffs[i] * vars[i] for i in range(len(coeffs)))
 
     if solver.model.component("_mod_obj") is not None:
         solver.model.del_component("_mod_obj")

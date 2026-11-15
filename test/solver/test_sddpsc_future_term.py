@@ -162,3 +162,20 @@ def test_misuse_is_refused():
 
     with pytest.raises(ValueError, match="bound"):
         make_leaf(with_future=False).build_future([None])
+
+
+def test_a_change_after_the_trial_point_rebuilds_the_cgmp_without_columns():
+    # Lattice's order: pass_dn_message (cgmp seeded with saved columns),
+    # then the root role's cuts change on the backward pass, then
+    # get_up_message. The seeded columns must not survive into it.
+    leaf = make_leaf()
+    leaf.set_future_cuts([CutList([future_cut()])])
+    up(leaf)
+    leaf.pass_dn_message(dn_message())
+    assert leaf.cgmp.cpm.get_num_cuts() > 0
+
+    leaf.set_future_cuts([CutList([future_cut(), future_cut(rhs=4.0, coeff=2.0)])])
+
+    assert leaf.cgmp.cpm.get_num_cuts() == 0
+    # theta >= 4 - 2z joins theta >= 3 - z: Q(x) = max(3 + x, 4) at z = x
+    assert leaf.get_up_message().get_cut().objective_value == pytest.approx(4.0)

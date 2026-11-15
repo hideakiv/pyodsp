@@ -47,30 +47,28 @@ need to know it's embedded in a lattice rather than a two-stage master.
 
 Status. Validated end to end for a root+leaf (two-stage) lattice: driving
 the Caroe-Schultz instance from examples/bdsc/cs.py through Lattice instead
-of bdsc's HubAndSpoke converges to the same bound. A genuinely multistage
-lattice (3+ stages, with INodeInner nodes between the root and the leaves)
-is not yet correct, and is missing one real piece, not just plumbing: an
-inner node's leaf role (reporting its own stage's cost-to-go upward) needs
-a theta term for the *next* stage's cost-to-go, mirroring whatever cuts
-its own root role accumulates from the stage below -- BdScAlgLeafPyomo's
-existing theta is for a different purpose (the scaled cut's own phi
-recursion, van der Laan & Romeijnders Theorem 1) and currently has no such
-second theta. Without it an inner node's reported cut only reflects its
-own immediate-stage cost, not what's downstream, so cuts from a stage two
-or more levels below the root never influence stage 1's own decisions --
-confirmed on a 3-stage toy model with a hand-verifiable optimum, where the
-lattice converges to the value you'd get ignoring the third stage entirely.
+of bdsc's HubAndSpoke converges to the same bound.
 
-The pieces node.py (SddpScNodeInner) and alg_root_bm's state_params/
-set_state already solve the *other* half of an inner node's needs --
-propagating the incoming state from the leaf role's model to the root
-role's own (separate) model, which plain Benders' inner nodes get for
-free by sharing one model but a BDSC-style leaf/root pair cannot (both
-sides run their own cut-adding bundle method on their model, including an
-Objective, and Pyomo allows only one active Objective per model). They are
-exercised and working as far as that goes; they are necessary but not
-sufficient for a correct 3+-stage lattice until the leaf-role theta above
-exists too.
+An inner stage (an INodeInner between the root and the leaves) is an
+SddpScNodeInner (node.py) whose root role and leaf role use separate Pyomo
+models -- sharing one, as plain Benders inner nodes do, does not fit: both
+roles run their own cut-adding bundle method with its own Objective, and
+the leaf role's column generation needs the incoming state free while the
+root role needs it fixed. The node carries what sharing would have given
+for free, in both directions: the incoming state down into the root role's
+mutable Params (SddpScAlgRootBm.state_params / set_state), and the root
+role's cuts -- the next stage's cost-to-go -- into the leaf role's future
+term (SddpScAlgLeafPyomo.future_vars / set_future_cuts), so the cut an
+inner stage reports covers everything downstream. On a 3-stage toy model
+with a hand-verifiable optimum the bound converges to it (it converged to
+the value ignoring the last stage before the future term existed; see
+test/solver/test_sddpsc_multistage.py).
+
+Known gaps: an inner node's root role does not yet see its ancestors' cost
+(the parent objective is set on the leaf role's model only), so simulated
+path costs -- the statistical upper bound -- leave it out. And with more
+than one node per stage, every node's rho is advanced from c's that the
+children computed against whichever node was visited last.
 
 For the two-stage paper's method itself, see pyodsp.dec.bdsc.
 """

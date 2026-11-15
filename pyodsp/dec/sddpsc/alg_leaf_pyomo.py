@@ -171,6 +171,12 @@ class SddpScAlgLeafPyomo(BdScAlgLeafPyomo):
             return
         self._future_keys = incoming
         self._cgmp_cuts = []
+        if getattr(self, "cgmp", None) is not None:
+            # pass_dn_message already built this trial point's cgmp and
+            # seeded it with the columns just retired -- and in a lattice
+            # the root role's cuts change after that (backward pass), before
+            # get_up_message runs. Rebuild it from the same trial point.
+            self._create_master(self._x_hat, self._rho)
 
         self._add_cut_list()
         constraints = self.cgsp.cpm.solver.model.component(self._future_name("_cuts"))

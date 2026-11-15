@@ -74,5 +74,10 @@ replies alone -- see SddpScAlgRootBm._role_for. That last rule is
 conservative: a cut with tau = 0 is an ordinary cut on each child's own
 cost and would be valid for a Markov sibling too.
 
+Building these by hand means two models per inner node and a transition
+chain per leaf; MultistageProgram(method="sddpsc") builds all of them from
+one stage builder (see pyodsp.model.msp.builders_sddpsc). Its policy
+simulation (MspResult.policy) does not support sddpsc yet.
+
 For the two-stage paper's method itself, see pyodsp.dec.bdsc.
 """

@@ -7,9 +7,11 @@ from typing import Any, Callable, Dict, List, Mapping, Sequence
 import pyomo.environ as pyo
 
 from pyodsp.dec.sddp.run import SddpRun
+from pyodsp.dec.sddpsc.run import SddpScRun
 from pyodsp.solver.pyomo_solver import SolverConfig
 
 from .builders import MspBuildContext, MspBuiltProblem, build, build_reference_stage
+from .builders_sddpsc import build_sddpsc
 from .lattice import ScenarioLattice, independent, markov, stage_varying
 from .result import MspResult, read_result
 
@@ -98,6 +100,15 @@ class MultistageProgram:
             sample. Launch with `mpiexec -n <ranks> python ...`; results
             are authoritative on rank 0, which is the only rank that
             writes output.
+        method: 'sddp' (Benders cuts from LP duals) or 'sddpsc' (SDDP
+            with scaled cuts, pyodsp.dec.sddpsc), which converges on
+            mixed-integer stages too but needs every node of a stage to
+            share one transition -- only the cost may be random -- and a
+            stage_bound. Not available with mpi.
+        lookback: 'sddpsc' only. How many earlier stages each leaf's
+            column-generation subproblem replays to know which states are
+            reachable, at least 1; None (the default) goes back to stage
+            0. Shorter is cheaper per solve and may give weaker cuts.
     """
 
     def __init__(
@@ -120,7 +131,15 @@ class MultistageProgram:
         log_level: int = logging.INFO,
         validate: bool = True,
         mpi: bool = False,
+        method: str = "sddp",
+        lookback: int | None = None,
     ) -> None:
+        if method not in ("sddp", "sddpsc"):
+            raise ValueError(f"method must be 'sddp' or 'sddpsc', got {method!r}")
+        if method == "sddpsc" and mpi:
+            raise ValueError("method='sddpsc' has no MPI runner yet; use mpi=False")
+        if lookback is not None and method != "sddpsc":
+            raise ValueError("lookback only applies to method='sddpsc'")
         self.name = name
         self.is_maximize = _normalize_sense(sense)
         self.solver_config = SolverConfig(
@@ -139,6 +158,8 @@ class MultistageProgram:
         self.log_level = log_level
         self.validate = validate
         self.mpi = mpi
+        self.method = method
+        self.lookback = lookback
 
         self._stage_fn: Callable | None = None
         self._state_names: List[str] | None = None
@@ -297,6 +318,8 @@ class MultistageProgram:
             validate=self.validate,
             purgeable=self.is_root_rank,
             specs=list(specs or []),
+            method=self.method,
+            lookback=self.lookback,
         )
 
     def build(self) -> MspBuiltProblem:
@@ -307,7 +330,8 @@ class MultistageProgram:
         # The state's shape is learned from stage 0, then every later
         # stage is built against it.
         _, _, specs = build_reference_stage(self._context())
-        self._built = build(self._context(specs))
+        builder = build_sddpsc if self.method == "sddpsc" else build
+        self._built = builder(self._context(specs))
         return self._built
 
     @property
@@ -331,6 +355,8 @@ class MultistageProgram:
         return self.rank == 0
 
     def _runner(self):
+        if self.method == "sddpsc":
+            return SddpScRun
         if not self.mpi:
             return SddpRun
         from pyodsp.dec.sddp.run_mpi import SddpRunMpi
@@ -391,6 +417,7 @@ class MultistageProgram:
             [
                 f"Multistage program {self.name!r}",
                 f"  sense           : {'maximize' if self.is_maximize else 'minimize'}",
+                f"  method          : {self.method}",
                 f"  stages          : {lattice.num_stages}",
                 f"  nodes per stage : {sizes}",
                 f"  state variables : {len(built.labels)} "

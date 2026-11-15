@@ -61,6 +61,11 @@ class MspBuildContext:
     # would diverge from the trial points rank 0 is actually solving.
     purgeable: bool = True
     specs: List[StateSpec] = field(default_factory=list)
+    # "sddp", or "sddpsc" for SDDP with scaled cuts (builders_sddpsc.py)
+    method: str = "sddp"
+    # sddpsc only: how many earlier stages a leaf's chain replays (None:
+    # back to stage 0)
+    lookback: int | None = None
 
 
 @dataclass

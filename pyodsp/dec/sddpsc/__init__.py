@@ -77,8 +77,10 @@ see SddpScAlgRootBm._role_for.
 
 Building these by hand means two models per inner node and a transition
 chain per leaf; MultistageProgram(method="sddpsc") builds all of them from
-one stage builder (see pyodsp.model.msp.builders_sddpsc). Its policy
-simulation (MspResult.policy) does not support sddpsc yet.
+one stage builder (see pyodsp.model.msp.builders_sddpsc). The policy a run
+leaves behind is SddpScPolicy (MspResult.policy picks it): each stage
+solved on its root role's model, the last stage on its leaf chain with the
+incoming state fixed -- see pyodsp.dec.sddpsc.policy.
 
 For the two-stage paper's method itself, see pyodsp.dec.bdsc.
 """

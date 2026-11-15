@@ -155,3 +155,43 @@ def test_sddpsc_needs_a_stage_bound(tmp_path):
 def test_lookback_must_reach_the_previous_stage(tmp_path):
     with pytest.raises(ValueError, match="at least 1"):
         store(tmp_path, ONE, lookback=0).build()
+
+
+def test_the_policy_replays_a_scenario_path(tmp_path):
+    result = store(tmp_path, TWO).solve()
+
+    # stage 0 buys (1), the dear stage-1 node still buys (0.25), and the
+    # high price sells both units
+    path = result.simulate(["0-0", "1-1", "2-1"])
+
+    assert [round(s.stage_cost, 6) for s in path] == [1.0, 0.25, -5.0]
+    assert [s.next_state for s in path] == [[1.0], [2.0], []]
+    # stage 0's own solve prices the whole future at what the run learned
+    assert path[0].total_cost == pytest.approx(result.bound, abs=1e-4)
+    # the last stage reports its own decision, not the chain behind it
+    assert path[2].solution == {"y": pytest.approx(2.0)}
+    assert "sddpsc" in result.summary()
+
+
+def test_the_policy_answers_any_incoming_state(tmp_path):
+    policy = store(tmp_path, ONE).solve().policy()
+
+    # nothing held yet at stage 1: buy the one unit it can
+    assert policy.evaluate("1-0", [0.0]).next_state == [1.0]
+    # one unit held at the last stage: sell exactly that
+    assert policy.evaluate("2-0", [1.0]).stage_cost == pytest.approx(-1.5)
+    with pytest.raises(ValueError, match="couples on 1"):
+        policy.evaluate("2-0", [1.0, 2.0])
+
+
+def test_the_policy_can_be_rebuilt_from_a_saved_run(tmp_path):
+    from pyodsp.dec.sddpsc.policy import SddpScPolicy
+
+    result = store(tmp_path, TWO).solve()
+    path = ["0-0", "1-1", "2-1"]
+    live = [s.stage_cost for s in result.simulate(path)]
+
+    policy = SddpScPolicy.from_saved(store(tmp_path, TWO).build().nodes, tmp_path)
+
+    assert [s.stage_cost for s in policy.simulate(path)] == pytest.approx(live)
+    assert policy.evaluate("0-0").total_cost == pytest.approx(result.bound, abs=1e-4)

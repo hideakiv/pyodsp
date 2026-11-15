@@ -72,23 +72,44 @@ class SddpPolicy:
                 raise ValueError(
                     f"Node {node_idx} has no previous stage to take a state from"
                 )
-            expected = len(node.alg_leaf.get_solver().get_vars())
+            expected = self._state_size(node)
             if len(prev_state) != expected:
                 raise ValueError(
                     f"Node {node_idx} couples on {expected} variable(s), "
                     f"got a state of length {len(prev_state)}"
                 )
-            # the objective passed along only affects reporting, not the solve
-            node.pass_dn_message(BdDnMessage(list(prev_state), 0.0))
 
-        alg = node.alg_leaf if takes_state else node.alg_root
-        solver = alg.get_solver()
-        solver.solve()
-        if not solver.is_optimal():
-            raise ValueError(
-                f"Node {node_idx} did not solve to optimality for the given state"
-            )
+        solver = self._stage_solver(node, prev_state)
+        try:
+            solver.solve()
+            if not solver.is_optimal():
+                raise ValueError(
+                    f"Node {node_idx} did not solve to optimality for the given state"
+                )
+            return self._read_solution(node, solver)
+        finally:
+            self._release(node)
 
+    # How a node's stage is solved for a given state. Plain SDDP shares one
+    # model between an inner node's roles, so the leaf role's solver, its
+    # coupling fixed by a dn message, is the whole stage. sddpsc gives the
+    # roles separate models and overrides these (pyodsp.dec.sddpsc.policy).
+
+    def _state_size(self, node: INode) -> int:
+        return len(node.alg_leaf.get_solver().get_vars())
+
+    def _stage_solver(self, node: INode, prev_state: List[float] | None):
+        """The solver to solve for this state, with the state already set."""
+        if prev_state is None:
+            return node.alg_root.get_solver()
+        # the objective passed along only affects reporting, not the solve
+        node.pass_dn_message(BdDnMessage(list(prev_state), 0.0))
+        return node.alg_leaf.get_solver()
+
+    def _release(self, node: INode) -> None:
+        """Undo whatever _stage_solver set up beyond the state itself."""
+
+    def _read_solution(self, node: INode, solver) -> StageSolution:
         stage_cost = solver.get_original_objective_value()
         # a stage that has children optimizes stage cost + theta; one that
         # does not has no theta, so the two coincide
@@ -99,7 +120,7 @@ class SddpPolicy:
             next_state = []
 
         return StageSolution(
-            node_idx=node_idx,
+            node_idx=node.get_idx(),
             stage_cost=stage_cost,
             future_cost=total_cost - stage_cost,
             total_cost=total_cost,

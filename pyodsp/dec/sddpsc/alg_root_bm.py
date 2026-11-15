@@ -19,6 +19,10 @@ from pyodsp.alg.bm.bm import BundleMethod
 from pyodsp.dec.node._message import NodeIdx
 from pyodsp.dec.node.cut_aggregator import CutAggregator
 
+# A reply's tau at or below this counts as zero: its cut no longer depends
+# on the origin's theta (see SddpScAlgRootBm._role_for).
+TAU_ZERO = 1e-9
+
 
 class SddpScAlgRootBm(IAlgRoot):
     """A stage's root in an SDDP lattice, building its cost-to-go cuts with
@@ -197,13 +201,22 @@ class SddpScAlgRootBm(IAlgRoot):
         if role is None:
             return
 
+        # Whether the cut is worth keeping is the origin's call: c measures
+        # the gap at its rho, so weigh the replies with its probabilities.
+        # A "shared" master (a Markov sibling) then reweights the cut with
+        # its own, which _role_for has checked is valid (every tau == 0).
+        if role == "origin":
+            gate = self.children_multipliers
+        else:
+            gate = self._origin_multipliers(up_messages)
         c_average = 0.0
+        for node_idx, message in up_messages.items():
+            if node_idx in gate:
+                c_average += message.get_c() * gate[node_idx]
         tau_average = 0.0
         for node_idx, message in up_messages.items():
-            if node_idx not in self.children_multipliers:
-                continue
-            c_average += message.get_c() * self.children_multipliers[node_idx]
-            tau_average += message.get_tau() * self.children_multipliers[node_idx]
+            if node_idx in self.children_multipliers:
+                tau_average += message.get_tau() * self.children_multipliers[node_idx]
 
         if c_average <= 1e-6:
             cuts_list = self.cut_aggregator.get_aggregate_cuts(up_messages)
@@ -217,9 +230,21 @@ class SddpScAlgRootBm(IAlgRoot):
         elif role == "origin":
             self.rho = self.rho + c_average / (1 + tau_average)
 
+    def _own_replies(self, up_messages):
+        return [
+            message
+            for node_idx, message in up_messages.items()
+            if node_idx in self.children_multipliers
+        ]
+
+    def _origin_multipliers(self, up_messages) -> dict:
+        return next(
+            m.get_origin_multipliers() for m in self._own_replies(up_messages)
+        )
+
     def _role_for(self, up_messages: dict[NodeIdx, BdScUpMessage]) -> str | None:
-        """How this master may use these replies: "origin", "sibling" or
-        None (not at all).
+        """How this master may use these replies: "origin", "sibling",
+        "shared" or None (not at all).
 
         Lattice hands every master at a stage the same replies, but they
         were priced against one master's trial point: the rho and cuts in
@@ -227,41 +252,58 @@ class SddpScAlgRootBm(IAlgRoot):
         origin) may take the rho step -- c measures the gap at *its* rho
         and x_hat, and means nothing for anyone else's.
 
-        The cut itself is valid for a sibling only if it prices the same
-        future. The scaled cut is derived with theta at the origin's
-        expected cost-to-go (sum_s p_s Q_s, p the origin's multipliers), so
-        a sibling with the same children at the same probabilities -- a
-        stagewise-independent stage -- may take it. One with different
-        probabilities (a Markov lattice) may not: for it the cut bounds the
-        wrong expectation. It leaves these replies alone and learns when it
-        is the one visited.
+        The cut is another matter. Each child's scaled cut is
+        alpha <= q(y) + beta^T x + tau * theta over S^phi, with theta the
+        origin's cost-to-go, and the origin combines them as
+        (1 + sum_s p_s tau_s) theta >= sum_s p_s (alpha_s - beta_s^T x).
+        Who else may take it:
+
+        - "sibling": same children at the same probabilities (a
+          stagewise-independent stage). Its aggregate is the origin's.
+        - "shared": different probabilities (a Markov lattice), but every
+          child reported tau == 0. Then theta drops out of each child's
+          cut, which becomes an ordinary cut Q_s(x) >= alpha_s - beta_s^T x
+          over S^phi's projection onto x -- the stage's own feasible set,
+          the same for every node of the stage since sddpsc requires a
+          shared transition. Valid on its own, so any probabilities may
+          reweight it.
+        - None otherwise: for a Markov sibling, a cut with tau > 0 is tied
+          to the origin's theta, and so to the origin's expectation. That
+          master leaves these replies alone and learns when it is visited.
+
+        Either way the cut is only taken when the origin would take it
+        (its c, at its probabilities, is closed); see add_cuts.
 
         Replies that carry no origin (bdsc's own leaf, which does not echo
         it) are taken as this master's own, which is all a single-master
         stage ever sees.
         """
-        origins = {
-            message.get_origin()
-            for node_idx, message in up_messages.items()
-            if node_idx in self.children_multipliers
-        }
+        own = self._own_replies(up_messages)
+        origins = {message.get_origin() for message in own}
         if origins <= {None, self.idx}:
             return "origin"
         if len(origins) != 1:
             return None
-        multipliers = next(
-            message.get_origin_multipliers()
-            for node_idx, message in up_messages.items()
-            if node_idx in self.children_multipliers
-        )
-        if multipliers is None or set(multipliers) != set(self.children_multipliers):
+        multipliers = own[0].get_origin_multipliers()
+        if multipliers is None:
             return None
-        if any(
-            abs(multipliers[child] - p) > 1e-12
+        if set(multipliers) == set(self.children_multipliers) and all(
+            abs(multipliers[child] - p) <= 1e-12
             for child, p in self.children_multipliers.items()
         ):
+            return "sibling"
+        # a shared cut needs a reply from every child of this master, and
+        # the origin's gate needs one from every child of the origin
+        if not set(self.children_multipliers) <= set(up_messages):
             return None
-        return "sibling"
+        if not set(multipliers) <= set(up_messages):
+            return None
+        if all(
+            abs(up_messages[child].get_tau()) <= TAU_ZERO
+            for child in self.children_multipliers
+        ):
+            return "shared"
+        return None
 
     def reset_iteration(self) -> None:
         self.bm.reset_iteration()

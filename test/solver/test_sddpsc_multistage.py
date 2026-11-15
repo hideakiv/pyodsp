@@ -210,12 +210,12 @@ def test_two_nodes_per_stage_converge(tmp_path, stage2, expected):
 class FakeUp:
     """An up message as add_cuts reads it."""
 
-    def __init__(self, c, origin, multipliers, rhs=0.0):
+    def __init__(self, c, origin, multipliers, rhs=0.0, tau=0.0):
         from pyodsp.dec.bdsc.message import BdScUpMessage
         from pyodsp.alg.bm.cuts import OptimalityCut
 
         cut = OptimalityCut(coeffs={0: 0.0}, rhs=rhs, info={}, objective_value=rhs)
-        self.message = BdScUpMessage(cut, c, 0.0, 0.0)
+        self.message = BdScUpMessage(cut, c, tau, 0.0)
         self.message.set_origin(origin, multipliers)
 
 
@@ -229,8 +229,11 @@ def built_master(idx, multipliers):
     return alg
 
 
-def replies(c, origin, multipliers, children=(10, 11)):
-    return {k: FakeUp(c, origin, multipliers).message for k in children}
+def replies(c, origin, multipliers, children=(10, 11), tau=0.0, rhs=0.0):
+    return {
+        k: FakeUp(c, origin, multipliers, rhs=rhs, tau=tau).message
+        for k in children
+    }
 
 
 def test_only_the_origin_takes_the_rho_step():
@@ -254,15 +257,51 @@ def test_a_sibling_with_the_same_future_takes_the_cut():
     assert sibling.bm.cpm.get_num_cuts() == 1
 
 
-def test_a_sibling_with_a_different_future_leaves_the_replies_alone():
+def test_a_markov_sibling_shares_a_cut_with_tau_zero():
+    # tau == 0 makes each child's cut an ordinary one on its own cost, so
+    # the sibling reweights it with its own probabilities
+    sibling = built_master(2, {10: 0.8, 11: 0.2})
+    rho = sibling.rho
+    up = replies(0.0, origin=1, multipliers={10: 0.2, 11: 0.8})
+    up[10] = FakeUp(0.0, 1, {10: 0.2, 11: 0.8}, rhs=1.0).message
+    up[11] = FakeUp(0.0, 1, {10: 0.2, 11: 0.8}, rhs=-1.0).message
+
+    assert sibling._role_for(up) == "shared"
+    sibling.add_cuts(up)
+
+    [[cut]] = sibling.bm.get_cut_list()
+    assert cut.rhs == pytest.approx(0.8 * 1.0 + 0.2 * -1.0)
+    assert sibling.rho == pytest.approx(rho)
+
+
+def test_a_markov_sibling_takes_only_what_the_origin_would():
     sibling = built_master(2, {10: 0.8, 11: 0.2})
     rho = sibling.rho
 
-    sibling.add_cuts(replies(0.0, origin=1, multipliers={10: 0.2, 11: 0.8}))
+    # the origin's gap is still open: no cut for anyone, and no rho step
+    # for the sibling
     sibling.add_cuts(replies(1.0, origin=1, multipliers={10: 0.2, 11: 0.8}))
 
     assert sibling.bm.cpm.get_num_cuts() == 0
     assert sibling.rho == pytest.approx(rho)
+
+
+def test_a_markov_sibling_leaves_a_scaled_cut_alone():
+    # tau > 0 ties the cut to the origin's theta, hence its expectation
+    sibling = built_master(2, {10: 0.8, 11: 0.2})
+    up = replies(0.0, origin=1, multipliers={10: 0.2, 11: 0.8}, tau=0.5)
+
+    assert sibling._role_for(up) is None
+    sibling.add_cuts(up)
+
+    assert sibling.bm.cpm.get_num_cuts() == 0
+
+
+def test_a_markov_sibling_needs_a_reply_from_every_child():
+    sibling = built_master(2, {10: 0.5, 11: 0.3, 12: 0.2})
+    up = replies(0.0, origin=1, multipliers={10: 0.5, 11: 0.5})
+
+    assert sibling._role_for(up) is None
 
 
 def test_replies_without_an_origin_are_the_masters_own():

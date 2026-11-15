@@ -69,10 +69,11 @@ With more than one node per stage, the children's replies are priced
 against whichever node was visited last. Each dn message names that node
 (its origin) and the leaves echo it, so only the origin takes the rho step;
 a sibling with the same children at the same probabilities (a
-stagewise-independent stage) shares the cut, and any other node leaves the
-replies alone -- see SddpScAlgRootBm._role_for. That last rule is
-conservative: a cut with tau = 0 is an ordinary cut on each child's own
-cost and would be valid for a Markov sibling too.
+stagewise-independent stage) shares the cut. A sibling with different
+probabilities (a Markov stage) shares it only when every child reports
+tau = 0, which makes each child's cut an ordinary cut on its own cost that
+any probabilities may reweight; otherwise it leaves the replies alone --
+see SddpScAlgRootBm._role_for.
 
 Building these by hand means two models per inner node and a transition
 chain per leaf; MultistageProgram(method="sddpsc") builds all of them from
